@@ -32,9 +32,10 @@ Activate when the user's intent matches cleanup, e.g. `clean up my Mac`, `free d
 
 ### Stage 1 · Mode identification
 
-Pick `quick` or `deep` based on user intent (see table above). Then create a per-run workdir:
+Pick `quick` or `deep` based on user intent (see table above). Then create a per-run workdir (the parent dir may not exist on first run, so `mkdir -p` first):
 
 ```bash
+mkdir -p ~/.cache/mac-space-clean
 WORKDIR=$(mktemp -d ~/.cache/mac-space-clean/run-XXXXXX)
 ```
 
