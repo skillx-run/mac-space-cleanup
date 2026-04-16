@@ -78,7 +78,7 @@ class TestDispatch(unittest.TestCase):
             def fake_run(cmd, **kw):
                 # Simulate trash CLI success and actually remove the file so
                 # post-run assertions see the effect.
-                if cmd[0].endswith("trash"):
+                if os.path.basename(cmd[0]) == "trash":
                     os.remove(cmd[1])
                     return mock.Mock(returncode=0, stdout="", stderr="")
                 raise AssertionError(f"unexpected subprocess call: {cmd}")
@@ -139,7 +139,7 @@ class TestDispatch(unittest.TestCase):
                     Path(cmd[2]).parent.mkdir(parents=True, exist_ok=True)
                     Path(cmd[2]).write_bytes(b"TAR")
                     return mock.Mock(returncode=0, stdout="", stderr="")
-                if cmd[0].endswith("trash"):
+                if os.path.basename(cmd[0]) == "trash":
                     import shutil as _sh
                     _sh.rmtree(cmd[1])
                     return mock.Mock(returncode=0, stdout="", stderr="")
@@ -175,7 +175,7 @@ class TestDispatch(unittest.TestCase):
                     Path(cmd[2]).parent.mkdir(parents=True, exist_ok=True)
                     Path(cmd[2]).write_bytes(b"TAR")
                     return mock.Mock(returncode=0, stdout="", stderr="")
-                if cmd[0].endswith("trash"):
+                if os.path.basename(cmd[0]) == "trash":
                     import subprocess as _sp
                     raise _sp.CalledProcessError(1, cmd, stderr="boom")
                 raise AssertionError(f"unexpected cmd: {cmd}")

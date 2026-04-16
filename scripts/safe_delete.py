@@ -23,10 +23,25 @@ import time
 from pathlib import Path
 from typing import Any
 
-ALLOWED_ACTIONS = {"delete", "trash", "archive", "migrate", "defer", "skip"}
+ACTION_DELETE = "delete"
+ACTION_TRASH = "trash"
+ACTION_ARCHIVE = "archive"
+ACTION_MIGRATE = "migrate"
+ACTION_DEFER = "defer"
+ACTION_SKIP = "skip"
+ALLOWED_ACTIONS = {
+    ACTION_DELETE, ACTION_TRASH, ACTION_ARCHIVE,
+    ACTION_MIGRATE, ACTION_DEFER, ACTION_SKIP,
+}
+_FS_ACTIONS = {ACTION_DELETE, ACTION_TRASH, ACTION_ARCHIVE, ACTION_MIGRATE}
+
 STATUS_SUCCESS = "success"
 STATUS_ARCHIVE_ONLY = "archive_only_success"
 STATUS_FAILED = "failed"
+
+CATEGORY_SYSTEM_SNAPSHOTS = "system_snapshots"
+
+_SNAPSHOT_DATE_RE = re.compile(r"(\d{4}-\d{2}-\d{2}-\d{6})")
 
 
 def _now_ms() -> int:
@@ -35,26 +50,6 @@ def _now_ms() -> int:
 
 def _emit_error(msg: str) -> None:
     print(msg, file=sys.stderr)
-
-
-def _size_of(path: str) -> int:
-    """Return directory/file size in bytes, or 0 if unreadable."""
-    if not os.path.exists(path):
-        return 0
-    if os.path.isfile(path) or os.path.islink(path):
-        try:
-            return os.path.getsize(path)
-        except OSError:
-            return 0
-    total = 0
-    for root, _, files in os.walk(path, followlinks=False):
-        for name in files:
-            fp = os.path.join(root, name)
-            try:
-                total += os.path.getsize(fp)
-            except OSError:
-                continue
-    return total
 
 
 def _append_record(workdir: Path, record: dict[str, Any]) -> None:
@@ -80,112 +75,75 @@ def _base_record(item: dict[str, Any], action: str) -> dict[str, Any]:
     }
 
 
+def _finalize(rec: dict[str, Any], t0: float, *, dry_run: bool = False) -> dict[str, Any]:
+    """Stamp duration_ms (and dry_run flag) onto a record about to be returned."""
+    if dry_run:
+        rec["dry_run"] = True
+    rec["duration_ms"] = int((time.monotonic() - t0) * 1000)
+    return rec
+
+
 # ---------- action handlers ----------
 
 
-def _handle_delete(
-    item: dict[str, Any],
-    workdir: Path,
-    dry_run: bool,
-) -> dict[str, Any]:
-    rec = _base_record(item, "delete")
-    path = item.get("path") or ""
+def _handle_delete(item: dict[str, Any], dry_run: bool) -> dict[str, Any]:
+    rec = _base_record(item, ACTION_DELETE)
     t0 = time.monotonic()
-
-    if item.get("category") == "system_snapshots":
-        return _handle_snapshot(item, rec, dry_run, t0)
-
     if dry_run:
-        rec["dry_run"] = True
-        rec["duration_ms"] = int((time.monotonic() - t0) * 1000)
-        return rec
+        return _finalize(rec, t0, dry_run=True)
 
+    path = item.get("path") or ""
     try:
         if os.path.isdir(path) and not os.path.islink(path):
             shutil.rmtree(path)
         else:
             os.remove(path)
-    except FileNotFoundError:
-        rec["action"] = "skip"
-        rec["status"] = STATUS_SUCCESS
-        rec["error"] = "already gone"
     except OSError as e:
         rec["status"] = STATUS_FAILED
         rec["error"] = f"{type(e).__name__}: {e}"
-
-    rec["duration_ms"] = int((time.monotonic() - t0) * 1000)
-    return rec
+    return _finalize(rec, t0)
 
 
-def _handle_snapshot(
-    item: dict[str, Any],
-    rec: dict[str, Any],
-    dry_run: bool,
-    t0: float,
-) -> dict[str, Any]:
-    """tmutil deletelocalsnapshots <date>; path form: snapshot:com.apple.TimeMachine.YYYY-MM-DD-HHMMSS.local"""
-    rec["action"] = "delete"
+def _handle_snapshot_delete(item: dict[str, Any], dry_run: bool) -> dict[str, Any]:
+    """tmutil deletelocalsnapshots <date>; path form: snapshot:<...YYYY-MM-DD-HHMMSS...>"""
+    rec = _base_record(item, ACTION_DELETE)
+    t0 = time.monotonic()
     raw = item.get("path") or ""
-    m = re.search(r"(\d{4}-\d{2}-\d{2}-\d{6})", raw)
+    m = _SNAPSHOT_DATE_RE.search(raw)
     if not m:
         rec["status"] = STATUS_FAILED
         rec["error"] = f"cannot parse snapshot date from: {raw}"
-        rec["duration_ms"] = int((time.monotonic() - t0) * 1000)
-        return rec
-    date_token = m.group(1)
+        return _finalize(rec, t0)
 
     if dry_run:
-        rec["dry_run"] = True
-        rec["duration_ms"] = int((time.monotonic() - t0) * 1000)
-        return rec
+        return _finalize(rec, t0, dry_run=True)
 
     try:
         subprocess.run(
-            ["tmutil", "deletelocalsnapshots", date_token],
-            check=True,
-            capture_output=True,
-            text=True,
-            timeout=60,
+            ["tmutil", "deletelocalsnapshots", m.group(1)],
+            check=True, capture_output=True, text=True, timeout=60,
         )
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as e:
         rec["status"] = STATUS_FAILED
         rec["error"] = f"tmutil failed: {e}"
-
-    rec["duration_ms"] = int((time.monotonic() - t0) * 1000)
-    return rec
+    return _finalize(rec, t0)
 
 
-def _handle_trash(
-    item: dict[str, Any],
-    workdir: Path,
-    dry_run: bool,
-) -> dict[str, Any]:
-    rec = _base_record(item, "trash")
-    path = item.get("path") or ""
+def _handle_trash(item: dict[str, Any], dry_run: bool) -> dict[str, Any]:
+    rec = _base_record(item, ACTION_TRASH)
     t0 = time.monotonic()
-
     if dry_run:
-        rec["dry_run"] = True
         rec["trash_location"] = str(Path.home() / ".Trash")
-        rec["duration_ms"] = int((time.monotonic() - t0) * 1000)
-        return rec
+        return _finalize(rec, t0, dry_run=True)
 
-    if not os.path.exists(path):
-        rec["action"] = "skip"
-        rec["status"] = STATUS_SUCCESS
-        rec["error"] = "already gone"
-        rec["duration_ms"] = int((time.monotonic() - t0) * 1000)
-        return rec
-
+    path = item.get("path") or ""
     ok, location, err = _trash_path(path)
     if ok:
         rec["trash_location"] = location
     else:
         rec["status"] = STATUS_FAILED
         rec["error"] = err
-
-    rec["duration_ms"] = int((time.monotonic() - t0) * 1000)
-    return rec
+    return _finalize(rec, t0)
 
 
 def _trash_path(path: str) -> tuple[bool, str | None, str | None]:
@@ -194,20 +152,16 @@ def _trash_path(path: str) -> tuple[bool, str | None, str | None]:
     if trash_cli:
         try:
             subprocess.run(
-                [trash_cli, path],
-                check=True,
-                capture_output=True,
-                text=True,
-                timeout=120,
+                [trash_cli, path], check=True, capture_output=True,
+                text=True, timeout=120,
             )
             return True, str(Path.home() / ".Trash"), None
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as e:
             return False, None, f"trash cli failed: {e}"
 
-    # Fallback: shutil.move into ~/.Trash with a timestamped suffix
     trash_dir = Path.home() / ".Trash"
     trash_dir.mkdir(exist_ok=True)
-    basename = os.path.basename(path.rstrip("/")) or "item"
+    basename = Path(path).name or "item"
     dest = trash_dir / f"{basename}-{int(time.time())}"
     try:
         shutil.move(path, str(dest))
@@ -222,62 +176,44 @@ def _handle_archive(
     dry_run: bool,
     overrides: dict[str, Any],
 ) -> dict[str, Any]:
-    rec = _base_record(item, "archive")
-    path = item.get("path") or ""
-    category = item.get("category") or "orphan"
+    rec = _base_record(item, ACTION_ARCHIVE)
+    t0 = time.monotonic()
+
     fmt = (overrides.get("archive_format") or "tar.gz").lower()
     if fmt != "tar.gz":
         rec["status"] = STATUS_FAILED
         rec["error"] = f"unsupported archive_format: {fmt}"
-        return rec
+        return _finalize(rec, t0)
 
+    path = item.get("path") or ""
+    category = item.get("category") or "orphan"
     archive_dir = workdir / "archive" / category
-    basename = os.path.basename(path.rstrip("/")) or "item"
+    basename = Path(path).name or "item"
     archive_path = archive_dir / f"{basename}.tar.gz"
     rec["archive_location"] = str(archive_path)
-    t0 = time.monotonic()
 
     if dry_run:
-        rec["dry_run"] = True
-        rec["duration_ms"] = int((time.monotonic() - t0) * 1000)
-        return rec
-
-    if not os.path.exists(path):
-        rec["action"] = "skip"
-        rec["status"] = STATUS_SUCCESS
-        rec["error"] = "already gone"
-        rec["archive_location"] = None
-        rec["duration_ms"] = int((time.monotonic() - t0) * 1000)
-        return rec
+        return _finalize(rec, t0, dry_run=True)
 
     archive_dir.mkdir(parents=True, exist_ok=True)
-
-    # Step 1: tar
     try:
         subprocess.run(
-            ["tar", "czf", str(archive_path), "-C", os.path.dirname(path) or "/", basename],
-            check=True,
-            capture_output=True,
-            text=True,
-            timeout=600,
+            ["tar", "czf", str(archive_path),
+             "-C", os.path.dirname(path) or "/", basename],
+            check=True, capture_output=True, text=True, timeout=600,
         )
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as e:
         rec["status"] = STATUS_FAILED
         rec["error"] = f"tar failed: {e}"
-        rec["duration_ms"] = int((time.monotonic() - t0) * 1000)
-        return rec
+        return _finalize(rec, t0)
 
-    # Step 2: trash original
     ok, trash_loc, err = _trash_path(path)
     if ok:
         rec["trash_location"] = trash_loc
-        rec["status"] = STATUS_SUCCESS
     else:
         rec["status"] = STATUS_ARCHIVE_ONLY
         rec["error"] = f"archive ok but trash failed: {err}"
-
-    rec["duration_ms"] = int((time.monotonic() - t0) * 1000)
-    return rec
+    return _finalize(rec, t0)
 
 
 def _handle_migrate(
@@ -286,63 +222,42 @@ def _handle_migrate(
     dry_run: bool,
     overrides: dict[str, Any],
 ) -> dict[str, Any]:
-    rec = _base_record(item, "migrate")
-    path = item.get("path") or ""
-    dest = overrides.get("migrate_dest")
+    rec = _base_record(item, ACTION_MIGRATE)
     t0 = time.monotonic()
 
+    dest = overrides.get("migrate_dest")
     if not dest:
         rec["status"] = STATUS_FAILED
         rec["error"] = "migrate_dest missing in action_overrides"
-        rec["duration_ms"] = int((time.monotonic() - t0) * 1000)
-        return rec
+        return _finalize(rec, t0)
 
     rec["migrate_destination"] = dest
-
     if dry_run:
-        rec["dry_run"] = True
-        rec["duration_ms"] = int((time.monotonic() - t0) * 1000)
-        return rec
+        return _finalize(rec, t0, dry_run=True)
 
-    if not os.path.exists(path):
-        rec["action"] = "skip"
-        rec["status"] = STATUS_SUCCESS
-        rec["error"] = "already gone"
-        rec["duration_ms"] = int((time.monotonic() - t0) * 1000)
-        return rec
-
-    # Writability check on destination
+    path = item.get("path") or ""
     dest_dir = dest if os.path.isdir(dest) else os.path.dirname(dest) or dest
-    if not os.path.exists(dest_dir):
-        try:
-            os.makedirs(dest_dir, exist_ok=True)
-        except OSError as e:
-            rec["status"] = STATUS_FAILED
-            rec["error"] = f"cannot create dest: {e}"
-            rec["duration_ms"] = int((time.monotonic() - t0) * 1000)
-            return rec
+    try:
+        os.makedirs(dest_dir, exist_ok=True)
+    except OSError as e:
+        rec["status"] = STATUS_FAILED
+        rec["error"] = f"cannot create dest: {e}"
+        return _finalize(rec, t0)
     if not os.access(dest_dir, os.W_OK):
         rec["status"] = STATUS_FAILED
         rec["error"] = f"dest not writable: {dest_dir}"
-        rec["duration_ms"] = int((time.monotonic() - t0) * 1000)
-        return rec
+        return _finalize(rec, t0)
 
-    # Run rsync -a --remove-source-files
     try:
         subprocess.run(
             ["rsync", "-a", "--remove-source-files", path, dest],
-            check=True,
-            capture_output=True,
-            text=True,
-            timeout=1800,
+            check=True, capture_output=True, text=True, timeout=1800,
         )
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as e:
         rec["status"] = STATUS_FAILED
         rec["error"] = f"rsync failed: {e}"
-        rec["duration_ms"] = int((time.monotonic() - t0) * 1000)
-        return rec
+        return _finalize(rec, t0)
 
-    # Trash the (now empty) source directory shell
     if os.path.isdir(path):
         ok, trash_loc, err = _trash_path(path)
         if ok:
@@ -350,13 +265,11 @@ def _handle_migrate(
         else:
             rec["status"] = STATUS_ARCHIVE_ONLY
             rec["error"] = f"migrate ok but source shell trash failed: {err}"
-
-    rec["duration_ms"] = int((time.monotonic() - t0) * 1000)
-    return rec
+    return _finalize(rec, t0)
 
 
 def _handle_defer(item: dict[str, Any], workdir: Path, dry_run: bool) -> dict[str, Any]:
-    rec = _base_record(item, "defer")
+    rec = _base_record(item, ACTION_DEFER)
     rec["dry_run"] = dry_run
     if not dry_run:
         deferred_file = workdir / "deferred.jsonl"
@@ -366,7 +279,7 @@ def _handle_defer(item: dict[str, Any], workdir: Path, dry_run: bool) -> dict[st
 
 
 def _handle_skip(item: dict[str, Any]) -> dict[str, Any]:
-    rec = _base_record(item, "skip")
+    rec = _base_record(item, ACTION_SKIP)
     rec["error"] = item.get("reason") or "user skipped"
     return rec
 
@@ -387,26 +300,30 @@ def dispatch(
         rec["error"] = f"unknown action: {action}"
         return rec
 
-    # Idempotency pre-check (skip for defer/skip which don't touch fs)
+    is_snapshot = item.get("category") == CATEGORY_SYSTEM_SNAPSHOTS
     path = item.get("path") or ""
-    if action in {"delete", "trash", "archive", "migrate"}:
-        is_snapshot = item.get("category") == "system_snapshots"
-        if not is_snapshot and path and not os.path.exists(path) and not dry_run:
-            rec = _base_record(item, "skip")
-            rec["error"] = "already gone"
-            return rec
 
-    if action == "delete":
-        return _handle_delete(item, workdir, dry_run)
-    if action == "trash":
-        return _handle_trash(item, workdir, dry_run)
-    if action == "archive":
+    # Idempotency: if a real fs target is gone, short-circuit to skip.
+    # Snapshots use a synthetic "snapshot:..." path that never exists on disk,
+    # so they bypass this check.
+    if (action in _FS_ACTIONS and not is_snapshot
+            and path and not dry_run and not os.path.exists(path)):
+        rec = _base_record(item, ACTION_SKIP)
+        rec["error"] = "already gone"
+        return rec
+
+    if action == ACTION_DELETE:
+        if is_snapshot:
+            return _handle_snapshot_delete(item, dry_run)
+        return _handle_delete(item, dry_run)
+    if action == ACTION_TRASH:
+        return _handle_trash(item, dry_run)
+    if action == ACTION_ARCHIVE:
         return _handle_archive(item, workdir, dry_run, overrides)
-    if action == "migrate":
+    if action == ACTION_MIGRATE:
         return _handle_migrate(item, workdir, dry_run, overrides)
-    if action == "defer":
+    if action == ACTION_DEFER:
         return _handle_defer(item, workdir, dry_run)
-    # action == "skip"
     return _handle_skip(item)
 
 
@@ -454,20 +371,14 @@ def run(argv: list[str] | None = None) -> int:
         status = rec.get("status")
         action = rec.get("action")
 
-        if action == "defer":
+        if action == ACTION_DEFER:
             deferred += 1
         elif status == STATUS_FAILED:
             failed += 1
         elif status == STATUS_ARCHIVE_ONLY:
             archive_only += 1
-        elif action in {"delete", "trash", "archive", "migrate"} and status == STATUS_SUCCESS:
-            size = rec.get("size_before_bytes") or 0
-            if args.dry_run:
-                reclaimed += size
-            elif action == "archive":
-                reclaimed += size
-            else:
-                reclaimed += size
+        elif action in _FS_ACTIONS and status == STATUS_SUCCESS:
+            reclaimed += rec.get("size_before_bytes") or 0
 
     summary = {
         "records": records,
