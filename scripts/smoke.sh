@@ -19,16 +19,29 @@ trap 'rm -rf "$WORKDIR"' EXIT
 echo "smoke workdir: $WORKDIR"
 
 # ---------------------------------------------------------------------
-# Stage A: collect_sizes against real (and one fake) path
+# Stage A: collect_sizes against deterministic real (and one fake) paths.
+# Use self-created tempdirs so behaviour is identical on any macOS host
+# (including CI runners where ~/.Trash or ~/Library/Caches may be missing
+# or empty).
 # ---------------------------------------------------------------------
-cat > "$WORKDIR/paths.json" <<'EOF'
-{"paths":[
-  "~/Library/Caches",
-  "~/Library/Logs",
-  "~/.Trash",
-  "/this/path/definitely/does/not/exist/xyz-12345"
-]}
-EOF
+REAL_A="$(mktemp -d -t mac-space-clean-real-A-XXXXXX)"
+REAL_B="$(mktemp -d -t mac-space-clean-real-B-XXXXXX)"
+REAL_C="$(mktemp -d -t mac-space-clean-real-C-XXXXXX)"
+echo "x" > "$REAL_A/sample"
+dd if=/dev/zero of="$REAL_B/blob" bs=1024 count=4 status=none
+dd if=/dev/zero of="$REAL_C/blob" bs=1024 count=8 status=none
+trap 'rm -rf "$WORKDIR" "$REAL_A" "$REAL_B" "$REAL_C"' EXIT
+
+REAL_A_J="$REAL_A" REAL_B_J="$REAL_B" REAL_C_J="$REAL_C" python3 - "$WORKDIR/paths.json" <<'PY'
+import json, os, sys
+paths = [
+    os.environ["REAL_A_J"],
+    os.environ["REAL_B_J"],
+    os.environ["REAL_C_J"],
+    "/this/path/definitely/does/not/exist/xyz-12345",
+]
+json.dump({"paths": paths}, open(sys.argv[1], "w"))
+PY
 
 echo "--- A1: collect_sizes.py ---"
 # collect_sizes returns exit 1 when any path errors (the fake one will);

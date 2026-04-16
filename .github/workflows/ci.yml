@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Unit + smoke (macOS)
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          sw_vers
+          python3 --version
+          which -a python3
+
+      - name: Unit tests
+        run: python3 -m unittest discover -s tests -v
+
+      - name: End-to-end smoke
+        run: ./scripts/smoke.sh
