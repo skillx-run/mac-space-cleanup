@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14171c"/>
+      <stop offset="1" stop-color="#0b0d10"/>
+    </linearGradient>
+    <style>
+      .t-brand { font: 600 28px -apple-system, "SF Pro Text", "Inter", sans-serif; fill: #9aa5b1; }
+      .t-mode { font: 600 24px -apple-system, "SF Pro Text", "Inter", sans-serif; fill: #7ee2b8; letter-spacing: 2px; text-transform: uppercase; }
+      .t-free { font: 800 180px -apple-system, "SF Pro Display", "Inter", sans-serif; fill: #e6edf3; letter-spacing: -4px; }
+      .t-free-unit { font: 600 60px -apple-system, "SF Pro Display", "Inter", sans-serif; fill: #7ee2b8; }
+      .t-label { font: 500 22px -apple-system, "SF Pro Text", "Inter", sans-serif; fill: #9aa5b1; }
+      .t-top { font: 600 28px -apple-system, "SF Pro Text", "Inter", sans-serif; fill: #e6edf3; }
+      .t-foot { font: 500 22px -apple-system, "SF Pro Text", "Inter", sans-serif; fill: #9aa5b1; }
+      .t-handle { fill: #7ee2b8; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect x="24" y="24" width="1152" height="582" rx="20" ry="20" fill="none" stroke="#262c34" stroke-width="2"/>
+
+  <text x="72" y="110" class="t-brand">mac-space-clean</text>
+  <text x="72" y="150" class="t-mode">${mode_label}</text>
+
+  <text x="72" y="360" class="t-free">${free_reclaimed}</text>
+  <text x="72" y="405" class="t-label">reclaimed on my Mac</text>
+
+  <text x="72" y="490" class="t-label">top sources</text>
+  <text x="72" y="530" class="t-top">${top_categories}</text>
+
+  <text x="72" y="580" class="t-foot">by <tspan class="t-handle">@heyiamlin</tspan></text>
+</svg>
