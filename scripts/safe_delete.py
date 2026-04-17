@@ -78,6 +78,30 @@ CATEGORY_SIM_RUNTIME = "sim_runtime"
 _SNAPSHOT_DATE_RE = re.compile(r"(\d{4}-\d{2}-\d{2}-\d{6})")
 _SIMCTL_UDID_RE = re.compile(r"/CoreSimulator/Devices/([0-9A-Fa-f-]{36})(?:/|$)")
 
+# Last-line-of-defence regex blocklist. Even if confirmed.json wrongly
+# requests a delete/trash on these paths (agent misjudgement, malformed
+# input, etc.), dispatch() refuses to act. Patterns are intentionally
+# narrow — they target categories of high-value paths that no rule in
+# category-rules.md should ever target. To opt out you must change the
+# pattern here AND have a clear reason in the commit message.
+_BLOCKED_PATTERNS = (
+    re.compile(r"(^|/)\.git(/|$)"),
+    re.compile(r"(^|/)\.ssh(/|$)"),
+    re.compile(r"(^|/)\.gnupg(/|$)"),
+    re.compile(r"/Library/Keychains(/|$)"),
+    re.compile(r"/Library/Mail(/|$)"),
+    re.compile(r"/Library/Messages(/|$)"),
+    re.compile(r"/Library/Mobile Documents(/|$)"),       # iCloud Drive mirror
+    re.compile(r"/Photos Library\.photoslibrary(/|$)"),
+    re.compile(r"/Music/Music(/|$)"),                    # Apple Music library
+    re.compile(r"\.(env|envrc)$"),
+    re.compile(r"(^|/)id_(rsa|ed25519|ecdsa|dsa)(\.pub)?$"),
+)
+
+
+def _is_blocked(path: str) -> bool:
+    return any(p.search(path) for p in _BLOCKED_PATTERNS)
+
 
 def _now_ms() -> int:
     return int(time.time() * 1000)
@@ -378,6 +402,16 @@ def dispatch(
     is_sim_runtime = category == CATEGORY_SIM_RUNTIME
     is_specialised = is_snapshot or is_sim_runtime
     path = item.get("path") or ""
+
+    # Hard backstop: refuse fs-touching actions on high-value paths even if
+    # confirmed.json explicitly requests them. Specialised categories use
+    # synthetic paths and bypass this. defer/skip don't touch anything.
+    if (action in _FS_ACTIONS and not is_specialised
+            and path and _is_blocked(path)):
+        rec = _base_record(item, action)
+        rec["status"] = STATUS_FAILED
+        rec["error"] = "blocked by safety pattern in safe_delete._BLOCKED_PATTERNS"
+        return rec
 
     # Idempotency: if a real fs target is gone, short-circuit to skip.
     # Specialised categories (snapshots, simulators) use synthetic paths or

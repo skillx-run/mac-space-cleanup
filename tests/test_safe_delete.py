@@ -388,6 +388,86 @@ class TestDispatch(unittest.TestCase):
             self.assertEqual(len(rsync_calls), 1)
             self.assertIn("--remove-source-files", rsync_calls[0])
 
+    def test_blocked_pattern_refuses_delete_on_ssh(self):
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td) / "work"
+            ssh_dir = Path(td) / ".ssh"
+            ssh_dir.mkdir()
+            (ssh_dir / "id_rsa").write_text("PRIVATE KEY")
+
+            payload = {
+                "confirmed_items": [
+                    {"id": "ssh1", "path": str(ssh_dir),
+                     "action": "delete", "size_bytes": 100,
+                     "category": "app_cache", "risk_level": "L1",
+                     "reason": "agent misjudgement"}
+                ]
+            }
+            code, out, _ = _run_with_payload(payload, work)
+
+            self.assertEqual(code, 1)
+            rec = out["records"][0]
+            self.assertEqual(rec["status"], "failed")
+            self.assertIn("blocked by safety pattern", rec["error"])
+            # Crucially, the file is still there.
+            self.assertTrue((ssh_dir / "id_rsa").exists())
+
+    def test_blocked_pattern_refuses_trash_on_keychains(self):
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td) / "work"
+            target = Path(td) / "Library" / "Keychains" / "login.keychain-db"
+            target.parent.mkdir(parents=True)
+            target.write_text("KEY")
+
+            payload = {
+                "confirmed_items": [
+                    {"id": "kc1", "path": str(target),
+                     "action": "trash", "size_bytes": 50,
+                     "category": "app_cache", "risk_level": "L2",
+                     "reason": "agent thought it was a cache"}
+                ]
+            }
+            code, out, _ = _run_with_payload(payload, work)
+
+            self.assertEqual(code, 1)
+            rec = out["records"][0]
+            self.assertEqual(rec["status"], "failed")
+            self.assertIn("blocked by safety pattern", rec["error"])
+            self.assertTrue(target.exists())
+
+    def test_blocked_pattern_refuses_env_file(self):
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td) / "work"
+            target = Path(td) / ".env"
+            target.write_text("SECRET=1")
+
+            payload = {
+                "confirmed_items": [
+                    {"id": "env1", "path": str(target),
+                     "action": "delete", "size_bytes": 10,
+                     "category": "orphan", "risk_level": "L1", "reason": "t"}
+                ]
+            }
+            code, out, _ = _run_with_payload(payload, work)
+
+            self.assertEqual(code, 1)
+            self.assertIn("blocked by safety pattern", out["records"][0]["error"])
+            self.assertTrue(target.exists())
+
+    def test_blocked_pattern_does_not_match_unrelated_paths(self):
+        # Verify the regex set doesn't false-positive on adjacent names.
+        from safe_delete import _is_blocked
+        self.assertFalse(_is_blocked("/Users/me/Library/Caches/com.foo"))
+        self.assertFalse(_is_blocked("/Users/me/Downloads/git-tutorial.pdf"))
+        self.assertFalse(_is_blocked("/Users/me/Documents/notes.txt"))
+        self.assertFalse(_is_blocked("/Users/me/.envvars-old.txt"))
+        # And does match the protected ones
+        self.assertTrue(_is_blocked("/Users/me/projects/foo/.git/objects"))
+        self.assertTrue(_is_blocked("/Users/me/.ssh/config"))
+        self.assertTrue(_is_blocked("/Users/me/Library/Keychains/login.keychain-db"))
+        self.assertTrue(_is_blocked("/Users/me/Pictures/Photos Library.photoslibrary/originals"))
+        self.assertTrue(_is_blocked("/Users/me/Documents/.env"))
+
     def test_migrate_dest_not_writable_fails_without_rsync(self):
         with tempfile.TemporaryDirectory() as td:
             work = Path(td) / "work"
