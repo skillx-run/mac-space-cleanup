@@ -15,11 +15,32 @@ Activate when the user's intent matches cleanup, e.g. `clean up my Mac`, `free d
 
 ## Mode selection
 
-| User intent | Mode |
-| --- | --- |
-| "quick clean", "马上腾点空间", "先清一波" | `quick` |
-| "deep clean", "深度清理", "分析一下空间去哪了" | `deep` |
-| Generic ("clean my Mac" with no qualifier) | `deep` (default: scan first, do not aggressively delete) |
+Three-tier decision: strong-quick signal → quick; strong-deep signal → deep; otherwise ask the user. Do **not** silently default to either mode when the intent is ambiguous — the wrong default frustrates the user (quick for someone who wanted analysis, or a 5-minute deep run for someone who wanted "just free up space fast").
+
+### Strong `quick` signals (any match → run quick, no question)
+
+EN: `quick clean`, `quick cleanup`, `free up space fast`, `free some space now`, `clean fast`, `tidy up fast`
+ZH: `快速清理`, `快速清一下`, `快点清理`, `马上腾点空间`, `先清一波`, `腾点空间`
+
+### Strong `deep` signals (any match → run deep, no question)
+
+EN: `deep clean`, `analyze`, `analyse`, `find what's eating`, `where did my disk go`, `find big files`, `audit my disk`
+ZH: `深度清理`, `深度`, `分析空间`, `分析一下空间`, `空间都去哪了`, `找大头`, `找出占空间的`
+
+### Ambiguous (no strong signal) → **ask the user**
+
+Examples that trigger the question: `clean up my Mac`, `clean my Mac`, `Mac 空间满了`, `盘满了`, `磁盘满了`, `tidy up my Mac`, plain `cleanup`.
+
+Use the `AskUserQuestion` tool with a single question, two options:
+
+- **Quick clean** — "Free space fast (~30s). Auto-cleans low-risk caches and obvious old installers; skips bigger investigations."
+- **Deep clean** — "Full audit (~2-5 min). Scans everything, asks per-item for risky stuff, generates a full report."
+
+Honour the user's choice. If they pick "Other" (free text) and the text matches a strong signal above, use that mode; otherwise re-ask once.
+
+### Escape hatch
+
+If the user's wording is not in the lists but its meaning is unmistakable to you (e.g. an unambiguous translation, a clear hybrid phrase), you may pick the matching mode without asking. When in doubt, ask.
 
 ## What you must NOT do
 
@@ -32,7 +53,12 @@ Activate when the user's intent matches cleanup, e.g. `clean up my Mac`, `free d
 
 ### Stage 1 · Mode identification
 
-Pick `quick` or `deep` based on user intent (see table above). Then create a per-run workdir (the parent dir may not exist on first run, so `mkdir -p` first):
+Apply the three-tier decision from "Mode selection" above:
+1. Strong quick signal → `MODE=quick`.
+2. Strong deep signal → `MODE=deep`.
+3. Ambiguous → call `AskUserQuestion` with the two options described above; do not proceed until you have a mode.
+
+Then create a per-run workdir (the parent dir may not exist on first run, so `mkdir -p` first):
 
 ```bash
 mkdir -p ~/.cache/mac-space-clean
