@@ -68,6 +68,10 @@ class TestDispatch(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertFalse(target.exists())
             self.assertEqual(out["reclaimed_bytes"], 500)
+            self.assertEqual(out["freed_now_bytes"], 500)
+            self.assertEqual(out["pending_in_trash_bytes"], 0)
+            self.assertEqual(out["archived_source_bytes"], 0)
+            self.assertEqual(out["archived_count"], 0)
             self.assertEqual(out["records"][0]["status"], "success")
 
     def test_trash_uses_cli_when_available(self):
@@ -98,6 +102,8 @@ class TestDispatch(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertEqual(out["records"][0]["status"], "success")
             self.assertIsNotNone(out["records"][0]["trash_location"])
+            self.assertEqual(out["freed_now_bytes"], 0)
+            self.assertEqual(out["pending_in_trash_bytes"], 200)
             m_run.assert_called_once()
 
     def test_trash_falls_back_to_move_when_no_cli(self):
@@ -124,6 +130,8 @@ class TestDispatch(unittest.TestCase):
             trashed = list((fake_home / ".Trash").iterdir())
             self.assertEqual(len(trashed), 1)
             self.assertIn("fallback.bin", trashed[0].name)
+            self.assertEqual(out["pending_in_trash_bytes"], 300)
+            self.assertEqual(out["freed_now_bytes"], 0)
 
     def test_archive_success_full(self):
         with tempfile.TemporaryDirectory() as td:
@@ -163,6 +171,10 @@ class TestDispatch(unittest.TestCase):
             self.assertTrue(rec["archive_location"].endswith("pile.tar.gz"))
             self.assertIsNotNone(rec["trash_location"])
             self.assertFalse(target.exists())
+            self.assertEqual(out["pending_in_trash_bytes"], 400)
+            self.assertEqual(out["archived_source_bytes"], 400)
+            self.assertEqual(out["archived_count"], 1)
+            self.assertEqual(out["freed_now_bytes"], 0)
 
     def test_archive_only_success_when_trash_fails(self):
         with tempfile.TemporaryDirectory() as td:
@@ -198,8 +210,12 @@ class TestDispatch(unittest.TestCase):
             self.assertEqual(rec["status"], "archive_only_success")
             self.assertTrue(rec["archive_location"])
             self.assertIsNotNone(rec["error"])
-            # reclaimed_bytes should NOT include this item
+            # No metric counts the partial state.
             self.assertEqual(out["reclaimed_bytes"], 0)
+            self.assertEqual(out["freed_now_bytes"], 0)
+            self.assertEqual(out["pending_in_trash_bytes"], 0)
+            self.assertEqual(out["archived_source_bytes"], 0)
+            self.assertEqual(out["archived_count"], 0)
             self.assertEqual(out["archive_only_count"], 1)
 
     def test_system_snapshots_invokes_tmutil(self):
@@ -364,6 +380,9 @@ class TestDispatch(unittest.TestCase):
             self.assertEqual(rec["migrate_destination"], str(dest))
             self.assertIsNotNone(rec["trash_location"])
             self.assertFalse(target.exists())
+            # migrate success counts toward freed_now (different volume).
+            self.assertEqual(out["freed_now_bytes"], 100)
+            self.assertEqual(out["pending_in_trash_bytes"], 0)
             # rsync must have been called with the full move semantics
             rsync_calls = [c for c in calls if c[0] == "rsync"]
             self.assertEqual(len(rsync_calls), 1)
@@ -515,6 +534,10 @@ class TestDispatch(unittest.TestCase):
             self.assertTrue(target.exists())
             for rec in out["records"]:
                 self.assertTrue(rec["dry_run"])
+            # Dry-run accumulates same way as real run, using size_before_bytes.
+            # delete -> freed_now; trash -> pending_in_trash.
+            self.assertEqual(out["freed_now_bytes"], 700)
+            self.assertEqual(out["pending_in_trash_bytes"], 700)
             self.assertEqual(out["reclaimed_bytes"], 1400)
 
     def test_empty_items(self):

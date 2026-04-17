@@ -163,11 +163,11 @@ Use `--dry-run` whenever you want a rehearsal: no filesystem writes except `acti
    - `${mode_label}` → `Quick Clean` or `Deep Clean`.
    - `${top_categories}` → up to 3 `source_label`s joined with ` · `, e.g. `Docker · Downloads · Xcode`.
 
-6. Write the two share-text files:
+6. Write the two share-text files. **Use `freed_now_bytes` as the headline** (not `reclaimed_bytes`) — share text must reflect bytes that are *actually* off the disk, not bytes still sitting in `~/.Trash`.
 
    - `$WORKDIR/share.en.txt` (default):
      ```
-     I just reclaimed {reclaimed} on my Mac with the mac-space-clean skill by @heyiamlin.
+     I just reclaimed {freed_now} on my Mac with the mac-space-clean skill by @heyiamlin.
 
      Biggest wins: {top3_joined}.
 
@@ -176,12 +176,12 @@ Use `--dry-run` whenever you want a rehearsal: no filesystem writes except `acti
 
    - `$WORKDIR/share.zh.txt`:
      ```
-     我刚用 mac-space-clean 这个 skill 清理了 Mac,释放了 {reclaimed} 空间,作者 @heyiamlin。
+     我刚用 mac-space-clean 这个 skill 清理了 Mac,释放了 {freed_now} 空间,作者 @heyiamlin。
 
      这次最大的空间回收来自 {top3_joined_zh}。
      ```
 
-   Only substitute: `{reclaimed}`, `{top3_joined}`, `{top3_joined_zh}` (use the same `source_label` taxonomy; no paths, no usernames, no project names).
+   Only substitute: `{freed_now}` (human-readable string from `freed_now_bytes`), `{top3_joined}`, `{top3_joined_zh}`. Same `source_label` taxonomy applies; no paths, usernames, or project names.
 
 7. Open the report:
 
@@ -189,7 +189,13 @@ Use `--dry-run` whenever you want a rehearsal: no filesystem writes except `acti
    open "$WORKDIR/report.html"
    ```
 
-8. Summarise to the user in one short paragraph: mode, reclaimed bytes (with the caveat that trash-based reclaim requires emptying `~/.Trash`), deferred count, and the report path.
+8. Summarise to the user in one short paragraph that **always reports both numbers**:
+   - `freed_now_bytes` — already off the disk.
+   - `pending_in_trash_bytes` — waiting in `~/.Trash`; mention that emptying trash converts it to free space (the report's "One last step" section gives the one-line command).
+   - `archived_count` if any (archive_source goes into the workdir, point user at it).
+   - `deferred_count` and the report path.
+
+   Honest framing: never report `reclaimed_bytes` to the user as "freed" — that field is back-compat only.
 
 ## `cleanup-result.json` schema
 
@@ -206,8 +212,17 @@ Use `--dry-run` whenever you want a rehearsal: no filesystem writes except `acti
      "reversible": <bool>, "reason"}
   ],
   "actions": [ /* raw rows from actions.jsonl */ ],
-  "totals": {"scanned_bytes", "reclaimed_bytes", "skipped_bytes",
-             "deferred_bytes", "failed_bytes"},
+  "totals": {
+    "scanned_bytes",
+    "freed_now_bytes",          // disk already free (delete + migrate)
+    "pending_in_trash_bytes",   // waiting in ~/.Trash (trash + archive originals)
+    "archived_source_bytes",    // fully-successful archive originals
+    "archived_count",
+    "reclaimed_bytes",          // deprecated alias = freed_now + pending_in_trash
+    "skipped_bytes",
+    "deferred_bytes",
+    "failed_bytes"
+  },
   "risk_breakdown": {"L1": {"count","bytes"}, "L2": {...}, "L3": {...}, "L4": {...}}
 }
 ```

@@ -72,5 +72,11 @@ This document defines the **risk grading, default actions, confirmation bars, re
 1. **Agent never writes the filesystem directly for cleanup purposes.** Every `delete / trash / archive / migrate / defer` must go through `scripts/safe_delete.py`. The only direct filesystem writes the agent performs are: (a) writing JSON files to `$WORKDIR`, (b) copying templates into `$WORKDIR` and editing the copies.
 2. **Workdir is per-run.** `$WORKDIR = ~/.cache/mac-space-clean/run-XXXXXX` from `mktemp -d`. Never reuse across runs.
 3. **`actions.jsonl` is append-only and authoritative.** If the batch is interrupted, re-running with the same `confirmed.json` is safe: already-processed items (paths gone) become `skip` with `reason="already gone"`.
-4. **Reclaimed bytes are honest.** Trash does not free disk until `~/.Trash` is emptied; the report must say so. Archive that succeeds without trashing the original counts as `archive_only_success`, not `success`, and does not contribute to `reclaimed_bytes`.
+4. **Reclaimed bytes are honest, and split into three buckets.** A single `reclaimed_bytes` number is misleading because trash does not free disk until `~/.Trash` is emptied. `safe_delete.py` therefore reports four fields:
+   - `freed_now_bytes` — disk *is already* free (delete + migrate).
+   - `pending_in_trash_bytes` — bytes waiting in `~/.Trash` (trash + the originals of fully-successful archive). User must empty trash to convert this to free space.
+   - `archived_source_bytes` / `archived_count` — fully-successful archive items.
+   - `reclaimed_bytes` (deprecated alias) — `freed_now + pending_in_trash`, kept only for v0.1 consumers.
+
+   The report's headline number and the share text default to `freed_now_bytes`. The "One last step" report region surfaces `pending_in_trash_bytes` and the one-line `osascript` command to empty trash, so users can convert pending into freed without leaving the report. Archive that succeeds without trashing the original (`archive_only_success`) contributes to none of these four — it is surfaced separately in the report's deferred section so the user can recover the partial state manually.
 5. **No undo stack.** Recovery paths: `trash` → restore from Finder; `archive` → extract the tar from `workdir/archive/`; `migrate` → browse the target volume. If a user asks to "undo the last cleanup," point them at these artefacts.

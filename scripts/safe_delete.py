@@ -7,6 +7,36 @@ and appends one ActionRecord per item to <workdir>/actions.jsonl.
 
 The agent must route every cleanup write through this script; agents must
 not call rm/mv/trash directly.
+
+Reclaim accounting (stdout summary fields)
+------------------------------------------
+- ``freed_now_bytes``       sum of ``size_before_bytes`` for successful
+                            ``delete`` (incl. specialised
+                            ``system_snapshots`` / ``sim_runtime``) and
+                            successful ``migrate`` items. These bytes are
+                            already off the disk.
+- ``pending_in_trash_bytes`` sum for successful ``trash`` and the
+                            originals of fully-successful ``archive``
+                            items. Disk is *not* yet released — user must
+                            empty ~/.Trash.
+- ``archived_source_bytes`` sum of original sizes for fully-successful
+                            ``archive`` items (the .tar.gz files live in
+                            the workdir; we report source size, not tar
+                            size, to avoid an extra stat).
+- ``archived_count``        count of fully-successful ``archive`` items.
+- ``reclaimed_bytes``       deprecated back-compat alias =
+                            freed_now_bytes + pending_in_trash_bytes.
+                            Kept for v0.1 consumers; new code should use
+                            the split fields.
+
+``status=archive_only_success`` items contribute to none of the above
+(they are surfaced via ``archive_only_count`` and the report's deferred
+section so the user can recover the partial state manually).
+
+Dry-run mode (``--dry-run``) accumulates the same way as a successful real
+run, using ``size_before_bytes`` from the input as the estimate. So a
+dry-run summary matches the upper bound a real run would reach if every
+target succeeded.
 """
 
 from __future__ import annotations
@@ -396,7 +426,10 @@ def run(argv: list[str] | None = None) -> int:
         return 2
 
     records: list[dict[str, Any]] = []
-    reclaimed = 0
+    freed_now = 0
+    pending_in_trash = 0
+    archived_source = 0
+    archived_count = 0
     deferred = 0
     failed = 0
     archive_only = 0
@@ -416,6 +449,7 @@ def run(argv: list[str] | None = None) -> int:
 
         status = rec.get("status")
         action = rec.get("action")
+        size = rec.get("size_before_bytes") or 0
 
         if action == ACTION_DEFER:
             deferred += 1
@@ -423,12 +457,27 @@ def run(argv: list[str] | None = None) -> int:
             failed += 1
         elif status == STATUS_ARCHIVE_ONLY:
             archive_only += 1
-        elif action in _FS_ACTIONS and status == STATUS_SUCCESS:
-            reclaimed += rec.get("size_before_bytes") or 0
+        elif status == STATUS_SUCCESS:
+            # See module docstring "Reclaim accounting" for the dry-run rules
+            # that mirror this branch's real-run accounting.
+            if action in {ACTION_DELETE, ACTION_MIGRATE}:
+                freed_now += size
+            elif action == ACTION_TRASH:
+                pending_in_trash += size
+            elif action == ACTION_ARCHIVE:
+                pending_in_trash += size
+                archived_source += size
+                archived_count += 1
 
     summary = {
         "records": records,
-        "reclaimed_bytes": reclaimed,
+        "freed_now_bytes": freed_now,
+        "pending_in_trash_bytes": pending_in_trash,
+        "archived_source_bytes": archived_source,
+        "archived_count": archived_count,
+        # Back-compat: reclaimed_bytes == freed_now + pending_in_trash.
+        # Prefer the split fields above; this stays for v0.1 consumers.
+        "reclaimed_bytes": freed_now + pending_in_trash,
         "deferred_count": deferred,
         "failed_count": failed,
         "archive_only_count": archive_only,
