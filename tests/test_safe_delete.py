@@ -535,9 +535,11 @@ class TestDispatch(unittest.TestCase):
             for rec in out["records"]:
                 self.assertTrue(rec["dry_run"])
             # Dry-run accumulates same way as real run, using size_before_bytes.
-            # delete -> freed_now; trash -> pending_in_trash.
+            # delete -> freed_now; trash -> pending_in_trash; no archive in this case.
             self.assertEqual(out["freed_now_bytes"], 700)
             self.assertEqual(out["pending_in_trash_bytes"], 700)
+            self.assertEqual(out["archived_source_bytes"], 0)
+            self.assertEqual(out["archived_count"], 0)
             self.assertEqual(out["reclaimed_bytes"], 1400)
 
     def test_empty_items(self):

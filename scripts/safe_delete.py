@@ -64,6 +64,9 @@ ALLOWED_ACTIONS = {
     ACTION_MIGRATE, ACTION_DEFER, ACTION_SKIP,
 }
 _FS_ACTIONS = {ACTION_DELETE, ACTION_TRASH, ACTION_ARCHIVE, ACTION_MIGRATE}
+# Successful actions in this set are counted toward freed_now_bytes
+# (already off the disk). Trash/archive go to pending_in_trash instead.
+_FREED_NOW_ACTIONS = {ACTION_DELETE, ACTION_MIGRATE}
 
 STATUS_SUCCESS = "success"
 STATUS_ARCHIVE_ONLY = "archive_only_success"
@@ -458,9 +461,7 @@ def run(argv: list[str] | None = None) -> int:
         elif status == STATUS_ARCHIVE_ONLY:
             archive_only += 1
         elif status == STATUS_SUCCESS:
-            # See module docstring "Reclaim accounting" for the dry-run rules
-            # that mirror this branch's real-run accounting.
-            if action in {ACTION_DELETE, ACTION_MIGRATE}:
+            if action in _FREED_NOW_ACTIONS:
                 freed_now += size
             elif action == ACTION_TRASH:
                 pending_in_trash += size

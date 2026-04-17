@@ -106,8 +106,10 @@ Present the candidates to the user, grouped by risk level. The confirmation bar 
 
 | Mode | L1 | L2 | L3 | L4 |
 | --- | --- | --- | --- | --- |
-| `quick` | Execute without asking | Batch confirm by category | Record as `defer` only; do **not** interact | Hidden |
-| `deep` | Show list + pre-checked; ask for batch OK | Batch confirm by category | Per-item hard confirm, show default `trash`, allow override | Show as read-only |
+| `quick` | Execute without asking† | Batch confirm by category | Record as `defer` only; do **not** interact | Hidden |
+| `deep` | Show list + pre-checked; ask for batch OK† | Batch confirm by category | Per-item hard confirm, show default `trash`, allow override | Show as read-only |
+
+† L1 includes `sim_runtime` (dispatched to `xcrun simctl delete`, which itself refuses to delete a booted simulator) and `system_snapshots` (dispatched to `tmutil deletelocalsnapshots`). These are L1 because the Apple-provided tools carry their own safety guards — `safe_delete.py` never `rm -rf`s these categories.
 
 When the user asks "what's that huge folder?", run `ls -lah` / `file` / `head` live and explain in terms of `source_label`, not paths.
 
@@ -241,6 +243,6 @@ Use `--dry-run` whenever you want a rehearsal: no filesystem writes except `acti
 - **Enumerations**:
   - `risk_level`: `L1 | L2 | L3 | L4`
   - `action`: `delete | trash | archive | migrate | defer | skip`
-  - `category`: `dev_cache | sim_runtime | pkg_cache | app_cache | logs | downloads | large_media | system_snapshots | orphan`
+  - `category`: `dev_cache | sim_runtime | pkg_cache | app_cache | logs | downloads | large_media | system_snapshots | orphan` — `sim_runtime` is dispatched via `xcrun simctl delete`, `system_snapshots` via `tmutil deletelocalsnapshots`; both bypass `rm`.
   - `action_status`: `success | archive_only_success | failed`
 - **Degradation**: see §14-style matrix in `references/safety-policy.md`.
