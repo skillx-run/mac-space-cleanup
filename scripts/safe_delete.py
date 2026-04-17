@@ -40,8 +40,10 @@ STATUS_ARCHIVE_ONLY = "archive_only_success"
 STATUS_FAILED = "failed"
 
 CATEGORY_SYSTEM_SNAPSHOTS = "system_snapshots"
+CATEGORY_SIM_RUNTIME = "sim_runtime"
 
 _SNAPSHOT_DATE_RE = re.compile(r"(\d{4}-\d{2}-\d{2}-\d{6})")
+_SIMCTL_UDID_RE = re.compile(r"/CoreSimulator/Devices/([0-9A-Fa-f-]{36})(?:/|$)")
 
 
 def _now_ms() -> int:
@@ -126,6 +128,44 @@ def _handle_snapshot_delete(item: dict[str, Any], dry_run: bool) -> dict[str, An
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as e:
         rec["status"] = STATUS_FAILED
         rec["error"] = f"tmutil failed: {e}"
+    return _finalize(rec, t0)
+
+
+def _handle_simctl_delete(item: dict[str, Any], dry_run: bool) -> dict[str, Any]:
+    """xcrun simctl delete <UDID> | unavailable.
+
+    Recognised path forms:
+      - "xcrun:simctl-unavailable" (semantic) -> simctl delete unavailable
+      - ".../CoreSimulator/Devices/<UDID>"    -> simctl delete <UDID>
+
+    Apple's simctl refuses to delete a booted device, giving us the safety
+    that a plain rm -rf would not.
+    """
+    rec = _base_record(item, ACTION_DELETE)
+    t0 = time.monotonic()
+    raw = item.get("path") or ""
+
+    if raw == "xcrun:simctl-unavailable":
+        target = "unavailable"
+    else:
+        m = _SIMCTL_UDID_RE.search(raw)
+        if not m:
+            rec["status"] = STATUS_FAILED
+            rec["error"] = f"cannot parse simulator UDID from: {raw}"
+            return _finalize(rec, t0)
+        target = m.group(1)
+
+    if dry_run:
+        return _finalize(rec, t0, dry_run=True)
+
+    try:
+        subprocess.run(
+            ["xcrun", "simctl", "delete", target],
+            check=True, capture_output=True, text=True, timeout=120,
+        )
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as e:
+        rec["status"] = STATUS_FAILED
+        rec["error"] = f"simctl failed: {e}"
     return _finalize(rec, t0)
 
 
@@ -300,13 +340,17 @@ def dispatch(
         rec["error"] = f"unknown action: {action}"
         return rec
 
-    is_snapshot = item.get("category") == CATEGORY_SYSTEM_SNAPSHOTS
+    category = item.get("category")
+    is_snapshot = category == CATEGORY_SYSTEM_SNAPSHOTS
+    is_sim_runtime = category == CATEGORY_SIM_RUNTIME
+    is_specialised = is_snapshot or is_sim_runtime
     path = item.get("path") or ""
 
     # Idempotency: if a real fs target is gone, short-circuit to skip.
-    # Snapshots use a synthetic "snapshot:..." path that never exists on disk,
+    # Specialised categories (snapshots, simulators) use synthetic paths or
+    # managed resources where we want the official tool's error to surface,
     # so they bypass this check.
-    if (action in _FS_ACTIONS and not is_snapshot
+    if (action in _FS_ACTIONS and not is_specialised
             and path and not dry_run and not os.path.exists(path)):
         rec = _base_record(item, ACTION_SKIP)
         rec["error"] = "already gone"
@@ -315,6 +359,8 @@ def dispatch(
     if action == ACTION_DELETE:
         if is_snapshot:
             return _handle_snapshot_delete(item, dry_run)
+        if is_sim_runtime:
+            return _handle_simctl_delete(item, dry_run)
         return _handle_delete(item, dry_run)
     if action == ACTION_TRASH:
         return _handle_trash(item, dry_run)

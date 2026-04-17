@@ -11,6 +11,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -232,6 +233,141 @@ class TestDispatch(unittest.TestCase):
             self.assertEqual(calls[0][1], "deletelocalsnapshots")
             self.assertEqual(calls[0][2], "2026-04-16-024706")
             self.assertEqual(out["records"][0]["status"], "success")
+
+    def test_simctl_unavailable_invokes_xcrun(self):
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td) / "work"
+            calls: list[list[str]] = []
+
+            def fake_run(cmd, **kw):
+                calls.append(cmd)
+                if cmd[0] == "xcrun":
+                    return mock.Mock(returncode=0, stdout="", stderr="")
+                raise AssertionError(f"unexpected cmd: {cmd}")
+
+            with mock.patch.object(safe_delete.subprocess, "run", side_effect=fake_run), \
+                 mock.patch.object(safe_delete.os, "remove") as m_remove, \
+                 mock.patch.object(safe_delete.shutil, "rmtree") as m_rmtree:
+                payload = {
+                    "confirmed_items": [
+                        {"id": "sim1",
+                         "path": "xcrun:simctl-unavailable",
+                         "action": "delete",
+                         "size_bytes": 0,
+                         "category": "sim_runtime",
+                         "risk_level": "L1",
+                         "reason": "unavailable runtimes"}
+                    ]
+                }
+                code, out, _ = _run_with_payload(payload, work)
+
+            self.assertEqual(code, 0)
+            self.assertEqual(len(calls), 1)
+            self.assertEqual(calls[0], ["xcrun", "simctl", "delete", "unavailable"])
+            self.assertEqual(out["records"][0]["status"], "success")
+            m_remove.assert_not_called()
+            m_rmtree.assert_not_called()
+
+    def test_simctl_with_udid_path_invokes_xcrun(self):
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td) / "work"
+            calls: list[list[str]] = []
+            udid = "ABCD1234-5678-90AB-CDEF-1234567890AB"
+            sim_path = f"/Users/me/Library/Developer/CoreSimulator/Devices/{udid}"
+
+            def fake_run(cmd, **kw):
+                calls.append(cmd)
+                if cmd[0] == "xcrun":
+                    return mock.Mock(returncode=0, stdout="", stderr="")
+                raise AssertionError(f"unexpected cmd: {cmd}")
+
+            # path doesn't exist on disk; simctl is the source of truth.
+            # Specialised category bypasses the dispatch-level exists() check.
+            with mock.patch.object(safe_delete.subprocess, "run", side_effect=fake_run):
+                payload = {
+                    "confirmed_items": [
+                        {"id": "sim2", "path": sim_path, "action": "delete",
+                         "size_bytes": 4_000_000_000, "category": "sim_runtime",
+                         "risk_level": "L1", "reason": "old simulator"}
+                    ]
+                }
+                code, out, _ = _run_with_payload(payload, work)
+
+            self.assertEqual(code, 0)
+            self.assertEqual(len(calls), 1)
+            self.assertEqual(calls[0], ["xcrun", "simctl", "delete", udid])
+            self.assertEqual(out["records"][0]["status"], "success")
+
+    def test_simctl_booted_failure_propagates(self):
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td) / "work"
+
+            def fake_run(cmd, **kw):
+                if cmd[0] == "xcrun":
+                    raise subprocess.CalledProcessError(
+                        returncode=1, cmd=cmd, stderr="device is booted")
+                raise AssertionError(f"unexpected cmd: {cmd}")
+
+            with mock.patch.object(safe_delete.subprocess, "run", side_effect=fake_run):
+                payload = {
+                    "confirmed_items": [
+                        {"id": "sim3", "path": "xcrun:simctl-unavailable",
+                         "action": "delete", "size_bytes": 0,
+                         "category": "sim_runtime", "risk_level": "L1", "reason": "t"}
+                    ]
+                }
+                code, out, _ = _run_with_payload(payload, work)
+
+            self.assertEqual(code, 1)
+            rec = out["records"][0]
+            self.assertEqual(rec["status"], "failed")
+            self.assertIn("simctl failed", rec["error"])
+
+    def test_migrate_success_full(self):
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td) / "work"
+            target = Path(td) / "tomigrate"
+            target.mkdir()
+            _write_file(target / "blob", 100)
+            dest = Path(td) / "ext"
+            dest.mkdir()
+
+            calls: list[list[str]] = []
+
+            def fake_run(cmd, **kw):
+                calls.append(cmd)
+                if cmd[0] == "rsync":
+                    return mock.Mock(returncode=0, stdout="", stderr="")
+                if os.path.basename(cmd[0]) == "trash":
+                    import shutil as _sh
+                    _sh.rmtree(cmd[1])
+                    return mock.Mock(returncode=0, stdout="", stderr="")
+                raise AssertionError(f"unexpected cmd: {cmd}")
+
+            with mock.patch.object(safe_delete.shutil, "which", return_value="/usr/bin/trash"), \
+                 mock.patch.object(safe_delete.subprocess, "run", side_effect=fake_run):
+                payload = {
+                    "confirmed_items": [
+                        {"id": "mig_ok", "path": str(target), "action": "migrate",
+                         "size_bytes": 100, "category": "large_media",
+                         "risk_level": "L3", "reason": "moving to ext volume"}
+                    ],
+                    "action_overrides": {
+                        "mig_ok": {"migrate_dest": str(dest)}
+                    }
+                }
+                code, out, _ = _run_with_payload(payload, work)
+
+            self.assertEqual(code, 0)
+            rec = out["records"][0]
+            self.assertEqual(rec["status"], "success")
+            self.assertEqual(rec["migrate_destination"], str(dest))
+            self.assertIsNotNone(rec["trash_location"])
+            self.assertFalse(target.exists())
+            # rsync must have been called with the full move semantics
+            rsync_calls = [c for c in calls if c[0] == "rsync"]
+            self.assertEqual(len(rsync_calls), 1)
+            self.assertIn("--remove-source-files", rsync_calls[0])
 
     def test_migrate_dest_not_writable_fails_without_rsync(self):
         with tempfile.TemporaryDirectory() as td:
