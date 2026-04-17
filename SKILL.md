@@ -74,7 +74,7 @@ Run these in parallel and summarise the result internally (do not dump raw outpu
 ```bash
 sw_vers
 df -h /
-which -a docker brew pnpm npm yarn pip uv cargo go gradle xcrun
+which -a docker brew pnpm npm yarn pip uv cargo go gradle xcrun trash
 ls -d ~/.cocoapods ~/.gradle ~/.m2 2>/dev/null
 ```
 
@@ -82,8 +82,17 @@ From the output, remember:
 - macOS version.
 - Filesystem free space before cleanup (`free_before`). Capture as bytes for later diff.
 - Which enhancement tools are installed. Skip rows in `references/cleanup-scope.md` Tier E for missing tools.
+- **Whether `trash` CLI is installed** (`which trash`). Record as `trash_cli=true|false` in your environment_profile.
 
 Read `references/cleanup-scope.md` once — this is your map of **where to look** and **where never to touch**.
+
+### Stage 2.5 · trash CLI nudge (only when missing)
+
+If Stage 2 found `trash_cli=false`, before proceeding to Stage 3 surface a single short message to the user (not as `AskUserQuestion` — just inline text), e.g.:
+
+> Heads-up: the optional `trash` CLI is not installed. `safe_delete.py` will fall back to `mv` into `~/.Trash`, which works but renames each item with a `-<timestamp>` suffix that looks odd in Finder. For a cleaner experience: `brew install trash`. I'll continue with the fallback unless you'd like to install first.
+
+Then proceed to Stage 3 without waiting for an answer. The user can interrupt to install if they want; otherwise they have the heads-up. Do not nudge again in subsequent runs of the same session.
 
 ### Stage 3 · Scan
 
