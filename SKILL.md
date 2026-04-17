@@ -217,13 +217,21 @@ Use `--dry-run` whenever you want a rehearsal: no filesystem writes except `acti
 
    Only substitute: `{freed_now}` (human-readable string from `freed_now_bytes`), `{top3_joined}`, `{top3_joined_zh}`. Same `source_label` taxonomy applies; no paths, usernames, or project names.
 
-7. Open the report:
+7. **Validate the rendered report** before opening it. This is mandatory — it catches placeholder strings you forgot to replace and any leaked path / username / credential hint:
+
+   ```bash
+   python3 scripts/validate_report.py --report "$WORKDIR/report.html"
+   ```
+
+   Exit 0 → all good. Exit 1 → stdout JSON's `violations` lists each problem (`missing_region`, `empty_region`, `placeholder_left`, `leaked_fragment`). Fix every violation by editing `$WORKDIR/report.html` and re-run the validator until it returns 0. Do not show the user the report while violations remain.
+
+8. Open the report:
 
    ```bash
    open "$WORKDIR/report.html"
    ```
 
-8. Summarise to the user in one short paragraph that **always reports both numbers**:
+9. Summarise to the user in one short paragraph that **always reports both numbers**:
    - `freed_now_bytes` — already off the disk.
    - `pending_in_trash_bytes` — waiting in `~/.Trash`; mention that emptying trash converts it to free space (the report's "One last step" section gives the one-line command).
    - `archived_count` if any (archive_source goes into the workdir, point user at it).
