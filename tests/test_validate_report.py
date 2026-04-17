@@ -127,6 +127,68 @@ class TestValidateReport(unittest.TestCase):
         self.assertFalse(out["ok"])
         self.assertEqual(out["violations"][0]["kind"], "missing_file")
 
+    def test_dry_run_flag_requires_banner_and_prefix(self):
+        with tempfile.TemporaryDirectory() as td:
+            report = Path(td) / "report.html"
+            # well-formed but no dry-run markings
+            report.write_text(_well_formed_html(extra="<p>12.5 GB freed</p>"))
+            code, out, _ = run_script(
+                validate_report,
+                ["--report", str(report), "--dry-run"],
+                None,
+            )
+        self.assertEqual(code, 1)
+        kinds = [v["kind"] for v in out["violations"]]
+        self.assertEqual(kinds.count("dry_run_unmarked"), 2)  # banner + prefix
+        details = " ".join(v["detail"] for v in out["violations"])
+        self.assertIn("dry-banner", details)
+        self.assertIn("would be", details)
+
+    def test_dry_run_flag_passes_with_banner_and_prefix(self):
+        with tempfile.TemporaryDirectory() as td:
+            report = Path(td) / "report.html"
+            html = _well_formed_html(
+                extra=(
+                    '<div class="dry-banner">DRY-RUN — no files touched</div>'
+                    '<p>would be 12.5 GB freed</p>'
+                )
+            )
+            report.write_text(html)
+            code, out, _ = run_script(
+                validate_report,
+                ["--report", str(report), "--dry-run"],
+                None,
+            )
+        self.assertEqual(code, 0)
+        self.assertTrue(out["ok"])
+
+    def test_dry_run_flag_accepts_simulated_marker(self):
+        with tempfile.TemporaryDirectory() as td:
+            report = Path(td) / "report.html"
+            html = _well_formed_html(
+                extra=(
+                    '<header><div class="dry-banner">DRY-RUN</div></header>'
+                    '<p>12.5 GB (simulated)</p>'
+                )
+            )
+            report.write_text(html)
+            code, out, _ = run_script(
+                validate_report,
+                ["--report", str(report), "--dry-run"],
+                None,
+            )
+        self.assertEqual(code, 0)
+
+    def test_real_run_does_not_require_dry_run_markers(self):
+        # Same well-formed report without --dry-run flag passes even though
+        # it has no banner or 'would be' prefix.
+        with tempfile.TemporaryDirectory() as td:
+            report = Path(td) / "report.html"
+            report.write_text(_well_formed_html(extra="<p>12.5 GB freed</p>"))
+            code, out, _ = _run(report)
+        self.assertEqual(code, 0)
+        self.assertTrue(out["ok"])
+
 
 if __name__ == "__main__":
     unittest.main()

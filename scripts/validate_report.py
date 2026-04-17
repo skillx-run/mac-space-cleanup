@@ -14,7 +14,7 @@ discipline and the optional reviewer sub-agent. Failures from here mean
 the report must be rewritten before being shown to the user.
 
 stdin:  not used.
-args:   --report PATH (required).
+args:   --report PATH (required), --dry-run (assert dry-run UI marking present).
 stdout: {"ok": bool, "violations": [...], "summary": "..."}
 exit:   0 = ok, 1 = violations, 2 = bad input.
 """
@@ -81,7 +81,14 @@ def _runtime_forbidden() -> list[str]:
     return out
 
 
-def validate(report_path: Path) -> tuple[bool, list[dict[str, str]]]:
+_DRY_RUN_MARKERS = ("would be", "would-be", "(simulated)")
+_DRY_RUN_BANNER_RE = re.compile(
+    r'<[^>]+class="[^"]*\bdry-banner\b[^"]*"[^>]*>',
+    re.IGNORECASE,
+)
+
+
+def validate(report_path: Path, expect_dry_run: bool = False) -> tuple[bool, list[dict[str, str]]]:
     if not report_path.exists():
         return False, [{"kind": "missing_file", "detail": str(report_path)}]
 
@@ -113,16 +120,38 @@ def validate(report_path: Path) -> tuple[bool, list[dict[str, str]]]:
             violations.append({"kind": "leaked_fragment",
                                "detail": f"contains: {fragment!r}"})
 
+    # 4. Dry-run marking (only when caller asserts the run was a dry-run).
+    if expect_dry_run:
+        if not _DRY_RUN_BANNER_RE.search(html):
+            violations.append({
+                "kind": "dry_run_unmarked",
+                "detail": "dry-run report missing <... class=\"dry-banner\"> banner",
+            })
+        lower = html.lower()
+        if not any(marker in lower for marker in _DRY_RUN_MARKERS):
+            violations.append({
+                "kind": "dry_run_unmarked",
+                "detail": (
+                    "dry-run report missing 'would be' / 'would-be' / "
+                    "'(simulated)' marker on numeric headlines"
+                ),
+            })
+
     return len(violations) == 0, violations
 
 
 def run(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="validate a rendered report.html")
     parser.add_argument("--report", required=True, type=Path)
+    parser.add_argument(
+        "--dry-run", action="store_true",
+        help="assert that the report visibly marks itself as a dry-run "
+             "(banner + 'would be' / '(simulated)' on numbers)",
+    )
     args = parser.parse_args(argv)
 
     try:
-        ok, violations = validate(args.report)
+        ok, violations = validate(args.report, expect_dry_run=args.dry_run)
     except OSError as e:
         print(json.dumps({"ok": False, "violations": [],
                           "summary": f"could not read: {e}"}))

@@ -207,6 +207,11 @@ The 10 numbered sub-steps below split into four phases:
 
    Budget: keep the combined inserted HTML under ~250 lines.
 
+   **Dry-run marking (mandatory)**: when the run was a `--dry-run`, the report must clearly say so or it misleads the user into thinking files were touched. Two requirements, both enforced by `validate_report.py`:
+   - **Banner**: insert a sticky `<div class="dry-banner">DRY-RUN — no files touched</div>` at the very top of the `<main class="report">` element (right inside the open tag), so it is visible regardless of which region the eye lands on first.
+   - **Number prefixes**: every numeric headline anywhere in the report (summary, distribution cards, actions list aggregates, next-step pending) must include `would be`, `would-be`, or `(simulated)` — e.g. `would be 12.5 GB`, `12.5 GB (simulated)`. Do **not** write bare numbers like "12.5 GB freed" in dry-run mode.
+   - For real runs, neither the banner nor the prefixes are required.
+
    **Maintenance note**: if you change the `data-placeholder=...` strings or the placeholder hint copy in `assets/report-template.html`, also update `_PLACEHOLDER_MARKERS` in `scripts/validate_report.py` so the validator keeps catching unfilled regions.
 
 5. Fill the SVG placeholders in `$WORKDIR/share-card.svg`:
@@ -239,13 +244,17 @@ The 10 numbered sub-steps below split into four phases:
    - Empty list → proceed.
    - Non-empty → edit `$WORKDIR/report.html` to remove/abstract each flagged snippet, then re-spawn the reviewer with the updated HTML. Cap retries at **2**. After the second failure, stop and tell the user which violations remained — do **not** show the report.
 
-8. **Run the deterministic validator** as a second line of defence. The reviewer is fuzzy (catches semantic leaks); the validator is exact (catches structural problems and a fixed dictionary of forbidden literal substrings):
+8. **Run the deterministic validator** as a second line of defence. The reviewer is fuzzy (catches semantic leaks); the validator is exact (catches structural problems and a fixed dictionary of forbidden literal substrings). When this run was a `--dry-run`, also pass `--dry-run` to the validator so it asserts the dry-run banner and number prefixes from step 4 are in place:
 
    ```bash
+   # real run
    python3 scripts/validate_report.py --report "$WORKDIR/report.html"
+
+   # dry-run
+   python3 scripts/validate_report.py --report "$WORKDIR/report.html" --dry-run
    ```
 
-   Exit 0 → all good. Exit 1 → stdout JSON's `violations` lists each problem (`missing_region`, `empty_region`, `placeholder_left`, `leaked_fragment`). Fix every violation by editing `$WORKDIR/report.html` and re-run the validator until it returns 0. Do not show the user the report while violations remain.
+   Exit 0 → all good. Exit 1 → stdout JSON's `violations` lists each problem (`missing_region`, `empty_region`, `placeholder_left`, `leaked_fragment`, `dry_run_unmarked`). Fix every violation by editing `$WORKDIR/report.html` and re-run the validator until it returns 0. Do not show the user the report while violations remain.
 
 9. Open the report:
 
