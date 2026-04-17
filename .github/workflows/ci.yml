@@ -29,3 +29,6 @@ jobs:
 
       - name: End-to-end smoke
         run: ./scripts/smoke.sh
+
+      - name: Dry end-to-end pipeline
+        run: ./scripts/dry-e2e.sh

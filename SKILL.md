@@ -1,7 +1,7 @@
 ---
 name: mac-space-clean
 description: "Guide the agent through macOS disk space cleanup with quick/deep modes and L1-L4 risk grading. Trigger when the user says things like \"clean up my Mac\", \"free up disk space\", \"what's eating my disk\", \"Mac 空间满了\", \"快速清理 / 深度清理\", \"腾点空间\". Produces an HTML report and EN/ZH share text with @heyiamlin attribution."
-version: "0.1.0"
+version: "0.3.0"
 author: "heyiamlin"
 ---
 
