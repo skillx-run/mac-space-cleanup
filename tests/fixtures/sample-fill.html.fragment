@@ -1,0 +1,73 @@
+<!--
+  Concatenated region replacements used by dry-e2e.sh to simulate the
+  agent's Stage 6 fill-in. Each block below is a complete replacement for
+  one paired-marker region. The harness uses sed to splice them in.
+  Content is intentionally redaction-safe (category names + made-up sizes,
+  no paths, no usernames).
+-->
+
+<!-- BEGIN region:summary -->
+<div class="summary">
+  <p class="headline">12.3 GB freed now</p>
+  <p class="sub">+ 2.0 GB pending in trash</p>
+  <div class="chips">
+    <span class="chip">Deep Clean</span>
+    <span class="chip l1">L1: 2 items</span>
+    <span class="chip l2">L2: 1 item</span>
+    <span class="chip l3">L3: 1 deferred</span>
+  </div>
+</div>
+<!-- END region:summary -->
+
+<!-- BEGIN region:distribution -->
+<div class="dist-grid">
+  <div class="dist-card">
+    <div class="label">Developer caches</div>
+    <div class="value">4.0 KB</div>
+    <div class="meta">freed now</div>
+  </div>
+  <div class="dist-card">
+    <div class="label">Old installers</div>
+    <div class="value">8.0 KB</div>
+    <div class="meta">freed now</div>
+  </div>
+  <div class="dist-card">
+    <div class="label">Generic archives</div>
+    <div class="value">2.0 KB</div>
+    <div class="meta">pending in trash</div>
+  </div>
+</div>
+<!-- END region:distribution -->
+
+<!-- BEGIN region:actions -->
+<ul class="actions-list">
+  <li><span class="cat">Developer caches</span><span class="size">4 KB</span><span class="act">DELETE</span></li>
+  <li><span class="cat">Old installers</span><span class="size">8 KB</span><span class="act">DELETE</span></li>
+  <li><span class="cat">Generic archives</span><span class="size">2 KB</span><span class="act trash">TRASH</span></li>
+  <li><span class="cat">Large VM image</span><span class="size">50 GB</span><span class="act defer">DEFER</span></li>
+</ul>
+<!-- END region:actions -->
+
+<!-- BEGIN region:deferred -->
+<ul class="deferred-list">
+  <li><span class="cat">Large VM image</span><span class="size">50 GB</span><span class="act">SUGGEST: move to external volume</span></li>
+</ul>
+<!-- END region:deferred -->
+
+<!-- BEGIN region:nextstep -->
+<p class="pending">2.0 KB still in Trash</p>
+<code class="empty-cmd">osascript -e 'tell application "Finder" to empty the trash'</code>
+<p class="auto-note">Running the command above will trigger a Finder confirmation dialog — click 'Empty Trash' there to actually clear it. macOS auto-empties 30 days after items enter the Trash if you've enabled Finder → Settings → Advanced → 'Remove items from the Trash after 30 days'.</p>
+<!-- END region:nextstep -->
+
+<!-- BEGIN region:share -->
+<div class="share-card-wrap">
+  <p>(share card placeholder)</p>
+</div>
+<pre class="share-text">I just reclaimed 12.3 GB on my Mac with the mac-space-clean skill by @heyiamlin.
+
+Biggest wins: Developer caches · Old installers · Generic archives.
+
+#macspaceclean #maccleanup #buildinpublic</pre>
+<a class="share-btn" href="#">Share to X</a>
+<!-- END region:share -->

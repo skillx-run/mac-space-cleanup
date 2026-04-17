@@ -1,0 +1,42 @@
+{
+  "mode": "deep",
+  "confirmed_items": [
+    {
+      "id": "fx_a",
+      "path": "__WILL_BE_REPLACED_AT_RUNTIME__/dev_cache_sample",
+      "category": "dev_cache",
+      "size_bytes": 4096,
+      "risk_level": "L1",
+      "action": "delete",
+      "reason": "regenerable build cache (fixture)"
+    },
+    {
+      "id": "fx_b",
+      "path": "__WILL_BE_REPLACED_AT_RUNTIME__/downloads_sample.dmg",
+      "category": "downloads",
+      "size_bytes": 8192,
+      "risk_level": "L1",
+      "action": "delete",
+      "reason": "old macOS installer dmg (fixture)"
+    },
+    {
+      "id": "fx_c",
+      "path": "__WILL_BE_REPLACED_AT_RUNTIME__/archive_zip_sample.zip",
+      "category": "downloads",
+      "size_bytes": 2048,
+      "risk_level": "L2",
+      "action": "trash",
+      "reason": "old generic archive (fixture)"
+    },
+    {
+      "id": "fx_d",
+      "path": "__WILL_BE_REPLACED_AT_RUNTIME__/large_vm.vmdk",
+      "category": "large_media",
+      "size_bytes": 50000000000,
+      "risk_level": "L3",
+      "action": "defer",
+      "reason": "large VM image, suggest external volume (fixture)"
+    }
+  ],
+  "action_overrides": {}
+}
