@@ -149,14 +149,20 @@ Use `--dry-run` whenever you want a rehearsal: no filesystem writes except `acti
    cp assets/share-card-template.svg "$WORKDIR/share-card.svg"
    ```
 
-4. Use the `Edit` tool to fill the five report regions in `$WORKDIR/report.html`. Match the paired markers exactly:
-   - `<!-- region:summary:start -->` … `<!-- region:summary:end -->`: reclaimed headline, mode chip, L1-L4 count chips.
+4. Use the `Edit` tool to fill the **six** report regions in `$WORKDIR/report.html`. Match the paired markers exactly:
+   - `<!-- region:summary:start -->` … `<!-- region:summary:end -->`: headline `freed_now` (the honest number), mode chip, L1-L4 count chips. If `pending_in_trash_bytes > 0`, also show a smaller "+ {pending_human} pending in trash" line.
    - `<!-- region:distribution:start -->` … `<!-- region:distribution:end -->`: one card per category, showing pre-clean size / freed / remaining candidates. Use `source_label` names only.
    - `<!-- region:actions:start -->` … `<!-- region:actions:end -->`: a list grouped by action type (auto-cleaned / confirmed / archived / migrated / deferred / skipped / failed). Each row: source_label + size + action badge + one-line reason. No paths.
    - `<!-- region:deferred:start -->` … `<!-- region:deferred:end -->`: recommendations for `deferred.jsonl` entries and L3/L4 observations, at category granularity.
+   - `<!-- region:nextstep:start -->` … `<!-- region:nextstep:end -->`: **two fill modes depending on `pending_in_trash_bytes`**:
+     - **`pending_in_trash_bytes > 0`** — fill with three pieces:
+       1. A `<p class="pending">{pending_human} still in Trash</p>` headline.
+       2. A `<code class="empty-cmd">osascript -e 'tell application "Finder" to empty the trash'</code>` block (user can copy with one click thanks to `user-select: all`).
+       3. A `<p class="auto-note">` paragraph that **must include both**: (a) the dialog warning — "Running the command above will trigger a Finder confirmation dialog — click 'Empty Trash' there to actually clear it." and (b) the auto-empty hint — "macOS auto-empties 30 days after items enter the Trash if you've enabled Finder → Settings → Advanced → 'Remove items from the Trash after 30 days'."
+     - **`pending_in_trash_bytes == 0`** — replace the placeholder with a single positive line: `<p class="all-good">All freed bytes are immediately reclaimed — no follow-up needed.</p>`. Do not leave the placeholder hint visible.
    - `<!-- region:share:start -->` … `<!-- region:share:end -->`: embedded SVG card (inline or via `<img>`), English share text in a `.share-text` block, Chinese share text below it, and an X share button.
 
-   Budget: keep the combined inserted HTML under ~200 lines.
+   Budget: keep the combined inserted HTML under ~250 lines.
 
 5. Fill the SVG placeholders in `$WORKDIR/share-card.svg`:
    - `${free_reclaimed}` → e.g. `37.4 GB` (single human-readable string, no path).

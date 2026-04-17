@@ -185,6 +185,42 @@ section h2 {
 .actions-list .act.skip { color: var(--muted); }
 .actions-list .act.failed { color: var(--danger); }
 
+.next-step {
+  border-color: var(--warn);
+}
+
+.next-step .pending {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--warn);
+  margin: 0;
+}
+
+.next-step .empty-cmd {
+  display: block;
+  background: var(--surface-hi);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 13px;
+  color: var(--text);
+  margin-top: 10px;
+  user-select: all;
+}
+
+.next-step .auto-note {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.next-step .all-good {
+  color: var(--accent);
+  font-size: 14px;
+  margin: 0;
+}
+
 .share-body {
   display: grid;
   gap: 16px;
