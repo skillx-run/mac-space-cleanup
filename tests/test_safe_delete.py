@@ -20,8 +20,10 @@ from unittest import mock
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+sys.path.insert(0, str(PROJECT_ROOT / "tests"))
 
 import safe_delete  # noqa: E402
+from _helpers import run_script_with_json  # noqa: E402
 
 
 def _write_file(p: Path, size: int = 100) -> None:
@@ -30,25 +32,10 @@ def _write_file(p: Path, size: int = 100) -> None:
 
 
 def _run_with_payload(payload: dict, workdir: Path, dry_run: bool = False) -> tuple[int, dict, str]:
-    """Run safe_delete.run() with a JSON payload on stdin. Returns (exit, stdout_obj, stderr)."""
     argv = ["--workdir", str(workdir)]
     if dry_run:
         argv.append("--dry-run")
-
-    stdin = io.StringIO(json.dumps(payload))
-    stdout = io.StringIO()
-    stderr = io.StringIO()
-    with mock.patch.object(sys, "stdin", stdin), mock.patch.object(
-        sys, "stdout", stdout
-    ), mock.patch.object(sys, "stderr", stderr):
-        exit_code = safe_delete.run(argv)
-    stdout.seek(0)
-    out_text = stdout.getvalue()
-    try:
-        obj = json.loads(out_text)
-    except json.JSONDecodeError:
-        obj = {"_raw": out_text}
-    return exit_code, obj, stderr.getvalue()
+    return run_script_with_json(safe_delete, argv, payload)
 
 
 class TestDispatch(unittest.TestCase):
@@ -455,18 +442,16 @@ class TestDispatch(unittest.TestCase):
             self.assertTrue(target.exists())
 
     def test_blocked_pattern_does_not_match_unrelated_paths(self):
-        # Verify the regex set doesn't false-positive on adjacent names.
-        from safe_delete import _is_blocked
-        self.assertFalse(_is_blocked("/Users/me/Library/Caches/com.foo"))
-        self.assertFalse(_is_blocked("/Users/me/Downloads/git-tutorial.pdf"))
-        self.assertFalse(_is_blocked("/Users/me/Documents/notes.txt"))
-        self.assertFalse(_is_blocked("/Users/me/.envvars-old.txt"))
-        # And does match the protected ones
-        self.assertTrue(_is_blocked("/Users/me/projects/foo/.git/objects"))
-        self.assertTrue(_is_blocked("/Users/me/.ssh/config"))
-        self.assertTrue(_is_blocked("/Users/me/Library/Keychains/login.keychain-db"))
-        self.assertTrue(_is_blocked("/Users/me/Pictures/Photos Library.photoslibrary/originals"))
-        self.assertTrue(_is_blocked("/Users/me/Documents/.env"))
+        is_blocked = safe_delete._is_blocked
+        self.assertFalse(is_blocked("/Users/me/Library/Caches/com.foo"))
+        self.assertFalse(is_blocked("/Users/me/Downloads/git-tutorial.pdf"))
+        self.assertFalse(is_blocked("/Users/me/Documents/notes.txt"))
+        self.assertFalse(is_blocked("/Users/me/.envvars-old.txt"))
+        self.assertTrue(is_blocked("/Users/me/projects/foo/.git/objects"))
+        self.assertTrue(is_blocked("/Users/me/.ssh/config"))
+        self.assertTrue(is_blocked("/Users/me/Library/Keychains/login.keychain-db"))
+        self.assertTrue(is_blocked("/Users/me/Pictures/Photos Library.photoslibrary/originals"))
+        self.assertTrue(is_blocked("/Users/me/Documents/.env"))
 
     def test_migrate_dest_not_writable_fails_without_rsync(self):
         with tempfile.TemporaryDirectory() as td:
@@ -631,17 +616,13 @@ class TestDispatch(unittest.TestCase):
             self.assertEqual(out["records"], [])
 
     def test_invalid_json(self):
+        from _helpers import run_script
         with tempfile.TemporaryDirectory() as td:
             work = Path(td) / "work"
             argv = ["--workdir", str(work)]
-            stdin = io.StringIO("not-json-at-all")
-            stderr = io.StringIO()
-            with mock.patch.object(sys, "stdin", stdin), \
-                 mock.patch.object(sys, "stderr", stderr), \
-                 mock.patch.object(sys, "stdout", io.StringIO()):
-                code = safe_delete.run(argv)
+            code, _, stderr_text = run_script(safe_delete, argv, "not-json-at-all")
             self.assertEqual(code, 2)
-            self.assertIn("invalid stdin JSON", stderr.getvalue())
+            self.assertIn("invalid stdin JSON", stderr_text)
 
 
 if __name__ == "__main__":

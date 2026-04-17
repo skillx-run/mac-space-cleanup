@@ -67,6 +67,8 @@ Presence is probed in Stage 2 via `which -a`. Skip the row silently if the tool 
 
 These directories are off-limits regardless of size or age. If a scan result somehow points into one of these, classify as L4 and record-only.
 
+> **Cross-reference**: a subset of these (`.git`, `.ssh`, `.gnupg`, `Library/Keychains`, `Library/Mail`, `Library/Messages`, `Library/Mobile Documents`, `Photos Library`, `Music/Music`, `.env*`, SSH key files) is also enforced **at runtime** by `scripts/safe_delete.py`'s `_BLOCKED_PATTERNS` regex set. The agent reads this document; the script enforces a hard backstop. Keep them in sync — when adding/removing entries from one, update the other.
+
 ### Hard forbid (SIP or system-critical)
 
 - `/System/**`

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import io
-import json
 import subprocess
 import sys
 import tempfile
@@ -13,23 +11,14 @@ from unittest import mock
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+sys.path.insert(0, str(PROJECT_ROOT / "tests"))
 
 import collect_sizes  # noqa: E402
+from _helpers import run_script, run_script_with_json  # noqa: E402
 
 
 def _run(payload: dict) -> tuple[int, list | dict, str]:
-    stdin = io.StringIO(json.dumps(payload))
-    stdout = io.StringIO()
-    stderr = io.StringIO()
-    with mock.patch.object(sys, "stdin", stdin), \
-         mock.patch.object(sys, "stdout", stdout), \
-         mock.patch.object(sys, "stderr", stderr):
-        code = collect_sizes.run([])
-    try:
-        obj = json.loads(stdout.getvalue())
-    except json.JSONDecodeError:
-        obj = {"_raw": stdout.getvalue()}
-    return code, obj, stderr.getvalue()
+    return run_script_with_json(collect_sizes, [], payload)
 
 
 class TestCollectSizes(unittest.TestCase):
@@ -90,24 +79,15 @@ class TestCollectSizes(unittest.TestCase):
                 self.assertIsNone(r["error"])
 
     def test_invalid_json(self):
-        stdin = io.StringIO("not json")
-        stderr = io.StringIO()
-        with mock.patch.object(sys, "stdin", stdin), \
-             mock.patch.object(sys, "stdout", io.StringIO()), \
-             mock.patch.object(sys, "stderr", stderr):
-            code = collect_sizes.run([])
+        code, _, stderr_text = run_script(collect_sizes, [], "not json")
         self.assertEqual(code, 2)
-        self.assertIn("invalid stdin JSON", stderr.getvalue())
+        self.assertIn("invalid stdin JSON", stderr_text)
 
     def test_paths_not_a_list(self):
-        stdin = io.StringIO(json.dumps({"paths": "not a list"}))
-        stderr = io.StringIO()
-        with mock.patch.object(sys, "stdin", stdin), \
-             mock.patch.object(sys, "stdout", io.StringIO()), \
-             mock.patch.object(sys, "stderr", stderr):
-            code = collect_sizes.run([])
+        code, _, stderr_text = run_script_with_json(
+            collect_sizes, [], {"paths": "not a list"})
         self.assertEqual(code, 2)
-        self.assertIn("paths must be a list", stderr.getvalue())
+        self.assertIn("paths must be a list", stderr_text)
 
 
 if __name__ == "__main__":

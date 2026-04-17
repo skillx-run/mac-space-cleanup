@@ -115,7 +115,6 @@ for name, body in replacements.items():
 open(report_path, "w").write(report)
 print(f"C: filled {len(replacements)} regions into report.html")
 PY
-WORKDIR="$WORKDIR" python3 -c "import os; assert os.path.exists(os.path.join(os.environ['WORKDIR'],'report.html'))"
 
 echo "--- C: validate_report ---"
 # Note: the fixture intentionally avoids paths and credential strings, but

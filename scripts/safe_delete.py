@@ -406,6 +406,9 @@ def dispatch(
     # Hard backstop: refuse fs-touching actions on high-value paths even if
     # confirmed.json explicitly requests them. Specialised categories use
     # synthetic paths and bypass this. defer/skip don't touch anything.
+    # Checked before the idempotent exists() check so we never even stat a
+    # protected path. The user-facing version of this list lives in
+    # references/cleanup-scope.md; keep them in sync.
     if (action in _FS_ACTIONS and not is_specialised
             and path and _is_blocked(path)):
         rec = _base_record(item, action)

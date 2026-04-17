@@ -176,6 +176,12 @@ Use `--dry-run` whenever you want a rehearsal: no filesystem writes except `acti
 
 ### Stage 6 · Report & share
 
+The 10 numbered sub-steps below split into four phases:
+- **Assemble** (1–2): compute `free_after`, write `cleanup-result.json`.
+- **Fill** (3–6): copy templates, edit the six paired-marker regions, write share text.
+- **Review** (7–8): redaction reviewer (fuzzy, LLM-based) → `validate_report.py` (deterministic). Both must pass.
+- **Show** (9–10): open the report, summarise to the user.
+
 1. Compute `free_after`: `df -k / | tail -1 | awk '{print $4}'` → bytes.
 2. Assemble an in-memory `CleanupResult` (see schema below) from scan observations + `actions.jsonl`. Write it to `$WORKDIR/cleanup-result.json` — this is the local audit record and **may contain full paths**.
 3. Copy templates into the workdir (never edit `assets/` in place):
@@ -200,6 +206,8 @@ Use `--dry-run` whenever you want a rehearsal: no filesystem writes except `acti
    - `<!-- region:share:start -->` … `<!-- region:share:end -->`: embedded SVG card (inline or via `<img>`), English share text in a `.share-text` block, Chinese share text below it, and an X share button.
 
    Budget: keep the combined inserted HTML under ~250 lines.
+
+   **Maintenance note**: if you change the `data-placeholder=...` strings or the placeholder hint copy in `assets/report-template.html`, also update `_PLACEHOLDER_MARKERS` in `scripts/validate_report.py` so the validator keeps catching unfilled regions.
 
 5. Fill the SVG placeholders in `$WORKDIR/share-card.svg`:
    - `${free_reclaimed}` → e.g. `37.4 GB` (single human-readable string, no path).

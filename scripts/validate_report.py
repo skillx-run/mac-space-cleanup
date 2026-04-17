@@ -14,7 +14,7 @@ discipline and the optional reviewer sub-agent. Failures from here mean
 the report must be rewritten before being shown to the user.
 
 stdin:  not used.
-args:   --report PATH (required), --strict (treat warnings as errors).
+args:   --report PATH (required).
 stdout: {"ok": bool, "violations": [...], "summary": "..."}
 exit:   0 = ok, 1 = violations, 2 = bad input.
 """
@@ -22,6 +22,7 @@ exit:   0 = ok, 1 = violations, 2 = bad input.
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import os
 import re
@@ -71,10 +72,12 @@ def _runtime_forbidden() -> list[str]:
     home = os.path.expanduser("~")
     if home and home != "/":
         out.append(home)
-        # Username is the basename of $HOME on macOS.
-        username = os.path.basename(home.rstrip("/"))
-        if username and len(username) >= 3:
-            out.append(username)
+    try:
+        username = getpass.getuser()
+    except Exception:
+        username = ""
+    if username and len(username) >= 3:
+        out.append(username)
     return out
 
 
@@ -116,8 +119,6 @@ def validate(report_path: Path) -> tuple[bool, list[dict[str, str]]]:
 def run(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="validate a rendered report.html")
     parser.add_argument("--report", required=True, type=Path)
-    parser.add_argument("--strict", action="store_true",
-                        help="reserved for future warning/error split; today everything is an error")
     args = parser.parse_args(argv)
 
     try:

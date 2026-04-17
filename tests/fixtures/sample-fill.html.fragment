@@ -4,6 +4,11 @@
   one paired-marker region. The harness uses sed to splice them in.
   Content is intentionally redaction-safe (category names + made-up sizes,
   no paths, no usernames).
+
+  Companion fixture: tests/fixtures/sample-classified.json contains
+  sentinel paths "__WILL_BE_REPLACED_AT_RUNTIME__/..." that dry-e2e.sh
+  rewrites at runtime to point at a tempdir created by mktemp. JSON does
+  not allow comments, hence this note here instead.
 -->
 
 <!-- BEGIN region:summary -->
