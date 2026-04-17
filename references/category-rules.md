@@ -31,9 +31,9 @@ iOS / watchOS / tvOS simulators and unavailable runtimes.
 - Output of `xcrun simctl delete unavailable` (semantic path `xcrun:simctl-unavailable`)
 - Simulator caches under `~/Library/Developer/CoreSimulator/Caches/**`
 
-Defaults: **L2**, `trash`, `mode_hit_tags=["quick","deep"]`.
+Defaults: **L1**, `delete` (**via `xcrun simctl`, never `rm`**), `mode_hit_tags=["quick","deep"]`.
 
-Rationale: simulator data is heavy (GB-scale) but rebuildable; user may have in-flight test state, so trash rather than delete.
+Rationale: aligns with Apple's own `xcrun simctl delete unavailable`, which removes simulator data outright rather than via Trash; runtimes and devices are fully rebuildable from Xcode. Routing through `simctl` keeps the user safe — `simctl delete` refuses to remove a *booted* simulator, so an in-flight debugging session is protected. `safe_delete.py` recognises `category=="sim_runtime"` and dispatches to the `_handle_simctl_delete` branch instead of `rm -rf` (parallel to how `system_snapshots` is dispatched to `tmutil deletelocalsnapshots`).
 
 ---
 
@@ -86,19 +86,30 @@ Defaults: **L1**, `delete`, `mode_hit_tags=["quick","deep"]`.
 
 ## 6. `downloads`
 
-User-downloaded installers and archives.
+User-downloaded installers and archives. Split by naming-convention strength:
+
+### 6a. Clear-cut installers → **L1 `delete`**
+
+The extension carries unambiguous semantic meaning (Apple/macOS distribution formats, ISO images). Users keep these almost never; reinstall is the recovery path.
 
 - `~/Downloads/*.dmg` older than 30 days
 - `~/Downloads/*.pkg` older than 30 days
 - `~/Downloads/*.xip` older than 30 days
 - `~/Downloads/*.iso` older than 30 days
+
+Defaults: **L1**, `delete`, `mode_hit_tags=["quick","deep"]`.
+
+### 6b. Generic archives → **L2 `trash`**
+
+The extension does not tell us whether it is a source-code snapshot, a backup, an exported document, or a one-off download. Keep the recovery window via Trash.
+
 - `~/Downloads/*.zip` older than 90 days and size > 100MB
 - `~/Downloads/*.tar.gz`, `*.tgz`, `*.tar.bz2` older than 90 days and size > 100MB
 - `~/Downloads/*.7z`, `*.rar` older than 90 days and size > 100MB
 
 Defaults: **L2**, `trash`, `mode_hit_tags=["quick","deep"]`.
 
-Agent heuristic: if a filename contains `Xcode_`, `Xcode-`, or matches `*_[0-9]+.[0-9]+*.xip` and size > 5GB → add `reason="old Xcode installer"`, still L2 trash.
+Agent heuristic: if a filename contains `Xcode_`, `Xcode-`, or matches `*_[0-9]+.[0-9]+*.xip` and size > 5GB → add `reason="old Xcode installer"`. (These already match 6a `.xip` rule and so default to L1 delete — heuristic just enriches the reason string.)
 
 ---
 
