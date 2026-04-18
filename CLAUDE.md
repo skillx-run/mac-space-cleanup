@@ -22,6 +22,7 @@ Do not re-introduce `scan_space.py`, `classify_items.py`, `build_report.py`, or 
 4. **Templates in `assets/` are immutable at runtime.** Agent must `cp` them into `$WORKDIR` before editing.
 5. **`actions.jsonl` is append-only and authoritative *within a single run*.** Safe_delete re-runs against the same `$WORKDIR` are idempotent: already-gone paths become `action=skip, status=success, reason="already gone"`. Cross-run preservation is best-effort — `aggregate_history.py` GCs old `run-*` dirs per its `--keep` window. See `references/safety-policy.md` §"Operating invariants" #3.
 6. **History-driven UI decisions never cross risk-level or mode boundaries.** `scripts/aggregate_history.py` produces a per-run `history.json` that Stage 5 may consult to collapse per-item prompts into batch prompts. It MUST NOT be used to auto-execute a tag that would otherwise prompt, to up-tier a Quick-mode scan, or to influence Stage 4 grading. See `references/safety-policy.md` §"History-driven UI adjustments" for the authoritative rules.
+7. **Bilingual report is mandatory.** Any new static label in the template goes into **both** the `en` and `zh` subtrees of `assets/i18n/strings.json` in the same commit — `validate_report.py` fails the build if the two subtree key sets diverge. Any agent-authored natural-language node (captions, reasons, recommendations, `source_label`) is emitted as a `data-locale-show="en"` + `data-locale-show="zh"` sibling span pair; the validator's `locale_unpaired` check fails the build if counts mismatch. New `source_label` entries in `references/category-rules.md` require a Chinese rendering in the "Source label bilingual naming" appendix in the same commit.
 
 ## Editing the reference docs
 
@@ -29,11 +30,11 @@ Do not re-introduce `scan_space.py`, `classify_items.py`, `build_report.py`, or 
 
 - `cleanup-scope.md`: if you add a new whitelist path, make sure it is not inside any `blacklist` pattern. If you add a Tier E row, decide whether it uses a **CLI probe** (goes on `which -a` in SKILL.md Stage 2) or a **directory probe** (goes on `ls -d` in SKILL.md Stage 2) — and extend the matching line there in the same commit. A Tier E row with no Stage 2 gate will silently never be scanned.
 - `safety-policy.md`: the risk-level semantics and the redaction forbid-list are load-bearing. Changes here must be reflected in commit messages or CHANGELOG so agents / reviewers notice the behaviour shift.
-- `category-rules.md`: new categories require updating the `category` enum in `scripts/safe_delete.py` and `SKILL.md` "Quick reference" section. Existing tests do not enumerate categories, but new L3 defaults should be cross-checked against `safety-policy.md`.
+- `category-rules.md`: new categories require updating the `category` enum in `scripts/safe_delete.py` and `SKILL.md` "Quick reference" section. Existing tests do not enumerate categories, but new L3 defaults should be cross-checked against `safety-policy.md`. When you add or rename a `source_label` sample, update the "Source label bilingual naming" appendix in the same commit — Stage 6 Pattern C ships both locales and the Chinese rendering needs to stay stable across runs.
 
 ## Report templates
 
-The report is a single long page — `assets/report-template.html` — that carries eight paired-marker regions: `hero`, `share`, `impact`, `nextstep`, `distribution`, `actions`, `observations`, `runmeta`. CSS lives in `assets/report.css`; `assets/share-card-template.svg` is filled as a workdir artifact but is not embedded in the report.
+The report is a single long page — `assets/report-template.html` — that carries eight paired-marker regions: `hero`, `share`, `impact`, `nextstep`, `distribution`, `actions`, `observations`, `runmeta`. CSS lives in `assets/report.css`; `assets/share-card-template.svg` is filled as a workdir artifact (emitted per-locale as `share-card.{en,zh}.svg`) but is not embedded in the report. UI strings live in `assets/i18n/strings.json` (two symmetric `en` / `zh` subtrees) and are inlined into the report at Stage 6 step 3.5 as `<script id="i18n-dict">`.
 
 When you add, remove, or rename a region marker:
 
@@ -43,6 +44,12 @@ When you add, remove, or rename a region marker:
 - Update the fixture helper in `tests/test_validate_report.py` if a new region should participate in a happy-path test.
 
 All four must move in the same commit — a region in the template that isn't in `REGIONS` is a silent leak risk (unfilled placeholder never fails validation), and vice-versa a region in `REGIONS` that isn't in the template will always flag missing.
+
+When you add a new static label to the template:
+
+- Use a `data-i18n="<section>.<slot>"` attribute with an English fallback inside the span.
+- Add the key to both the `en` and `zh` subtrees in `assets/i18n/strings.json`; the validator enforces key-set equality.
+- Add the Stage 6 pattern (A / B / C) note in `SKILL.md` if the new label is a new pattern kind.
 
 ## Testing
 
