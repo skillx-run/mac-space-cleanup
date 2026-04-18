@@ -509,7 +509,11 @@ The 10 numbered sub-steps below split into four phases:
    - `archived_count` if any (archive_source goes into the workdir, point user at it).
    - `deferred_count`.
 
-   Print the report path explicitly as a `file://` URL on its own line, e.g. `file://$WORKDIR/report.html` expanded. Do not reduce this to "the report is in the workdir" — the URL must appear so the user can Cmd+click it in their terminal or click it in a markdown-rendering host. Other workdir artefacts (`cleanup-result.json`, the share cards, share texts, `confirmed.json`) only need to be surfaced if the user asks for them.
+   Print two locations explicitly, each on its own line:
+   - The workdir path itself (the literal expanded value of `$WORKDIR`, e.g. `/Users/alice/.cache/mac-space-cleanup/run-A1B2C3`) — so the user can `cd` there or `open` it in Finder to inspect `actions.jsonl`, `cleanup-result.json`, the share cards, and any other artefacts.
+   - The report URL as `file://` + the expanded `$WORKDIR` + `/report.html` — so the user can Cmd+click it in the terminal or click it in a markdown-rendering host to reopen the report.
+
+   Both lines are required. Do not reduce this to "the report is in the workdir".
 
    **Self-check on `share.{en,zh}.txt` before step 9 (no automation backstop).** `validate_report.py` scans `report.html` only; the share-text files are on an unchecked path. Re-read both files and confirm:
    - Verb tense matches the run: real-run → past (`reclaimed` / `清出了`); dry-run → future-tense template from step 6 (`estimates I could reclaim` / `预计能在我的 Mac 上清出`).
