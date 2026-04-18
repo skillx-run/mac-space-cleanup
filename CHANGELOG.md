@@ -2,6 +2,27 @@
 
 All notable changes to mac-space-clean. Newest first.
 
+## v0.4.0 — 2026-04-18
+
+### Added
+- **`scripts/scan_projects.py`**: identifies project roots (via `.git` directory) under user-specified roots and enumerates conventional artifact subdirectories. Outputs structured JSON with `markers_found` per project so the agent can disambiguate ambiguous subtypes (e.g. `vendor` only when `go.mod` is present, `env` only when a Python marker is present).
+  - **Submodule dedup**: nested `.git` inside a recognised project root is skipped; submodules don't show up as separate projects.
+  - **System directory prune**: scans skip `~/Library`, `~/.cache`, `~/.npm`, `~/.cargo`, `~/.cocoapods`, `~/.gradle`, `~/.m2`, `~/.gem`, `~/.bundle`, `~/.local`, `~/.rustup`, `~/.pnpm-store`, `~/.Trash` so cached repo checkouts don't masquerade as user projects.
+- **New category `project_artifacts`** (rule §10) with two subtypes:
+  - **Deletable build outputs** (L1 delete): `node_modules`, `target`, `build`, `dist`, `out`, `.next`, `.nuxt`, `.svelte-kit`, `.turbo`, `.parcel-cache`, `__pycache__`, `.pytest_cache`, `.tox`, `Pods`, `vendor` (Go-only).
+  - **Virtual environments** (L2 trash): `.venv`, `venv`, `env` (Python).
+  - Quick mode skips this category entirely to avoid clearing freshly installed deps.
+- **Confirm-stage exception** in `safety-policy.md`: agent ↔ user dialog at Stage 5 may use project basenames (e.g. `foo-app`) so users can pick between several Node/Python projects when they choose `yes-but-let-me-pick`. Persisted artefacts (`report.html`, share text, `cleanup-result.json`'s `source_label`) remain strict — `validate_report.py` and the redaction reviewer enforce.
+- **SKILL.md Stage 3.5** wires project scanning into the deep-mode workflow with a 10–30s nudge before `find` walks `~`.
+
+### Changed
+- `cleanup-scope.md` lifts the v1 blanket exclusion of nested project artifacts; carves out an explicit allowlist tied to project-root recognition.
+- Stage 5 deep-mode confirmation now groups project artifacts by subtype rather than per-path (e.g. "12 Node projects, 9.2 GB total"); supports `yes-but-let-me-pick` for per-project selection by basename.
+- README "What it touches" lists project artifacts; Limitations no longer mentions "no project-aware cleanup", replaced with v0.4 actually-shipping constraints (`.git`-only root identification, no `.gitignore` parsing).
+
+### Tests
+- 40 → **54** (new `tests/test_scan_projects.py` with 14 tests, including submodule dedup, system-cache prune, markers_found completeness, env/vendor disambiguation surfaces, find timeout isolation, errors schema).
+
 ## v0.3.0 — 2026-04-18
 
 ### Added
