@@ -44,7 +44,7 @@
 <!-- END region:nextstep -->
 
 <!-- BEGIN region:share -->
-<a class="share-btn" target="_blank" rel="noopener" href="https://x.com/intent/tweet?text=I%20just%20reclaimed%2012.3%20GB%20on%20my%20Mac%20with%20the%20mac-space-cleanup%20skill%20by%20%40heyiamlin.%0A%0ABiggest%20wins%3A%20Xcode%20DerivedData%2C%20node_modules%2C%20Docker%20build%20cache.%0A%0A%23macspaceclean%20%23maccleanup%20%23buildinpublic">Share to X</a>
+<a class="share-btn" target="_blank" rel="noopener" href="https://x.com/intent/tweet?text=I%20just%20reclaimed%2012.3%20GB%20on%20my%20Mac%20with%20the%20mac-space-cleanup%20skill%20by%20%40heyiamlin.%0A%0ABiggest%20wins%3A%20Xcode%20DerivedData%20%286.8%20GB%29%2C%20node_modules%20%283.2%20GB%29%2C%20Docker%20build%20cache%20%282.3%20GB%29.%0A%0A%23macspaceclean%20%23maccleanup%20%23buildinpublic">Share to X</a>
 <!-- END region:share -->
 
 <!-- BEGIN region:distribution -->
