@@ -229,6 +229,12 @@ class TestAggregateHistory(unittest.TestCase):
         code, out, _ = _invoke(self.cache, self.workdir, "--keep", "2")
         self.assertEqual(code, 0)
         self.assertEqual(out["runs_gc"]["removed"], 3)
+        # kept counts physical dirs left on disk; kept + removed must equal
+        # the 5 run-* dirs that existed before GC.
+        self.assertEqual(out["runs_gc"]["kept"], 2)
+        self.assertEqual(
+            out["runs_gc"]["kept"] + out["runs_gc"]["removed"], 5,
+        )
         remaining = sorted(p.name for p in self.cache.iterdir() if p.is_dir())
         self.assertEqual(remaining, ["run-03", "run-04"])
 
@@ -241,6 +247,23 @@ class TestAggregateHistory(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(out["runs_gc"]["removed"], 0)
         self.assertEqual(len(list(self.cache.iterdir())), 3)
+        # kept must count physical dirs, not runs_analyzed. All 3 dirs are
+        # on disk even though each has an empty actions.jsonl and 0 items.
+        self.assertEqual(out["runs_gc"]["kept"], 3)
+
+    def test_no_gc_counts_physical_dirs_even_without_actions_jsonl(self):
+        # Regression: --no-gc used to report runs_analyzed as kept, which
+        # under-counted run-* dirs whose actions.jsonl was missing.
+        (self.cache / "run-missing").mkdir()  # no actions.jsonl
+        _write_run(
+            self.cache, "run-ok", items=[], action_records=[
+                {"item_id": "x", "action": "delete", "status": "success",
+                 "dry_run": False, "timestamp": 1},
+            ],
+        )
+        code, out, _ = _invoke(self.cache, self.workdir, "--no-gc")
+        self.assertEqual(code, 0)
+        self.assertEqual(out["runs_gc"]["kept"], 2)
 
     def test_gc_ignores_non_run_prefix_dirs(self):
         # test-* / smoke-* / dry-e2e-* dirs must not be GC'd even though
@@ -279,9 +302,14 @@ class TestAggregateHistory(unittest.TestCase):
             nd.mkdir()
             os.utime(nd, (1_700_000_000 + i, 1_700_000_000 + i))
 
-        code, _, _ = _invoke(self.cache, wd, "--keep", "2")
+        code, out, _ = _invoke(self.cache, wd, "--keep", "2")
         self.assertEqual(code, 0)
         self.assertTrue(wd.is_dir(), "workdir must survive GC even when older than --keep cutoff")
+        # 6 run-* dirs on disk (5 test runs + protected workdir); keep=2
+        # removes 4 of the non-protected aged dirs; kept = 2 newest + 1
+        # protected = 3; kept + removed = 6 matches the physical total.
+        self.assertEqual(out["runs_gc"]["kept"], 3)
+        self.assertEqual(out["runs_gc"]["removed"], 3)
 
     # ------------------------------------------------------------------
     # Privacy regression

@@ -197,7 +197,12 @@ def _gc(
 ) -> dict[str, Any]:
     """Remove run-* dirs beyond the most-recent ``keep``; never touch ``protect``.
 
-    Returns a summary dict with ``kept`` / ``removed`` / ``removed_run_ids``.
+    Returns a summary dict with ``kept`` / ``removed`` / ``removed_run_ids``
+    where both counts are in units of physical ``run-*`` directories —
+    ``kept + removed`` equals the total number of ``run-*`` dirs that
+    existed before GC (and ``kept`` equals the number that still exist
+    after GC, which includes the pinned ``protect`` dir even if it was
+    older than the ``keep`` cutoff).
     """
     protected_resolved: Path | None = None
     if protect is not None:
@@ -207,14 +212,14 @@ def _gc(
             protected_resolved = None
 
     runs = _list_run_dirs(cache_root)
-    keepers = runs[:keep]
+    survivors: set[Path] = set(runs[:keep])
     removed_ids: list[str] = []
     for doomed in runs[keep:]:
         if protected_resolved is not None:
             try:
                 if doomed.resolve(strict=False) == protected_resolved:
                     # Caller's current workdir is pinned regardless of age.
-                    keepers.append(doomed)
+                    survivors.add(doomed)
                     continue
             except OSError:
                 pass
@@ -223,10 +228,12 @@ def _gc(
             removed_ids.append(doomed.name)
         except OSError:
             # Swallow GC failures — history.json is the primary output;
-            # stale dirs are a minor cost.
+            # stale dirs are a minor cost. The dir is still on disk, so
+            # it counts as a survivor for bookkeeping purposes.
+            survivors.add(doomed)
             continue
     return {
-        "kept": len(keepers),
+        "kept": len(survivors),
         "removed": len(removed_ids),
         "removed_run_ids": removed_ids,
     }
@@ -275,7 +282,12 @@ def run(argv: list[str] | None = None) -> int:
                 runs_without_result += 1
 
     if args.no_gc:
-        gc_summary = {"kept": runs_analyzed, "removed": 0, "removed_run_ids": []}
+        # Match the --gc branch's unit: count physical run-* dirs on disk.
+        gc_summary = {
+            "kept": len(_list_run_dirs(cache_root)),
+            "removed": 0,
+            "removed_run_ids": [],
+        }
     else:
         gc_summary = _gc(cache_root, args.keep, protect=workdir)
 
