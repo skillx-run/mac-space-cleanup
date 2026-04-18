@@ -4,6 +4,9 @@ All notable changes to mac-space-cleanup. Newest first.
 
 ## Unreleased
 
+### Changed
+- **Workflow bumps from six to seven stages.** The `open "$WORKDIR/report.html"` call and the `share.txt` self-check are pulled out of Stage 6 into a new standalone **Stage 7 · Open the report**. Stage 6 now ends on a pure summary paragraph (old step 10 → new step 9, with the embedded self-check block removed), and Stage 7 runs: (1) `share.txt` self-check gate, (2) `open`. Intent: let the summary (workdir path, `file://` URL, freed / pending numbers) land in the terminal *before* the browser window takes focus; give the share-text self-check its own slot as a gate instead of burying it mid-summary; make "don't skip the open" a harder-to-miss instruction with its own stage header. All 7 translated READMEs mirror the stage-count bump.
+
 ### Added
 - Translated READMEs in 7 locales (`zh-CN`, `zh-TW`, `ja`, `es`, `fr`, `ar`, `de`). Flat filename-suffix layout at repo root; unified top-of-file language navigation bar with fixed order (EN → zh-CN → zh-TW → ja → es → fr → ar → de). English `README.md` remains the GitHub default.
 
