@@ -16,23 +16,17 @@ import validate_report  # noqa: E402
 from _helpers import run_script  # noqa: E402
 
 
-def _well_formed_html(extra: str = "", kind: str = "hero") -> str:
-    """A minimal HTML that fills every region required for `kind`."""
-    regions = (validate_report.HERO_REGIONS if kind == "hero"
-               else validate_report.DETAILS_REGIONS)
+def _well_formed_html(extra: str = "") -> str:
+    """A minimal report.html that fills every region."""
     parts = [
         f"<!-- region:{r}:start --><p>filled {r}</p><!-- region:{r}:end -->"
-        for r in regions
+        for r in validate_report.REGIONS
     ]
     return f"<html><body>{''.join(parts)}{extra}</body></html>"
 
 
-def _run(report: Path, kind: str = "hero") -> tuple[int, dict, str]:
-    return run_script(
-        validate_report,
-        ["--report", str(report), "--kind", kind],
-        None,
-    )
+def _run(report: Path) -> tuple[int, dict, str]:
+    return run_script(validate_report, ["--report", str(report)], None)
 
 
 class TestValidateReport(unittest.TestCase):
@@ -47,32 +41,23 @@ class TestValidateReport(unittest.TestCase):
 
     # ---------- happy paths ----------
 
-    def test_well_formed_hero_passes(self):
+    def test_well_formed_passes(self):
         with tempfile.TemporaryDirectory() as td:
             report = Path(td) / "report.html"
-            report.write_text(_well_formed_html(kind="hero"))
-            code, out, _ = _run(report, kind="hero")
+            report.write_text(_well_formed_html())
+            code, out, _ = _run(report)
         self.assertEqual(code, 0)
         self.assertTrue(out["ok"])
         self.assertEqual(out["violations"], [])
 
-    def test_well_formed_details_passes(self):
-        with tempfile.TemporaryDirectory() as td:
-            report = Path(td) / "details.html"
-            report.write_text(_well_formed_html(kind="details"))
-            code, out, _ = _run(report, kind="details")
-        self.assertEqual(code, 0)
-        self.assertTrue(out["ok"])
-
-    def test_hero_all_good_nextstep_does_not_false_positive(self):
+    def test_all_good_nextstep_does_not_false_positive(self):
         """When pending_in_trash_bytes==0 the agent replaces the nextstep
         placeholder with `<p class="all-good">All freed bytes are
         immediately reclaimed — no follow-up needed.</p>`. That literal
-        must not trigger placeholder_left (it contains none of the
-        forbidden marker strings) or empty_region."""
+        must not trigger placeholder_left or empty_region."""
         with tempfile.TemporaryDirectory() as td:
             report = Path(td) / "report.html"
-            html = _well_formed_html(kind="hero").replace(
+            html = _well_formed_html().replace(
                 "<!-- region:nextstep:start --><p>filled nextstep</p><!-- region:nextstep:end -->",
                 (
                     "<!-- region:nextstep:start -->"
@@ -82,7 +67,7 @@ class TestValidateReport(unittest.TestCase):
                 ),
             )
             report.write_text(html)
-            code, out, _ = _run(report, kind="hero")
+            code, out, _ = _run(report)
         self.assertEqual(code, 0, msg=out)
         self.assertTrue(out["ok"])
 
@@ -91,12 +76,12 @@ class TestValidateReport(unittest.TestCase):
     def test_missing_region_flagged(self):
         with tempfile.TemporaryDirectory() as td:
             report = Path(td) / "report.html"
-            html = _well_formed_html(kind="hero").replace(
+            html = _well_formed_html().replace(
                 "<!-- region:share:start --><p>filled share</p><!-- region:share:end -->",
                 "",
             )
             report.write_text(html)
-            code, out, _ = _run(report, kind="hero")
+            code, out, _ = _run(report)
         self.assertEqual(code, 1)
         kinds = [v["kind"] for v in out["violations"]]
         self.assertIn("missing_region", kinds)
@@ -107,26 +92,16 @@ class TestValidateReport(unittest.TestCase):
     def test_empty_region_flagged(self):
         with tempfile.TemporaryDirectory() as td:
             report = Path(td) / "report.html"
-            html = _well_formed_html(kind="hero").replace(
+            html = _well_formed_html().replace(
                 "<!-- region:hero:start --><p>filled hero</p><!-- region:hero:end -->",
                 "<!-- region:hero:start -->   <!-- region:hero:end -->",
             )
             report.write_text(html)
-            code, out, _ = _run(report, kind="hero")
+            code, out, _ = _run(report)
         self.assertEqual(code, 1)
         empties = [v for v in out["violations"] if v["kind"] == "empty_region"]
         self.assertEqual(len(empties), 1)
         self.assertEqual(empties[0]["region"], "hero")
-
-    def test_hero_fixture_with_details_kind_reports_all_details_regions_missing(self):
-        with tempfile.TemporaryDirectory() as td:
-            report = Path(td) / "details.html"
-            report.write_text(_well_formed_html(kind="hero"))
-            code, out, _ = _run(report, kind="details")
-        self.assertEqual(code, 1)
-        missing = {v.get("region") for v in out["violations"]
-                   if v["kind"] == "missing_region"}
-        self.assertEqual(missing, set(validate_report.DETAILS_REGIONS))
 
     # ---------- placeholder ----------
 
@@ -134,26 +109,24 @@ class TestValidateReport(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             report = Path(td) / "report.html"
             html = _well_formed_html(
-                kind="hero",
                 extra='<div data-placeholder="hero">Agent fills this block</div>',
             )
             report.write_text(html)
-            code, out, _ = _run(report, kind="hero")
+            code, out, _ = _run(report)
         self.assertEqual(code, 1)
         kinds = [v["kind"] for v in out["violations"]]
         self.assertIn("placeholder_left", kinds)
 
     def test_placeholder_impact_flagged(self):
-        """A surviving impact placeholder is caught even though impact
-        is a new region introduced in the two-page split."""
+        """A surviving impact placeholder is caught — impact is a new
+        region introduced in this redesign."""
         with tempfile.TemporaryDirectory() as td:
             report = Path(td) / "report.html"
             html = _well_formed_html(
-                kind="hero",
                 extra='<div data-placeholder="impact">TODO</div>',
             )
             report.write_text(html)
-            code, out, _ = _run(report, kind="hero")
+            code, out, _ = _run(report)
         self.assertEqual(code, 1)
         leaks = [v for v in out["violations"] if v["kind"] == "placeholder_left"]
         self.assertTrue(any('data-placeholder="impact"' in v["detail"]
@@ -164,22 +137,9 @@ class TestValidateReport(unittest.TestCase):
     def test_leaked_path_flagged(self):
         with tempfile.TemporaryDirectory() as td:
             report = Path(td) / "report.html"
-            html = _well_formed_html(kind="hero",
-                                     extra="<p>/Users/alice/Projects/secret</p>")
+            html = _well_formed_html(extra="<p>/Users/alice/Projects/secret</p>")
             report.write_text(html)
-            code, out, _ = _run(report, kind="hero")
-        self.assertEqual(code, 1)
-        leaks = [v for v in out["violations"] if v["kind"] == "leaked_fragment"]
-        self.assertTrue(any("/Users/" in v["detail"] for v in leaks))
-
-    def test_leaked_path_in_details_flagged(self):
-        """Details page enforces the same redaction dictionary as hero."""
-        with tempfile.TemporaryDirectory() as td:
-            report = Path(td) / "details.html"
-            html = _well_formed_html(kind="details",
-                                     extra="<p>/Users/bob/stuff</p>")
-            report.write_text(html)
-            code, out, _ = _run(report, kind="details")
+            code, out, _ = _run(report)
         self.assertEqual(code, 1)
         leaks = [v for v in out["violations"] if v["kind"] == "leaked_fragment"]
         self.assertTrue(any("/Users/" in v["detail"] for v in leaks))
@@ -187,10 +147,9 @@ class TestValidateReport(unittest.TestCase):
     def test_leaked_credential_hint_flagged(self):
         with tempfile.TemporaryDirectory() as td:
             report = Path(td) / "report.html"
-            html = _well_formed_html(kind="hero",
-                                     extra="<code>id_rsa</code>")
+            html = _well_formed_html(extra="<code>id_rsa</code>")
             report.write_text(html)
-            code, out, _ = _run(report, kind="hero")
+            code, out, _ = _run(report)
         self.assertEqual(code, 1)
         leaks = [v for v in out["violations"] if v["kind"] == "leaked_fragment"]
         self.assertTrue(any("id_rsa" in v["detail"] for v in leaks))
@@ -198,12 +157,11 @@ class TestValidateReport(unittest.TestCase):
     def test_runtime_username_flagged(self):
         with tempfile.TemporaryDirectory() as td:
             report = Path(td) / "report.html"
-            html = _well_formed_html(kind="hero",
-                                     extra="<p>user is alice today</p>")
+            html = _well_formed_html(extra="<p>user is alice today</p>")
             report.write_text(html)
             with mock.patch.object(validate_report, "_runtime_forbidden",
                                    return_value=["alice", "/Users/alice"]):
-                code, out, _ = _run(report, kind="hero")
+                code, out, _ = _run(report)
         self.assertEqual(code, 1)
         leaks = [v for v in out["violations"] if v["kind"] == "leaked_fragment"]
         self.assertTrue(any("alice" in v["detail"] for v in leaks))
@@ -211,36 +169,20 @@ class TestValidateReport(unittest.TestCase):
     # ---------- input handling ----------
 
     def test_missing_file_returns_violation(self):
-        code, out, _ = _run(Path("/tmp/definitely-not-here-xyz123.html"),
-                            kind="hero")
+        code, out, _ = _run(Path("/tmp/definitely-not-here-xyz123.html"))
         self.assertEqual(code, 1)
         self.assertFalse(out["ok"])
         self.assertEqual(out["violations"][0]["kind"], "missing_file")
-
-    def test_missing_kind_arg_exits_2(self):
-        """argparse rejects a CLI invocation that omits --kind."""
-        with tempfile.TemporaryDirectory() as td:
-            report = Path(td) / "report.html"
-            report.write_text(_well_formed_html(kind="hero"))
-            with self.assertRaises(SystemExit) as ctx:
-                run_script(
-                    validate_report,
-                    ["--report", str(report)],  # no --kind
-                    None,
-                )
-        self.assertEqual(ctx.exception.code, 2)
 
     # ---------- dry-run marking ----------
 
     def test_dry_run_flag_requires_banner_and_prefix(self):
         with tempfile.TemporaryDirectory() as td:
             report = Path(td) / "report.html"
-            report.write_text(
-                _well_formed_html(kind="hero", extra="<p>12.5 GB freed</p>")
-            )
+            report.write_text(_well_formed_html(extra="<p>12.5 GB freed</p>"))
             code, out, _ = run_script(
                 validate_report,
-                ["--report", str(report), "--kind", "hero", "--dry-run"],
+                ["--report", str(report), "--dry-run"],
                 None,
             )
         self.assertEqual(code, 1)
@@ -250,26 +192,10 @@ class TestValidateReport(unittest.TestCase):
         self.assertIn("dry-banner", details)
         self.assertIn("would be", details)
 
-    def test_dry_run_flag_requires_banner_on_details_too(self):
-        with tempfile.TemporaryDirectory() as td:
-            report = Path(td) / "details.html"
-            report.write_text(
-                _well_formed_html(kind="details", extra="<p>12.5 GB freed</p>")
-            )
-            code, out, _ = run_script(
-                validate_report,
-                ["--report", str(report), "--kind", "details", "--dry-run"],
-                None,
-            )
-        self.assertEqual(code, 1)
-        kinds = [v["kind"] for v in out["violations"]]
-        self.assertIn("dry_run_unmarked", kinds)
-
     def test_dry_run_flag_passes_with_banner_and_prefix(self):
         with tempfile.TemporaryDirectory() as td:
             report = Path(td) / "report.html"
             html = _well_formed_html(
-                kind="hero",
                 extra=(
                     '<div class="dry-banner">DRY-RUN — no files touched</div>'
                     '<p>would be 12.5 GB freed</p>'
@@ -278,7 +204,7 @@ class TestValidateReport(unittest.TestCase):
             report.write_text(html)
             code, out, _ = run_script(
                 validate_report,
-                ["--report", str(report), "--kind", "hero", "--dry-run"],
+                ["--report", str(report), "--dry-run"],
                 None,
             )
         self.assertEqual(code, 0)
@@ -288,7 +214,6 @@ class TestValidateReport(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             report = Path(td) / "report.html"
             html = _well_formed_html(
-                kind="hero",
                 extra=(
                     '<header><div class="dry-banner">DRY-RUN</div></header>'
                     '<p>12.5 GB (simulated)</p>'
@@ -297,7 +222,7 @@ class TestValidateReport(unittest.TestCase):
             report.write_text(html)
             code, out, _ = run_script(
                 validate_report,
-                ["--report", str(report), "--kind", "hero", "--dry-run"],
+                ["--report", str(report), "--dry-run"],
                 None,
             )
         self.assertEqual(code, 0)
@@ -305,10 +230,8 @@ class TestValidateReport(unittest.TestCase):
     def test_real_run_does_not_require_dry_run_markers(self):
         with tempfile.TemporaryDirectory() as td:
             report = Path(td) / "report.html"
-            report.write_text(
-                _well_formed_html(kind="hero", extra="<p>12.5 GB freed</p>")
-            )
-            code, out, _ = _run(report, kind="hero")
+            report.write_text(_well_formed_html(extra="<p>12.5 GB freed</p>"))
+            code, out, _ = _run(report)
         self.assertEqual(code, 0)
         self.assertTrue(out["ok"])
 
