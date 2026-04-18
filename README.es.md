@@ -4,7 +4,7 @@
 
 Un flujo de limpieza de espacio en disco para macOS **guiado por agente**, empaquetado como agent skill.
 
-> El skill conduce al agente a través de una limpieza en seis etapas (modo → sondeo → escaneo → clasificación → confirmación → informe) con **clasificación de riesgo L1–L4**, **contabilidad honesta del espacio recuperado** (dividida en `freed_now` / `pending_in_trash` / `archived`) y **múltiples barreras de seguridad** (una blocklist determinista en código, un sub-agente revisor de privacidad y un validador post-render). Cero dependencias de pip — solo comandos de macOS y la biblioteca estándar de Python.
+> El skill conduce al agente a través de una limpieza en siete etapas (modo → sondeo → escaneo → clasificación → confirmación → informe → apertura) con **clasificación de riesgo L1–L4**, **contabilidad honesta del espacio recuperado** (dividida en `freed_now` / `pending_in_trash` / `archived`) y **múltiples barreras de seguridad** (una blocklist determinista en código, un sub-agente revisor de privacidad y un validador post-render). Cero dependencias de pip — solo comandos de macOS y la biblioteca estándar de Python.
 
 ---
 
@@ -118,7 +118,7 @@ Toda herramienta de limpieza infla su número de «N GB liberados» contando tam
 
 ```
 mac-space-cleanup/
-├── SKILL.md                      # flujo principal del agente (seis etapas)
+├── SKILL.md                      # flujo principal del agente (siete etapas)
 ├── scripts/
 │   ├── safe_delete.py            # despachador de seis acciones + blocklist de seguridad
 │   ├── collect_sizes.py          # du -sk en paralelo

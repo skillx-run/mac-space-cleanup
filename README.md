@@ -4,7 +4,7 @@
 
 An **agent-driven** macOS disk space cleanup workflow, packaged as an agent skill.
 
-> The skill instructs the agent through a six-stage cleanup (mode → probe → scan → classify → confirm → report) with **L1–L4 risk grading**, **honest reclaim accounting** (split into `freed_now` / `pending_in_trash` / `archived`), and **multiple safety backstops** (a deterministic blocklist in code, a redaction reviewer sub-agent, and a post-render validator). Zero pip dependencies — pure macOS commands plus Python stdlib.
+> The skill instructs the agent through a seven-stage cleanup (mode → probe → scan → classify → confirm → report → open) with **L1–L4 risk grading**, **honest reclaim accounting** (split into `freed_now` / `pending_in_trash` / `archived`), and **multiple safety backstops** (a deterministic blocklist in code, a redaction reviewer sub-agent, and a post-render validator). Zero pip dependencies — pure macOS commands plus Python stdlib.
 
 ---
 
@@ -118,7 +118,7 @@ Every disk-cleanup tool inflates its "freed N GB" number by counting what it pus
 
 ```
 mac-space-cleanup/
-├── SKILL.md                      # main agent workflow (six stages)
+├── SKILL.md                      # main agent workflow (seven stages)
 ├── scripts/
 │   ├── safe_delete.py            # six-action dispatcher + blocklist backstop
 │   ├── collect_sizes.py          # parallel du -sk

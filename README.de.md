@@ -4,7 +4,7 @@
 
 Ein **agentengesteuerter** Workflow zur Speicherplatzbereinigung unter macOS, ausgeliefert als Agent Skill.
 
-> Der Skill führt den Agenten durch eine sechsstufige Bereinigung (Modus → Probe → Scan → Klassifikation → Bestätigung → Report) mit **L1–L4-Risikoeinstufung**, **ehrlicher Freispeicher-Bilanzierung** (aufgeteilt in `freed_now` / `pending_in_trash` / `archived`) und **mehreren Sicherheitsnetzen** (eine deterministische Blockliste im Code, ein Sub-Agent zur Privatsphären-Prüfung und ein Validator nach dem Rendering). Null pip-Abhängigkeiten — nur macOS-Befehle und die Python-Standardbibliothek.
+> Der Skill führt den Agenten durch eine siebenstufige Bereinigung (Modus → Probe → Scan → Klassifikation → Bestätigung → Report → Öffnen) mit **L1–L4-Risikoeinstufung**, **ehrlicher Freispeicher-Bilanzierung** (aufgeteilt in `freed_now` / `pending_in_trash` / `archived`) und **mehreren Sicherheitsnetzen** (eine deterministische Blockliste im Code, ein Sub-Agent zur Privatsphären-Prüfung und ein Validator nach dem Rendering). Null pip-Abhängigkeiten — nur macOS-Befehle und die Python-Standardbibliothek.
 
 ---
 
@@ -118,7 +118,7 @@ Jedes Speicher-Aufräumtool bläht seine „N GB frei"-Zahl auf, indem es zählt
 
 ```
 mac-space-cleanup/
-├── SKILL.md                      # Haupt-Agent-Workflow (sechs Stufen)
+├── SKILL.md                      # Haupt-Agent-Workflow (sieben Stufen)
 ├── scripts/
 │   ├── safe_delete.py            # Sechs-Aktions-Dispatcher + Blocklist-Riegel
 │   ├── collect_sizes.py          # paralleles du -sk

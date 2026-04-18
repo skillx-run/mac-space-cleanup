@@ -4,7 +4,7 @@
 
 一个**由 agent 驱动**的 macOS 磁盘空间清理工作流，以 agent skill 形式交付。
 
-> 本 skill 通过六阶段工作流（模式选择 → 环境探测 → 扫描 → 分级 → 二次确认 → 报告）驱动 agent 完成清理，带有 **L1–L4 风险分级**、**真实回收量统计**（拆分为 `freed_now` / `pending_in_trash` / `archived` 三项）和**多重安全兜底**（代码内置的确定性阻断清单、一个负责隐私脱敏的 reviewer 子 agent、以及渲染后校验器）。零 pip 依赖——纯 macOS 命令加 Python 标准库。
+> 本 skill 通过七阶段工作流（模式选择 → 环境探测 → 扫描 → 分级 → 二次确认 → 报告 → 打开）驱动 agent 完成清理，带有 **L1–L4 风险分级**、**真实回收量统计**（拆分为 `freed_now` / `pending_in_trash` / `archived` 三项）和**多重安全兜底**（代码内置的确定性阻断清单、一个负责隐私脱敏的 reviewer 子 agent、以及渲染后校验器）。零 pip 依赖——纯 macOS 命令加 Python 标准库。
 
 ---
 
@@ -118,7 +118,7 @@ Agent 本身会读 `references/cleanup-scope.md` 获取面向用户的白名单 
 
 ```
 mac-space-cleanup/
-├── SKILL.md                      # agent 主工作流（六阶段）
+├── SKILL.md                      # agent 主工作流（七阶段）
 ├── scripts/
 │   ├── safe_delete.py            # 六种动作分发器 + blocklist 硬性兜底
 │   ├── collect_sizes.py          # 并行 du -sk
