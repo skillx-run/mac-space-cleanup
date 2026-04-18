@@ -10,77 +10,77 @@
 
 <header class="top">
   <div class="brand">mac-space-cleanup <span class="by">by @heyiamlin</span></div>
+  
   <!-- region:hero:start -->
   <section class="hero-body" data-placeholder="hero">
-    <p class="hint">Agent fills this block with: headline freed_now (big, honest number; prefix with "would be" on dry-run), an optional "+ {pending} pending in trash" chip, mode / device / os / duration meta chips, and a small L1-L4 risk-chip strip showing bytes + shape glyph (not just colour).</p>
+    <p class="hint">Agent fills this block with: headline freed_now (big number like "12.3 GB", unit like "freed"), and a caption like "Clean run on MacBook Pro, macOS 14.5". No chips or meta-bars here.</p>
   </section>
   <!-- region:hero:end -->
+
   <!-- region:share:start -->
   <div class="hero-cta" data-placeholder="share">
-    <p class="hint">Agent fills this block with a single &lt;a class="share-btn"&gt; linking to https://x.com/intent/tweet?text=&lt;URL-encoded English share text&gt;. No SVG preview, no language tabs, no text panes.</p>
+    <p class="hint">Agent fills this block with a single &lt;a class="share-btn"&gt; linking to X.</p>
   </div>
   <!-- region:share:end -->
 </header>
 
-<section class="impact">
-  <h2>The hit it made</h2>
-  <p class="section-sub">Before vs. after on the boot volume, plus where this run&rsquo;s bytes came from.</p>
-  <!-- region:impact:start -->
-  <div class="impact-body" data-placeholder="impact">
-    <p class="hint">Agent fills this block with two visuals: (1) a water-bar comparing free space before/after (segments get inline style="width:N%"); (2) a stack-bar of freed_now_bytes by category (source_label only, each segment an inline style="flex-basis:N%") with a legend of up to the top five categories. No paths.</p>
-  </div>
-  <!-- region:impact:end -->
-</section>
-
 <section class="nextstep">
-  <h2>One last step</h2>
+  <h2>Action Required</h2>
   <!-- region:nextstep:start -->
   <div class="nextstep-body" data-placeholder="nextstep">
-    <p class="hint">Agent fills this block. When pending_in_trash_bytes &gt; 0: a .cta-card with the pending size, the osascript one-liner, the Finder dialog warning, and the macOS 30-day auto-empty hint. When pending_in_trash_bytes == 0: a single &lt;p class="all-good"&gt;All freed bytes are immediately reclaimed &mdash; no follow-up needed.&lt;/p&gt;.</p>
+    <p class="hint">Agent fills this block. If pending_in_trash_bytes > 0: a .cta-card with size and empty command. If 0: a single &lt;p class="all-good"&gt; message.</p>
   </div>
   <!-- region:nextstep:end -->
 </section>
 
+<section class="impact">
+  <h2>Impact Summary</h2>
+  <p class="section-sub">Disk space changes and category distribution.</p>
+  <!-- region:impact:start -->
+  <div class="impact-body" data-placeholder="impact">
+    <p class="hint">Agent fills this block with: (1) .impact-card with .water-bar; (2) .impact-card with .stack-bar and .stack-legend of top categories.</p>
+  </div>
+  <!-- region:impact:end -->
+</section>
+
 <section class="distribution">
-  <h2>Breakdown by category</h2>
+  <h2>Breakdown</h2>
   <!-- region:distribution:start -->
   <div class="dist-body" data-placeholder="distribution">
-    <p class="hint">Agent fills this block with one .dist-card--detailed per category: source_label title, a three-column pre-clean / freed / remaining row, and a .dist-inline-bar showing freed/pre-clean as inline style="width:N%".</p>
+    <p class="hint">Agent fills this block with a vertical list of .dist-card--detailed items. Each card: title, and metrics (Pre-clean, Freed, Remaining).</p>
   </div>
   <!-- region:distribution:end -->
 </section>
 
 <section class="actions">
-  <h2>What happened this run</h2>
+  <h2>Detailed Log</h2>
   <!-- region:actions:start -->
   <div class="actions-body" data-placeholder="actions">
-    <p class="hint">Agent fills this block with one &lt;details class="actions-group"&gt; per action type (auto-cleaned / confirmed / archived / migrated / deferred / skipped / failed), each wrapping a .actions-list whose rows have four columns: source_label · size · action badge · one-line reason. No paths.</p>
+    <p class="hint">Agent fills this block with &lt;details class="actions-group"&gt; per action type, wrapping .actions-list rows with 4 columns.</p>
   </div>
   <!-- region:actions:end -->
 </section>
 
 <section class="observations">
-  <h2>Still worth a look</h2>
+  <h2>Observations</h2>
   <!-- region:observations:start -->
   <div class="observations-body" data-placeholder="observations">
-    <p class="hint">Agent fills this block as two columns: left "You deferred" (category-aggregated deferred.jsonl entries) and right "Worth a look" (L3/L4 items surfaced but not acted on). Each row: label + one-line recommendation + size. If either side is empty, show a single hint line instead of leaving the placeholder.</p>
+    <p class="hint">Agent fills this block as two columns (.observations-col): "You deferred" and "Worth a look".</p>
   </div>
   <!-- region:observations:end -->
 </section>
 
 <section class="runmeta">
-  <h2>Run metadata</h2>
+  <h2>Run Details</h2>
   <!-- region:runmeta:start -->
   <div class="runmeta-body" data-placeholder="runmeta">
-    <p class="hint">Agent fills this block with: run_id (in &lt;code&gt;), mode, started_at, finished_at + duration, host_info (device / os / free_before / free_after), and the full L1-L4 .risk-meter with bytes + shape glyphs.</p>
+    <p class="hint">Agent fills this block with: .runmeta-grid (run_id, mode, duration, host) and the .risk-meter with legend.</p>
   </div>
   <!-- region:runmeta:end -->
 </section>
 
 <footer class="foot">
-  <span>Generated by mac-space-cleanup</span>
-  <span>&middot;</span>
-  <span>by <a href="https://x.com/heyiamlin">@heyiamlin</a></span>
+  <span>Generated by <a href="https://x.com/heyiamlin">mac-space-cleanup</a></span>
 </footer>
 
 </main>
