@@ -103,6 +103,12 @@ _I18N_DICT_RE = re.compile(
 # sanity check. HTML is not strict XML so we don't try to pair by
 # parent; equal totals catch the common "forgot to add the zh twin"
 # regression with zero false positives for well-formed reports.
+# Known limitation: this does NOT flag cross-container misalignment
+# (e.g. <p><span data-locale-show="en">…</span></p> next to
+# <p><span data-locale-show="zh">…</span></p> — counts balance but
+# each <p> only renders on one locale). Catching that reliably needs
+# a real HTML parser; the redaction reviewer sub-agent is the
+# intended backstop for such semantic pairing errors.
 _LOCALE_SHOW_EN_RE = re.compile(r'\bdata-locale-show\s*=\s*"en"')
 _LOCALE_SHOW_ZH_RE = re.compile(r'\bdata-locale-show\s*=\s*"zh"')
 
