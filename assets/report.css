@@ -452,7 +452,13 @@ section h2 {
   color: var(--muted);
   text-transform: uppercase;
 }
-.actions-row .act.auto { background: var(--accent-soft); color: var(--accent-ink); }
+.actions-row .act.auto    { background: var(--accent-soft); color: var(--accent-ink); }
+.actions-row .act.trash   { background: #dbeafe; color: #1e3a8a; }
+.actions-row .act.archive { background: var(--cta-soft); color: var(--cta-ink); }
+.actions-row .act.migrate { background: var(--cta-soft); color: var(--cta-ink); }
+.actions-row .act.defer   { background: var(--surface-muted); color: var(--muted); border: 1px solid var(--line-strong); }
+.actions-row .act.skip    { background: var(--surface-muted); color: var(--muted); border: 1px solid var(--line-strong); }
+.actions-row .act.failed  { background: var(--danger-soft); color: var(--danger); }
 .actions-row .reason { color: var(--muted); font-size: 13px; }
 
 /* ---- observations --------------------------------------------------- */
