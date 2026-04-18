@@ -2,6 +2,21 @@
 
 All notable changes to mac-space-cleanup. Newest first.
 
+## [Unreleased]
+
+### Changed (BREAKING)
+- **Report output is now two files**: `report.html` (hero / impact / nextstep / share — the landing + share page) and `details.html` (distribution / actions / observations / runmeta — the drill-down). They share `assets/report.css`. Old single-page `report.html` with six regions (`summary / distribution / actions / deferred / nextstep / share`) is gone.
+- **`scripts/validate_report.py` now requires `--kind {hero,details}`.** The Python API `validate()` gained a matching required `kind` positional. Stage 6 step 8 runs the validator twice — once per file. The reviewer sub-agent in step 7 also runs once per file.
+- **`cleanup-result.json` `host_info` gains `device`** (from `system_profiler SPHardwareDataType`), driving the hero device chip. Consumers must accept the extra field; older runs without it render the chip as `Mac` by fallback in Stage 6 step 1.
+
+### Added
+- `assets/details-template.html` (new file).
+- Bright-celebration light palette in `assets/report.css`: mint-teal accent, amber CTA, 80px hero headline, new `.water-bar` / `.stack-bar` / `.risk-chip` / `.risk-meter` / `.cta-card` / `.share-tabs` / `.page-jump` / `.dist-card--detailed` / `.actions-row` components. Risk levels use shape glyphs (● ▲ ■ ✕) in addition to colour so the encoding is not load-bearing on hue alone.
+- Share card SVG repainted to the same light palette (headline uses `#065f46` for contrast on the white ground, accent mint kept for the mode label / handle / accent rule).
+
+### Tests
+- 74 → **81** (`test_validate_report.py` gains: happy path for details; all-good nextstep scenario; hero fixture + `--kind details` reports all details regions missing; dry-run banner required on details too; `placeholder_impact_flagged`; leaked path in details; missing `--kind` exits 2).
+
 ## v0.4.0 — 2026-04-18
 
 ### Added

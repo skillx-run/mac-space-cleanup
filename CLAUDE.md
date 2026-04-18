@@ -17,7 +17,7 @@ Do not re-introduce `scan_space.py`, `classify_items.py`, `build_report.py`, or 
 ## Non-negotiable invariants
 
 1. **Agent never writes the filesystem for cleanup purposes.** Every `delete / trash / archive / migrate / defer` against **user-owned paths** must route through `scripts/safe_delete.py`. The only direct agent writes are JSON/HTML files under `$WORKDIR`. Scripts under `scripts/` MAY manage their own workdir-family state directly — see `references/safety-policy.md` §"Operating invariants" #1 + #3 for the cross-run GC carve-out in `aggregate_history.py`.
-2. **Redaction is absolute.** Anything that reaches `report.html`, `share-card.svg`, or share text must use `source_label` + `category` only. No paths, basenames, usernames, project names, or company names. See `references/safety-policy.md` §"Privacy redaction rules".
+2. **Redaction is absolute.** Anything that reaches `report.html`, `details.html`, `share-card.svg`, or share text must use `source_label` + `category` only. No paths, basenames, usernames, project names, or company names. See `references/safety-policy.md` §"Privacy redaction rules".
 3. **Workdir is per-run**: `~/.cache/mac-space-cleanup/run-XXXXXX` created by `mktemp -d`. Never reuse across runs.
 4. **Templates in `assets/` are immutable at runtime.** Agent must `cp` them into `$WORKDIR` before editing.
 5. **`actions.jsonl` is append-only and authoritative *within a single run*.** Safe_delete re-runs against the same `$WORKDIR` are idempotent: already-gone paths become `action=skip, status=success, reason="already gone"`. Cross-run preservation is best-effort — `aggregate_history.py` GCs old `run-*` dirs per its `--keep` window. See `references/safety-policy.md` §"Operating invariants" #3.
@@ -31,6 +31,19 @@ Do not re-introduce `scan_space.py`, `classify_items.py`, `build_report.py`, or 
 - `safety-policy.md`: the risk-level semantics and the redaction forbid-list are load-bearing. Changes here must be reflected in commit messages or CHANGELOG so agents / reviewers notice the behaviour shift.
 - `category-rules.md`: new categories require updating the `category` enum in `scripts/safe_delete.py` and `SKILL.md` "Quick reference" section. Existing tests do not enumerate categories, but new L3 defaults should be cross-checked against `safety-policy.md`.
 
+## Report templates
+
+The report is rendered as two files — `report.html` (hero / impact / nextstep / share) and `details.html` (distribution / actions / observations / runmeta). They share `assets/report.css` and both pass through the same redaction + validator gate.
+
+When you add, remove, or rename a region marker in either `assets/report-template.html` or `assets/details-template.html`:
+
+- Update `HERO_REGIONS` / `DETAILS_REGIONS` in `scripts/validate_report.py` — regions live under the file that declares them, nothing else.
+- Update `_PLACEHOLDER_MARKERS` in the same file if the region's `data-placeholder="..."` value changes.
+- Update the Stage 6 step 4.a / 4.b region lists in `SKILL.md` — the agent fills from those instructions, a silent drift means regions get left as placeholders.
+- Update the fixture helper in `tests/test_validate_report.py` if a new region should participate in a happy-path test.
+
+If you shift a region across files (e.g. move `runmeta` back to the hero page), it must move in all four places above in the same commit — a half-migrated marker will either not be validated (silent leak risk) or always be flagged missing.
+
 ## Testing
 
 All tests are pure-stdlib `unittest`, no external dependencies.
@@ -39,7 +52,7 @@ All tests are pure-stdlib `unittest`, no external dependencies.
 python3 -m unittest discover -s tests -v
 ```
 
-The test suite covers only the scripts (72 tests total as of v0.5). Agent behaviour (Stages 1–6) is verified end-to-end through manual dry-runs, not unit tests — rule interpretation is the agent's responsibility and is not mechanically testable without LLM-in-loop harnesses.
+The test suite covers only the scripts (81 tests total as of the v0.5 two-page report split). Agent behaviour (Stages 1–6) is verified end-to-end through manual dry-runs, not unit tests — rule interpretation is the agent's responsibility and is not mechanically testable without LLM-in-loop harnesses.
 
 When you touch `scripts/*.py`, add or update tests in the same commit. Smoke-test the whole pipeline with:
 
