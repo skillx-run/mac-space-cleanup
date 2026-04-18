@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-locale="en">
+<html lang="en" data-locale="en" dir="ltr">
 <head>
 <meta charset="utf-8">
 <title>mac-space-cleanup report</title>
@@ -8,21 +8,20 @@
 <body>
 <main class="report">
 
-<script type="application/json" id="i18n-dict">{"en":{},"zh":{}}</script>
+<script type="application/json" id="i18n-dict">{}</script>
 
 <header class="top">
-  <button class="lang-toggle" type="button" data-lang-toggle aria-pressed="false" aria-label="Switch to 中文">EN / 中</button>
   <div class="brand">mac-space-cleanup <span class="by"><span data-i18n="brand.by">by</span> <a href="https://x.com/heyiamlin" target="_blank" rel="noopener">@heyiamlin</a></span></div>
 
   <!-- region:hero:start -->
   <section class="hero-body" data-placeholder="hero">
-    <p class="hint">Agent fills this block with: headline freed_now (big number like "12.3 GB", unit via data-i18n="hero.unit"), and a caption as bilingual sibling spans ("Clean run on MacBook Pro, macOS 14.5" EN + ZH). No chips or meta-bars here.</p>
+    <p class="hint">Agent fills this block with the headline (bare number plus a `data-i18n="hero.unit"` span on real runs, or a `.dryrun-prefix` wrapper plus inline unit on dry-run) and a one-line hero-caption prose summary written in $LOCALE. No chips or meta-bars here.</p>
   </section>
   <!-- region:hero:end -->
 
   <!-- region:share:start -->
   <div class="hero-cta" data-placeholder="share">
-    <p class="hint">Agent fills this block with a single &lt;a class="share-btn"&gt; linking to X, inner text via data-i18n="share.btn".</p>
+    <p class="hint">Agent fills this block with a single &lt;a class="share-btn" href="..."&gt; linking to X. The href encodes $WORKDIR/share.txt; inner label uses data-i18n="share.btn".</p>
   </div>
   <!-- region:share:end -->
 </header>
@@ -31,7 +30,7 @@
   <h2><span data-i18n="section.nextstep.title">One last step</span></h2>
   <!-- region:nextstep:start -->
   <div class="nextstep-body" data-placeholder="nextstep">
-    <p class="hint">Agent fills this block. If pending_in_trash_bytes > 0: a .cta-card with size + data-i18n suffix and empty command. If 0: a single &lt;p class="all-good" data-i18n="nextstep.allgood"&gt; message.</p>
+    <p class="hint">Agent fills this block per three modes (dry-run / pending>0 / pending=0). All prose in $LOCALE; static-label spans still hang on data-i18n where the dict carries them.</p>
   </div>
   <!-- region:nextstep:end -->
 </section>
@@ -41,7 +40,7 @@
   <p class="section-sub" data-i18n="section.impact.sub">Disk space changes and category distribution.</p>
   <!-- region:impact:start -->
   <div class="impact-body" data-placeholder="impact">
-    <p class="hint">Agent fills this block with: (1) .impact-card with .water-bar; (2) .impact-card with .stack-bar and .stack-legend of top categories (each .name is a bilingual span pair).</p>
+    <p class="hint">Agent fills this block with: (1) .impact-card with .water-bar; (2) .impact-card with .stack-bar and .stack-legend of top categories. source_label entries rendered in $LOCALE.</p>
   </div>
   <!-- region:impact:end -->
 </section>
@@ -50,7 +49,7 @@
   <h2><span data-i18n="section.breakdown.title">Breakdown</span></h2>
   <!-- region:distribution:start -->
   <div class="dist-body" data-placeholder="distribution">
-    <p class="hint">Agent fills this block with a vertical list of .dist-card--detailed items. Each card: title as a bilingual span pair, and metrics (Pre-clean, Freed, Remaining).</p>
+    <p class="hint">Agent fills this block with a vertical list of .dist-card--detailed items. Each card: source_label title in $LOCALE, and metrics (Pre-clean, Freed, Remaining).</p>
   </div>
   <!-- region:distribution:end -->
 </section>
@@ -59,7 +58,7 @@
   <h2><span data-i18n="section.log.title">Detailed Log</span></h2>
   <!-- region:actions:start -->
   <div class="actions-body" data-placeholder="actions">
-    <p class="hint">Agent fills this block with &lt;details class="actions-group"&gt; per action type, wrapping .actions-list rows with 4 columns. Reason is a bilingual span pair; column headers via data-i18n.</p>
+    <p class="hint">Agent fills this block with &lt;details class="actions-group"&gt; per action type, wrapping .actions-list rows with 4 columns. Cat and reason cells are in $LOCALE; column headers via data-i18n.</p>
   </div>
   <!-- region:actions:end -->
 </section>
@@ -68,7 +67,7 @@
   <h2><span data-i18n="section.obs.title">Observations</span></h2>
   <!-- region:observations:start -->
   <div class="observations-body" data-placeholder="observations">
-    <p class="hint">Agent fills this block as two columns (.observations-col). Column headings via data-i18n="section.obs.deferred" / "section.obs.worth"; each row's .rec is a bilingual span pair.</p>
+    <p class="hint">Agent fills this block as two columns (.observations-col). Column headings via data-i18n="section.obs.deferred" / "section.obs.worth"; each row's .label and .rec are in $LOCALE.</p>
   </div>
   <!-- region:observations:end -->
 </section>
@@ -92,50 +91,15 @@
 (function(){
   const html = document.documentElement;
   const node = document.getElementById('i18n-dict');
-  let dict = {en:{}, zh:{}};
+  let dict = {};
   try { dict = JSON.parse(node.textContent); } catch(e) { return; }
-  const KEY = 'msc-locale';
-  // Priority: data-locale (written by Stage 6 from the detected
-  // conversation locale) > localStorage (fallback only; data-locale
-  // is always present on real runs) > 'en'. Putting data-locale
-  // first keeps the promise "report follows the conversation
-  // language" across runs — a previous manual toggle on another
-  // report.html will not override today's freshly-detected locale.
-  const initial = html.dataset.locale || localStorage.getItem(KEY) || 'en';
-  const btn = document.querySelector('[data-lang-toggle]');
-  function apply(loc, persist){
-    if(!dict[loc]) return;
-    html.dataset.locale = loc;
-    html.lang = loc;
-    const title = dict[loc]['doc.title'];
-    if(title) document.title = title;
-    document.querySelectorAll('[data-i18n]').forEach(el => {
-      const k = el.dataset.i18n;
-      const v = dict[loc][k];
-      if(v != null) el.textContent = v;
-    });
-    // Swap per-locale href targets (e.g. the share-to-X button) so a
-    // language toggle actually changes which text the X composer is
-    // pre-filled with, not just the button label.
-    const hrefKey = 'href' + (loc === 'en' ? 'En' : 'Zh');
-    document.querySelectorAll('[data-href-en][data-href-zh]').forEach(el => {
-      const v = el.dataset[hrefKey];
-      if(v) el.setAttribute('href', v);
-    });
-    if(persist) localStorage.setItem(KEY, loc);
-    if(btn){
-      btn.setAttribute('aria-pressed', loc === 'zh' ? 'true' : 'false');
-      const ariaKey = loc === 'en' ? 'toggle.aria.en_to_zh' : 'toggle.aria.zh_to_en';
-      const aria = dict[loc][ariaKey];
-      if(aria) btn.setAttribute('aria-label', aria);
-    }
-  }
-  apply(initial, false);
-  if(btn){
-    btn.addEventListener('click', () => {
-      apply(html.dataset.locale === 'en' ? 'zh' : 'en', true);
-    });
-  }
+  const loc = html.dataset.locale || 'en';
+  html.lang = loc;
+  if (dict['doc.title']) document.title = dict['doc.title'];
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const v = dict[el.dataset.i18n];
+    if (v != null) el.textContent = v;
+  });
 })();
 </script>
 </body>

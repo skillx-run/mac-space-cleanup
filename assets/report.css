@@ -51,36 +51,6 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-/* ---- i18n bilingual span visibility --------------------------------- */
-
-/* Hide both locale variants by default, then reveal the one matching
- * html[data-locale]. CSS owns the toggle so JS only has to flip a
- * single attribute on <html>. Containers must be <span> (inline) —
- * use an outer block element (<p>, <div>, …) for block layout. */
-[data-locale-show] { display: none; }
-html[data-locale="en"] [data-locale-show="en"],
-html[data-locale="zh"] [data-locale-show="zh"] { display: inline; }
-
-/* ---- language toggle button ----------------------------------------- */
-
-.lang-toggle {
-  position: absolute;
-  top: 0;
-  right: 0;
-  font: 500 13px/1.4 inherit;
-  border: 1px solid var(--line-strong);
-  background: transparent;
-  color: var(--muted);
-  padding: 4px 12px;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: color 0.2s, border-color 0.2s;
-}
-.lang-toggle:hover {
-  color: var(--text);
-  border-color: var(--text);
-}
-
 html, body {
   margin: 0;
   padding: 0;
@@ -123,6 +93,15 @@ a:hover {
   letter-spacing: 0.5px;
   width: fit-content;
   box-shadow: var(--shadow-md);
+}
+
+/* Dry-run number prefix. Structural class (validator keys off its
+ * presence before every dry-run headline number); visually subdued so
+ * "would be 28.6 GB" / "预计 28.6 GB" reads as a quiet qualifier
+ * rather than competing with the number itself. */
+.dryrun-prefix {
+  color: var(--cta);
+  font-weight: 600;
 }
 
 /* ---- header --------------------------------------------------------- */
@@ -183,10 +162,6 @@ a:hover {
   font-size: 17px;
   color: var(--muted);
   max-width: 500px;
-  /* Reserve two lines of caption height so the share-button row
-   * below doesn't jump when the user toggles between a one-line EN
-   * caption and a two-line ZH caption (CJK tends to wrap wider). */
-  min-height: 2.8em;
   margin: 0 auto;
 }
 .hero-caption strong {
