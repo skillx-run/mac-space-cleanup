@@ -82,6 +82,18 @@ echo '{"confirmed_items":[]}' | python3 scripts/safe_delete.py --workdir "$WORKD
   - `chore:` — scaffold, assets, tooling, release housekeeping.
 - Body should explain *why*, not *what*. Paths and function names already carry the *what*.
 
+## Translated READMEs
+
+The repo keeps 7 translated READMEs alongside the English `README.md` at the project root, using the filename-suffix convention: `README.zh-CN.md`, `README.zh-TW.md`, `README.ja.md`, `README.es.md`, `README.fr.md`, `README.ar.md`, `README.de.md`. Every README carries the same top-of-file language navigation bar in a fixed order (EN → zh-CN → zh-TW → ja → es → fr → ar → de); the current locale renders as bold plain text, the others as links.
+
+**Substantive edits to `README.md` must be mirrored into all 7 translations in the same PR** — section additions or removals, paragraph rewrites, trigger-phrase table changes, command-line example updates, and semantic shifts in the Architecture / Honesty contract / Limitations sections. If a single PR is too large to fully translate, you may commit a structural skeleton (section headings and table scaffolds) with a `⚠ Translation pending since commit ABCDEFG` note at the top of the affected section, and land the translation in the immediately following commit. **"Translation pending" state must not cross PR boundaries.**
+
+**Exemptions (English-only edits are OK):** typo fixes, pure Markdown formatting tweaks (blank lines, table alignment, fenced-block language tags), URL updates, credit or version-number housekeeping. The translations catch up naturally on the next substantive change.
+
+**SKILL.md is not translated.** It is the agent's workflow contract and already emits localized report copy at runtime via `$LOCALE` (see §"Operating invariants" #7). `references/*.md` are likewise agent-only and not translated. This multilingual effort covers GitHub-surface documentation only.
+
+Translation drift is the top documentation bug risk in this repo. Reviewers of any substantive `README.md` change must open all 7 translations side-by-side and confirm: structural isomorphism (section count, code-fence count), trigger-phrase table localized to the target language, commands / paths / proper nouns unchanged.
+
 ## Known non-goals (v0.1)
 
 See `plan` history and `SKILL.md`. Summary: no undo stack, no cron, no cloud sync, no SIP-region touches, no application uninstall. Recovery paths are the native trash / archive tars / migrate target volumes.

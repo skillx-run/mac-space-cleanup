@@ -1,5 +1,7 @@
 # mac-space-cleanup
 
+**English** · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja.md) · [Español](README.es.md) · [Français](README.fr.md) · [العربية](README.ar.md) · [Deutsch](README.de.md)
+
 An **agent-driven** macOS disk space cleanup workflow, packaged as a Claude Code Skill. Built by [@heyiamlin](https://x.com/heyiamlin).
 
 > The skill instructs the agent through a six-stage cleanup (mode → probe → scan → classify → confirm → report) with **L1–L4 risk grading**, **honest reclaim accounting** (split into `freed_now` / `pending_in_trash` / `archived`), and **multiple safety backstops** (a deterministic blocklist in code, a redaction reviewer sub-agent, and a post-render validator). Zero pip dependencies — pure macOS commands plus Python stdlib.

@@ -2,6 +2,14 @@
 
 All notable changes to mac-space-cleanup. Newest first.
 
+## Unreleased
+
+### Added
+- Translated READMEs in 7 locales (`zh-CN`, `zh-TW`, `ja`, `es`, `fr`, `ar`, `de`). Flat filename-suffix layout at repo root; unified top-of-file language navigation bar with fixed order (EN → zh-CN → zh-TW → ja → es → fr → ar → de). English `README.md` remains the GitHub default.
+
+### Docs
+- `CLAUDE.md` gains a "Translated READMEs" section mandating synchronized translation on every substantive `README.md` change, with narrow exemptions for typo / formatting / URL / version-housekeeping edits. "Translation pending" state is not allowed to cross PR boundaries. `SKILL.md` and `references/*.md` remain agent-only and are not translated.
+
 ## v0.7.0 — 2026-04-18
 
 ### Changed (BREAKING)
