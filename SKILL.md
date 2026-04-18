@@ -509,20 +509,26 @@ The 10 numbered sub-steps below split into four phases:
    - `archived_count` if any.
    - `deferred_count`.
 
-   Then surface the artefacts as an explicit, click-to-open list — terminals (iTerm2, Terminal.app, VS Code) let the user Cmd+click a `file://` URL to reopen the report without retyping `open`. Print URLs by concatenating `file://` with the exported `$WORKDIR` (which is already an absolute path from `mktemp -d`), e.g. `echo "file://$WORKDIR/report.html"`. A filled-in summary block reads literally like this (the `alice` and `A1B2C3` below are only illustration of a real expanded path — **do not copy them; substitute your actual `$WORKDIR`**):
+   Then surface the artefacts as a **markdown link list** — Claude Code renders assistant messages as markdown, so `[text](file://…)` becomes a real clickable hyperlink that is immune to terminal line-wrapping (plain `file://` URLs break when the terminal wraps them or when a description pushes the URL to a second line). Build each href by concatenating `file://` with the exported `$WORKDIR` from Stage 1. A filled-in summary block reads like this (the `alice` and `A1B2C3` below are only illustration of a real expanded path — **do not copy them literally; substitute the actual `$WORKDIR`**):
 
-   ```
-   报告已打开：file:///Users/alice/.cache/mac-space-cleanup/run-A1B2C3/report.html
-   其他工件：
-     · 审计记录 (full paths, for your eyes only):  file:///Users/alice/.cache/.../cleanup-result.json
-     · 分享卡片 (EN):                              file:///Users/alice/.cache/.../share-card.en.svg
-     · 分享卡片 (ZH):                              file:///Users/alice/.cache/.../share-card.zh.svg
-     · 分享文案 (EN / ZH):                         file:///Users/alice/.cache/.../share.en.txt  ·  share.zh.txt
-     · 回放基础 (dry-run only, 复用此文件去掉 --dry-run 就能实跑):
-         file:///Users/alice/.cache/.../confirmed.json
+   ```markdown
+   **报告已打开：** [report.html](file:///Users/alice/.cache/mac-space-cleanup/run-A1B2C3/report.html)
+
+   **其他工件：**
+   - [cleanup-result.json](file:///Users/alice/.cache/.../cleanup-result.json) — 审计记录，含完整路径
+   - [share-card.en.svg](file:///Users/alice/.cache/.../share-card.en.svg) — 英文分享卡片
+   - [share-card.zh.svg](file:///Users/alice/.cache/.../share-card.zh.svg) — 中文分享卡片
+   - [share.en.txt](file:///Users/alice/.cache/.../share.en.txt) — 英文推文
+   - [share.zh.txt](file:///Users/alice/.cache/.../share.zh.txt) — 中文推文
+   - [confirmed.json](file:///Users/alice/.cache/.../confirmed.json) — 回放基础（dry-run only，去掉 `--dry-run` 可实跑）
    ```
 
-   The last "回放基础" line is **dry-run only** — omit it on real runs, since re-running `confirmed.json` against already-cleaned paths just produces a run full of `action=skip, reason="already gone"` noise. Do **not** reduce any of this to "artefacts are in the workdir" — the point is the user should not have to `cd` or `ls` to find anything. Keep the list to one line per artefact, and include at minimum the report URL even in the tersest summary.
+   Rules:
+   - **Link text = filename**, description goes after `—` em-dash. This keeps the clickable target short and avoids description text eating the click region.
+   - **One artefact per list item.** Do not combine `share.en.txt` and `share.zh.txt` on a single line — two separate list items, two separate links.
+   - The last `confirmed.json` line is **dry-run only** — omit it on real runs, since re-running `confirmed.json` against already-cleaned paths just produces `action=skip, reason="already gone"` noise.
+   - Do **not** reduce this to "artefacts are in the workdir"; the point is the user should not have to `cd` or `ls` to find anything. At minimum include the report link even in the tersest summary.
+   - Plain `file://…` URLs are still acceptable as a fallback (e.g. if you really want to paste a raw path for a user who is copying to another tool), but markdown links are the default because they survive terminal wrap.
 
    **Self-check on `share.{en,zh}.txt` before step 9 (no automation backstop).** `validate_report.py` scans `report.html` only; the share-text files are on an unchecked path. Re-read both files and confirm:
    - Verb tense matches the run: real-run → past (`reclaimed` / `清出了`); dry-run → future-tense template from step 6 (`estimates I could reclaim` / `预计能在我的 Mac 上清出`).
