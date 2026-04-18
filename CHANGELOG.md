@@ -21,7 +21,11 @@ All notable changes to mac-space-cleanup. Newest first.
 - README "What it touches" lists project artifacts; Limitations no longer mentions "no project-aware cleanup", replaced with v0.4 actually-shipping constraints (`.git`-only root identification, no `.gitignore` parsing).
 
 ### Tests
-- 40 → **54** (new `tests/test_scan_projects.py` with 14 tests, including submodule dedup, system-cache prune, markers_found completeness, env/vendor disambiguation surfaces, find timeout isolation, errors schema).
+- 40 → **55** (new `tests/test_scan_projects.py` with 14 tests + 1 sibling-dedup boundary added in the v0.4 review pass, covering submodule dedup, system-cache prune, markers_found completeness, env/vendor disambiguation surfaces, find timeout isolation, errors schema).
+
+### Renamed (also in v0.4.0)
+
+The skill identifier was changed from `mac-space-clean` to `mac-space-cleanup` for grammatical correctness — "cleanup" is a standard compound noun (cf. `brew cleanup`, Windows Disk Cleanup), "clean" was an awkward dangling adjective in the three-word compound. Workdir path moves from `~/.cache/mac-space-clean/` to `~/.cache/mac-space-cleanup/`; brand strings in `share.{en,zh}.txt`, `share-card.svg`, and `report.html` updated accordingly. v0.4.0 is the first published release, so the legacy in-development name is recorded here for traceability and is no longer in use anywhere in the codebase.
 
 ## v0.3.0 — 2026-04-18
 
