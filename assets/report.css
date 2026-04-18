@@ -51,6 +51,36 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* ---- i18n bilingual span visibility --------------------------------- */
+
+/* Hide both locale variants by default, then reveal the one matching
+ * html[data-locale]. CSS owns the toggle so JS only has to flip a
+ * single attribute on <html>. Containers must be <span> (inline) —
+ * use an outer block element (<p>, <div>, …) for block layout. */
+[data-locale-show] { display: none; }
+html[data-locale="en"] [data-locale-show="en"],
+html[data-locale="zh"] [data-locale-show="zh"] { display: inline; }
+
+/* ---- language toggle button ----------------------------------------- */
+
+.lang-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  font: 500 13px/1.4 inherit;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--muted);
+  padding: 4px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+.lang-toggle:hover {
+  color: var(--text);
+  border-color: var(--text);
+}
+
 html, body {
   margin: 0;
   padding: 0;
@@ -98,6 +128,7 @@ a:hover {
 /* ---- header --------------------------------------------------------- */
 
 .top {
+  position: relative;
   text-align: center;
   margin-bottom: 56px;
 }

@@ -30,10 +30,10 @@
   <text x="72" y="150" class="t-mode">${mode_label}</text>
 
   <text x="72" y="320" class="t-free">${free_reclaimed}</text>
-  <text x="72" y="405" class="t-label">reclaimed on my Mac</text>
+  <text x="72" y="405" class="t-label">${label_reclaimed}</text>
 
-  <text x="72" y="490" class="t-label">top sources</text>
+  <text x="72" y="490" class="t-label">${label_top}</text>
   <text x="72" y="530" class="t-top">${top_categories}</text>
 
-  <text x="72" y="580" class="t-foot">by <tspan class="t-handle">@heyiamlin</tspan></text>
+  <text x="72" y="580" class="t-foot">${label_by} <tspan class="t-handle">@heyiamlin</tspan></text>
 </svg>
