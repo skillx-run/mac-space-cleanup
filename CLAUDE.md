@@ -16,11 +16,11 @@ Do not re-introduce `scan_space.py`, `classify_items.py`, `build_report.py`, or 
 
 ## Non-negotiable invariants
 
-1. **Agent never writes the filesystem for cleanup purposes.** Every `delete / trash / archive / migrate / defer` must route through `scripts/safe_delete.py`. The only direct agent writes are JSON/HTML files under `$WORKDIR`.
+1. **Agent never writes the filesystem for cleanup purposes.** Every `delete / trash / archive / migrate / defer` against **user-owned paths** must route through `scripts/safe_delete.py`. The only direct agent writes are JSON/HTML files under `$WORKDIR`. Scripts under `scripts/` MAY manage their own workdir-family state directly — see `references/safety-policy.md` §"Operating invariants" #1 + #3 for the cross-run GC carve-out in `aggregate_history.py`.
 2. **Redaction is absolute.** Anything that reaches `report.html`, `share-card.svg`, or share text must use `source_label` + `category` only. No paths, basenames, usernames, project names, or company names. See `references/safety-policy.md` §"Privacy redaction rules".
 3. **Workdir is per-run**: `~/.cache/mac-space-cleanup/run-XXXXXX` created by `mktemp -d`. Never reuse across runs.
 4. **Templates in `assets/` are immutable at runtime.** Agent must `cp` them into `$WORKDIR` before editing.
-5. **`actions.jsonl` is append-only and authoritative.** Safe_delete re-runs are idempotent: already-gone paths become `action=skip, status=success, reason="already gone"`.
+5. **`actions.jsonl` is append-only and authoritative *within a single run*.** Safe_delete re-runs against the same `$WORKDIR` are idempotent: already-gone paths become `action=skip, status=success, reason="already gone"`. Cross-run preservation is best-effort — `aggregate_history.py` GCs old `run-*` dirs per its `--keep` window. See `references/safety-policy.md` §"Operating invariants" #3.
 6. **History-driven UI decisions never cross risk-level or mode boundaries.** `scripts/aggregate_history.py` produces a per-run `history.json` that Stage 5 may consult to collapse per-item prompts into batch prompts. It MUST NOT be used to auto-execute a tag that would otherwise prompt, to up-tier a Quick-mode scan, or to influence Stage 4 grading. See `references/safety-policy.md` §"History-driven UI adjustments" for the authoritative rules.
 
 ## Editing the reference docs
