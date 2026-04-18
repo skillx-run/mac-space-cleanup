@@ -1,78 +1,181 @@
 <!--
   Concatenated region replacements used by dry-e2e.sh to simulate the
-  agent's Stage 6 fill-in. Each block below is a complete replacement for
-  one paired-marker region. The harness uses sed to splice them in.
-  Content is intentionally redaction-safe (category names + made-up sizes,
-  no paths, no usernames).
+  agent's Stage 6 fill-in. Each block below is a complete replacement
+  for one paired-marker region. The harness splices them into the two
+  report templates.
+
+  The first four regions go into report.html (hero / impact / nextstep
+  / share); the next four go into details.html (distribution / actions
+  / observations / runmeta).
+
+  Content is intentionally redaction-safe (category names + made-up
+  sizes, no paths, no usernames).
 
   Companion fixture: tests/fixtures/sample-classified.json contains
   sentinel paths "__WILL_BE_REPLACED_AT_RUNTIME__/..." that dry-e2e.sh
-  rewrites at runtime to point at a tempdir created by mktemp. JSON does
-  not allow comments, hence this note here instead.
+  rewrites at runtime to point at a tempdir created by mktemp. JSON
+  does not allow comments, hence this note here instead.
 -->
 
-<!-- BEGIN region:summary -->
-<div class="summary">
-  <p class="headline">12.3 GB freed now</p>
-  <p class="sub">+ 2.0 GB pending in trash</p>
-  <div class="chips">
-    <span class="chip">Deep Clean</span>
-    <span class="chip l1">L1: 2 items</span>
-    <span class="chip l2">L2: 1 item</span>
-    <span class="chip l3">L3: 1 deferred</span>
+<!-- BEGIN region:hero -->
+<div class="hero-body">
+  <p class="hero-headline">12.3 GB<span class="unit">freed</span></p>
+  <p class="hero-caption">Clean run on <strong>MacBook Pro</strong>, macOS 14.5, in 2m 14s.</p>
+  <span class="pending-note">+ 2.0 KB pending in trash</span>
+  <div class="meta-bar">
+    <span class="chip mode">Deep Clean</span>
+    <span class="chip"><span class="chip-label">device</span>MacBook Pro</span>
+    <span class="chip"><span class="chip-label">os</span>macOS 14.5</span>
+    <span class="chip"><span class="chip-label">duration</span>2m 14s</span>
+  </div>
+  <div class="risk-strip">
+    <span class="risk-chip l1"><span class="glyph"></span>L1 12.0 KB <span class="count">· 2 items</span></span>
+    <span class="risk-chip l2"><span class="glyph"></span>L2 2.0 KB <span class="count">· 1 item</span></span>
+    <span class="risk-chip l3"><span class="glyph"></span>L3 50.0 GB <span class="count">· 1 deferred</span></span>
+    <span class="risk-chip l4"><span class="glyph"></span>L4 0 B <span class="count">· 0 items</span></span>
   </div>
 </div>
-<!-- END region:summary -->
+<!-- END region:hero -->
 
-<!-- BEGIN region:distribution -->
-<div class="dist-grid">
-  <div class="dist-card">
-    <div class="label">Developer caches</div>
-    <div class="value">4.0 KB</div>
-    <div class="meta">freed now</div>
+<!-- BEGIN region:impact -->
+<div class="impact-grid">
+  <div class="impact-card">
+    <div class="title">Disk before vs. after</div>
+    <div class="water-bar">
+      <span class="used-before" style="width:60%"></span>
+      <span class="freed-delta" style="width:2%"></span>
+      <span class="free-after" style="width:38%"></span>
+    </div>
+    <div class="water-legend">
+      <span><b>Before</b>240.0 GB free</span>
+      <span><b>After</b>252.3 GB free</span>
+    </div>
   </div>
-  <div class="dist-card">
-    <div class="label">Old installers</div>
-    <div class="value">8.0 KB</div>
-    <div class="meta">freed now</div>
-  </div>
-  <div class="dist-card">
-    <div class="label">Generic archives</div>
-    <div class="value">2.0 KB</div>
-    <div class="meta">pending in trash</div>
+  <div class="impact-card">
+    <div class="title">Freed this run, by category</div>
+    <div class="stack-bar">
+      <span class="seg-1" style="flex-basis:67%" title="Old installers: 8 KB"></span>
+      <span class="seg-2" style="flex-basis:33%" title="Developer caches: 4 KB"></span>
+    </div>
+    <ul class="stack-legend">
+      <li><span class="swatch" style="background:var(--accent)"></span><span class="name">Old installers</span><span class="bytes">8 KB</span></li>
+      <li><span class="swatch" style="background:#34d399"></span><span class="name">Developer caches</span><span class="bytes">4 KB</span></li>
+    </ul>
   </div>
 </div>
-<!-- END region:distribution -->
-
-<!-- BEGIN region:actions -->
-<ul class="actions-list">
-  <li><span class="cat">Developer caches</span><span class="size">4 KB</span><span class="act">DELETE</span></li>
-  <li><span class="cat">Old installers</span><span class="size">8 KB</span><span class="act">DELETE</span></li>
-  <li><span class="cat">Generic archives</span><span class="size">2 KB</span><span class="act trash">TRASH</span></li>
-  <li><span class="cat">Large VM image</span><span class="size">50 GB</span><span class="act defer">DEFER</span></li>
-</ul>
-<!-- END region:actions -->
-
-<!-- BEGIN region:deferred -->
-<ul class="deferred-list">
-  <li><span class="cat">Large VM image</span><span class="size">50 GB</span><span class="act">SUGGEST: move to external volume</span></li>
-</ul>
-<!-- END region:deferred -->
+<!-- END region:impact -->
 
 <!-- BEGIN region:nextstep -->
-<p class="pending">2.0 KB still in Trash</p>
-<code class="empty-cmd">osascript -e 'tell application "Finder" to empty the trash'</code>
-<p class="auto-note">Running the command above will trigger a Finder confirmation dialog — click 'Empty Trash' there to actually clear it. macOS auto-empties 30 days after items enter the Trash if you've enabled Finder → Settings → Advanced → 'Remove items from the Trash after 30 days'.</p>
+<div class="cta-card">
+  <p class="pending">2.0 KB still in Trash</p>
+  <code class="empty-cmd">osascript -e 'tell application "Finder" to empty the trash'</code>
+  <p class="auto-note">Running the command above will trigger a Finder confirmation dialog &mdash; click 'Empty Trash' there to actually clear it. macOS auto-empties 30 days after items enter the Trash if you've enabled Finder &rarr; Settings &rarr; Advanced &rarr; 'Remove items from the Trash after 30 days'.</p>
+</div>
 <!-- END region:nextstep -->
 
 <!-- BEGIN region:share -->
 <div class="share-card-wrap">
   <p>(share card placeholder)</p>
 </div>
-<pre class="share-text">I just reclaimed 12.3 GB on my Mac with the mac-space-cleanup skill by @heyiamlin.
+<div class="share-right">
+  <div class="share-tabs">
+    <input type="radio" name="share-lang" id="share-en" checked>
+    <label for="share-en">EN</label>
+    <input type="radio" name="share-lang" id="share-zh">
+    <label for="share-zh">ZH</label>
+    <pre class="share-text-pane en">I just reclaimed 12.3 GB on my Mac with the mac-space-cleanup skill by @heyiamlin.
 
-Biggest wins: Developer caches · Old installers · Generic archives.
+Biggest wins: Old installers, Developer caches, Generic archives.
 
 #macspaceclean #maccleanup #buildinpublic</pre>
-<a class="share-btn" href="#">Share to X</a>
+    <pre class="share-text-pane zh">&#25105;&#21018;&#29992; mac-space-cleanup &#20999;&#36335;&#20102; 12.3 GB &#31354;&#38388;&#12290;</pre>
+  </div>
+  <a class="share-btn" href="#">Share to X</a>
+</div>
 <!-- END region:share -->
+
+<!-- BEGIN region:distribution -->
+<div class="dist-grid">
+  <div class="dist-card--detailed">
+    <div class="dist-title">Developer caches</div>
+    <div class="dist-metrics">
+      <div><div class="metric-label">Pre-clean</div><div class="metric-value">4.0 KB</div></div>
+      <div><div class="metric-label">Freed</div><div class="metric-value freed">4.0 KB</div></div>
+      <div><div class="metric-label">Remaining</div><div class="metric-value">0 B</div></div>
+    </div>
+    <div class="dist-inline-bar"><span style="width:100%"></span></div>
+  </div>
+  <div class="dist-card--detailed">
+    <div class="dist-title">Old installers</div>
+    <div class="dist-metrics">
+      <div><div class="metric-label">Pre-clean</div><div class="metric-value">8.0 KB</div></div>
+      <div><div class="metric-label">Freed</div><div class="metric-value freed">8.0 KB</div></div>
+      <div><div class="metric-label">Remaining</div><div class="metric-value">0 B</div></div>
+    </div>
+    <div class="dist-inline-bar"><span style="width:100%"></span></div>
+  </div>
+</div>
+<!-- END region:distribution -->
+
+<!-- BEGIN region:actions -->
+<details class="actions-group" open>
+  <summary>Auto-cleaned<span class="group-meta"><span class="count">2 items</span>12 KB</span></summary>
+  <ul class="actions-list">
+    <li class="actions-row"><span class="cat">Developer caches</span><span class="size">4 KB</span><span class="act auto">AUTO</span><span class="reason">L1 cache, fully regenerable.</span></li>
+    <li class="actions-row"><span class="cat">Old installers</span><span class="size">8 KB</span><span class="act auto">AUTO</span><span class="reason">Generic installer, not referenced.</span></li>
+  </ul>
+</details>
+<details class="actions-group">
+  <summary>Confirmed (trashed)<span class="group-meta"><span class="count">1 item</span>2 KB</span></summary>
+  <ul class="actions-list">
+    <li class="actions-row"><span class="cat">Generic archives</span><span class="size">2 KB</span><span class="act trash">TRASH</span><span class="reason">Older than 180 days.</span></li>
+  </ul>
+</details>
+<details class="actions-group">
+  <summary>Deferred<span class="group-meta"><span class="count">1 item</span>50 GB</span></summary>
+  <ul class="actions-list">
+    <li class="actions-row"><span class="cat">Large VM image</span><span class="size">50 GB</span><span class="act defer">DEFER</span><span class="reason">User chose to review manually.</span></li>
+  </ul>
+</details>
+<!-- END region:actions -->
+
+<!-- BEGIN region:observations -->
+<div class="observations-grid">
+  <div class="observations-col">
+    <h3>You deferred</h3>
+    <ul class="observations-list">
+      <li><span class="label">Large VM image</span><span class="rec">Review when you need the disk space back.</span><span class="size">50 GB</span></li>
+    </ul>
+  </div>
+  <div class="observations-col">
+    <h3>Worth a look</h3>
+    <p class="hint">Nothing here.</p>
+  </div>
+</div>
+<!-- END region:observations -->
+
+<!-- BEGIN region:runmeta -->
+<dl class="runmeta-grid">
+  <dt>run_id</dt><dd><code>run-20260418-e2e</code></dd>
+  <dt>mode</dt><dd>Deep Clean</dd>
+  <dt>started_at</dt><dd>2026-04-18T10:00:00Z</dd>
+  <dt>finished_at</dt><dd>2026-04-18T10:02:14Z (2m 14s)</dd>
+  <dt>device</dt><dd>MacBook Pro</dd>
+  <dt>os</dt><dd>macOS 14.5</dd>
+  <dt>free_before</dt><dd>240.0 GB</dd>
+  <dt>free_after</dt><dd>252.3 GB</dd>
+</dl>
+<div class="risk-meter-label">Risk distribution of what was surfaced</div>
+<div class="risk-meter">
+  <span class="seg-l1" style="flex-basis:30%"><span class="glyph">&#9679;</span>12 KB</span>
+  <span class="seg-l2" style="flex-basis:20%"><span class="glyph">&#9650;</span>2 KB</span>
+  <span class="seg-l3" style="flex-basis:50%"><span class="glyph">&#9632;</span>50 GB</span>
+  <span class="seg-l4" style="flex-basis:0%"><span class="glyph">&#10005;</span>0 B</span>
+</div>
+<div class="risk-meter-legend">
+  <span><span class="swatch l1"></span>L1 safe caches</span>
+  <span><span class="swatch l2"></span>L2 reversible</span>
+  <span><span class="swatch l3"></span>L3 defer by default</span>
+  <span><span class="swatch l4"></span>L4 never auto</span>
+</div>
+<!-- END region:runmeta -->
