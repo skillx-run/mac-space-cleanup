@@ -325,6 +325,8 @@ The 10 numbered sub-steps below split into four phases:
 
    Only substitute: `{freed_now}` (human-readable string from `freed_now_bytes`), `{top3_joined}`, `{top3_joined_zh}`. Same `source_label` taxonomy applies; no paths, usernames, or project names.
 
+   **Picking `{top3_joined}` for resonance**: a tweet that reads `Biggest wins: Xcode DerivedData, node_modules, Docker build cache.` lands for any Mac developer — they've fought those exact folders. One that reads `Biggest wins: Developer caches, Old installers, Generic archives.` reads like a cleanup app's marketing copy, which is the opposite of what we want. When sorting candidates by freed bytes, prefer the specific tool / product name that `source_label` already carries (`Xcode DerivedData`, `node_modules`, `Docker build cache`, `iOS Simulators`, `JetBrains caches`, `Homebrew cache`) over generic category summaries (`Developer caches`, `Package caches`). `references/category-rules.md` already spells source_labels this way for every category; this guidance just says out loud: **copy the specific label, don't paraphrase it up a level of abstraction.** The redaction rules still stand — these names never include personal / project / company info, which is why they're safe to ship.
+
 7. **Spawn a redaction reviewer** sub-agent to independently scan `$WORKDIR/report.html` for leaks the deterministic validator cannot catch (project names, company names, made-up names that look like personal data). Use the `Agent` tool with the prompt template in `references/reviewer-prompts.md` (section "Redaction reviewer"), passing the report HTML verbatim.
    - Reviewer returns `{"violations": [...]}`.
    - Empty list → proceed.
