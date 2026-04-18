@@ -68,7 +68,7 @@ The report is bilingual: agent-authored natural-language copy (hero caption, act
 
 ## Confirm-stage exception (agent ↔ user dialog only)
 
-The redaction rules above apply to **persisted artefacts** rendered to disk: `report.html`, `share-card.svg`, `share.{en,zh}.txt`. Those must use generic `source_label` / `category` only — no paths, basenames, project names, usernames.
+The redaction rules above apply to **persisted artefacts** rendered to disk: `report.html`, `share-card.{en,zh}.svg`, `share.{en,zh}.txt`. Those must use generic `source_label` / `category` only — no paths, basenames, project names, usernames.
 
 The agent ↔ user **conversation during Stage 5 confirmation** is allowed to use the basename of a project root (e.g. `foo-app`, `bar-frontend`) when the user picks `yes-but-let-me-pick` for `project_artifacts` grouping. Without this, the user has no way to choose between several Node projects' `node_modules`.
 

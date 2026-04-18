@@ -231,7 +231,7 @@ If the user picks `yes-but-let-me-pick`, enter per-project selection. Per the **
 >   [ ] internal-secret-tool — 800 MB
 >   ..."
 
-But **NEVER** write project basenames to `report.html` / `share-card.svg` / `share.{en,zh}.txt` / `cleanup-result.json`'s `source_label`. Those continue to use only the generic `source_label` ("Project node_modules"). The post-render redaction reviewer + `validate_report.py` will catch leaks if you slip.
+But **NEVER** write project basenames to `report.html` / `share-card.{en,zh}.svg` / `share.{en,zh}.txt` / `cleanup-result.json`'s `source_label`. Those continue to use only the generic `source_label` ("Project node_modules"). The post-render redaction reviewer + `validate_report.py` will catch leaks if you slip.
 
 When the user asks "what's that huge folder?", run `ls -lah` / `file` / `head` live and explain in terms of `source_label`, not paths.
 
