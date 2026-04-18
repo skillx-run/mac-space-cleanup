@@ -66,6 +66,10 @@ The report will visibly say `DRY-RUN — no files touched` at the top and prefix
 - Logs, crash reports.
 - Old installers in `~/Downloads` (`.dmg / .pkg / .xip / .iso` older than 30 days).
 - Time Machine local snapshots (via `tmutil deletelocalsnapshots`).
+- **Project build artifacts** (deep mode only, scanned via `scripts/scan_projects.py` for any directory with a `.git` root):
+  - L1 delete: `node_modules`, `target`, `build`, `dist`, `out`, `.next`, `.nuxt`, `.svelte-kit`, `.turbo`, `.parcel-cache`, `__pycache__`, `.pytest_cache`, `.tox`, `Pods`, `vendor` (Go projects only).
+  - L2 trash: `.venv`, `venv`, `env` (Python venvs — wheel pins may not reproduce, hence the recovery window).
+  - System / package-manager directories (`~/Library`, `~/.cache`, `~/.npm`, `~/.cargo`, `~/.cocoapods`, `~/.gradle`, `~/.m2`, `~/.gem`, `~/.bundle`, `~/.local`, `~/.rustup`, `~/.pnpm-store`, `~/.Trash`) are pruned from project discovery.
 
 **Hard backstop — refuses regardless of what `confirmed.json` says** (see `scripts/safe_delete.py` `_BLOCKED_PATTERNS`):
 
@@ -124,14 +128,15 @@ mac-space-clean/
 
 ---
 
-## Limitations & non-goals (v0.3)
+## Limitations & non-goals (v0.4)
 
 - **No undo stack.** Recovery paths are the native Trash, the workdir's `archive/` tars, and the migrate target volume.
 - **No cron / no background runs.** Every run is user-triggered.
 - **No cloud / no telemetry.** Workdir stays local.
 - **No SIP-protected paths**, no `/Applications/*.app` uninstall.
-- **No project-aware cleanup yet.** Files inside repos (project root has `.git` / `package.json` / `Cargo.toml` / …) are off-limits — including `node_modules` / `target` / `.venv`. This is the largest known gap; a future version may carve out conventional output dirs.
-- **Single-machine validation.** Built and tested on macOS 25.x with a developer toolchain. Patterns not yet validated across Apple Silicon vs Intel, nor across earlier macOS versions.
+- **Project root identification uses `.git` only.** Bare git checkouts are recognised; project workspaces without a `.git` directory are not. Nested git submodules are deduplicated (do not appear as separate projects).
+- **Project artifact discovery does not respect `.gitignore`** — scans for fixed conventional subdirectory names (`node_modules`, `target`, …). May surface a directory ignored by git, may miss a directory the project creates outside convention.
+- **Single-machine validation.** Built and tested on macOS 25.x / 26.x with a developer toolchain. Patterns not yet validated across Apple Silicon vs Intel, nor across older macOS versions.
 
 ---
 
