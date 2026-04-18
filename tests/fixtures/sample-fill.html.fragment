@@ -26,8 +26,8 @@
       <span class="seg-2" style="flex-basis:33%" title="Developer caches: 4 KB"></span>
     </div>
     <ul class="stack-legend">
-      <li><span class="swatch" style="background:var(--l1)"></span><span class="name">Old installers</span><span class="bytes">8 KB</span></li>
-      <li><span class="swatch" style="background:var(--l2)"></span><span class="name">Developer caches</span><span class="bytes">4 KB</span></li>
+      <li><span class="swatch" style="background:var(--seg-1)"></span><span class="name">Old installers</span><span class="bytes">8 KB</span></li>
+      <li><span class="swatch" style="background:var(--seg-2)"></span><span class="name">Developer caches</span><span class="bytes">4 KB</span></li>
     </ul>
   </div>
 </div>

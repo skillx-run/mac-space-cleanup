@@ -21,6 +21,14 @@
   --l3: #f59e0b;
   --l4: #ef4444;
 
+  /* Category stack segments — hue-separated from L1-L4 on purpose
+   * so the top categories bar doesn't read as a risk encoding. */
+  --seg-1: #14b8a6;
+  --seg-2: #6366f1;
+  --seg-3: #a855f7;
+  --seg-4: #f43f5e;
+  --seg-5: #64748b;
+
   --cta: #f59e0b;
   --cta-soft: #fffbeb;
   --cta-ink: #78350f;
@@ -262,11 +270,11 @@ section h2 {
   margin-bottom: 24px;
 }
 .stack-bar span { height: 100%; }
-.stack-bar .seg-1 { background: var(--l1); }
-.stack-bar .seg-2 { background: var(--l2); }
-.stack-bar .seg-3 { background: var(--l3); }
-.stack-bar .seg-4 { background: var(--l4); }
-.stack-bar .seg-5 { background: #8b5cf6; }
+.stack-bar .seg-1 { background: var(--seg-1); }
+.stack-bar .seg-2 { background: var(--seg-2); }
+.stack-bar .seg-3 { background: var(--seg-3); }
+.stack-bar .seg-4 { background: var(--seg-4); }
+.stack-bar .seg-5 { background: var(--seg-5); }
 .stack-bar .seg-rest { background: var(--line-strong); }
 
 .stack-legend {
