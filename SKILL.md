@@ -214,6 +214,14 @@ For each candidate, consult `references/category-rules.md` and `references/safet
 
 If a directory's purpose is unclear, investigate before classifying: `ls -lah`, `file`, `head -c 200`. Do not guess. Unclassifiable items become `category=orphan, risk_level=L4, action=skip`.
 
+**Guard against reflexive orphan fallback.** `orphan` is a last-resort bucket, not a "don't know, move on" shortcut. Before assigning it, do a deliberate second pass against the three rule blocks most commonly skipped:
+
+- Does the candidate sit inside a project root returned by `scripts/scan_projects.py` (Stage 3.5)? Check `references/category-rules.md` §10 (`project_artifacts`) — `node_modules`, `target`, `build`, `dist`, `.next`, `.nuxt`, `__pycache__`, `Pods`, `.venv`, `venv` are **project_artifacts**, not orphan. Only `vendor/` in a non-Go project and `env/` in a non-Python project are legitimate orphans, and the rules doc spells that out explicitly.
+- Does the path match any pattern in §1 (`dev_cache` — Xcode/Docker/JetBrains/Go/Gradle/Flutter) or §3 (`pkg_cache` — Homebrew/npm/pnpm/pip/uv/Cargo/CocoaPods/Android SDK/nvm/fnm/pyenv/rustup)? Concrete tool-named caches almost always belong here.
+- Does the path match §4 (`app_cache`), §5 (`logs`), §6 (`downloads`), §7 (`large_media`), §8 (`system_snapshots`)?
+
+Only after all of the above fail does `orphan` apply. If a run ends up with orphan dominating the freed bytes (say, >30% of `freed_now`), treat that as a red flag and re-audit classifications before Stage 5 — a report whose biggest finding is "Unclassified large item" is almost always a sign of skipped rule consultation, not a genuinely orphan-dominated disk.
+
 **Filter by mode**: drop items whose `mode_hit_tags` does not include the current mode.
 
 ### Stage 5 · Confirm & execute
