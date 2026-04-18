@@ -8,7 +8,7 @@ An **agent-driven** macOS disk space cleanup workflow, packaged as a Claude Code
 
 ## Demo
 
-The report is **bilingual** — it opens in whichever language you triggered the skill with (CJK → Chinese, otherwise English), and a header-corner button flips the entire page at runtime. Below: first-screen impression (EN left, ZH right), followed by links to the full-page captures.
+The report is **localized** to whichever language you triggered the skill with — one locale per run, no runtime toggle. Trigger in English → English report; in Chinese → Chinese report; in Japanese, Spanish, French, etc. → that language. Below: first-screen impression (EN left, ZH right, both from separate runs), followed by links to the full-page captures.
 
 <table>
 <tr>
@@ -68,11 +68,13 @@ To preview without touching the filesystem, add `--dry-run` to your message:
 
 > "深度清理一下我的 Mac，但请用 --dry-run 模式不真的删任何文件"
 
-The report will visibly say `DRY-RUN — no files touched` at the top (or `预演模式 — 未改动任何文件` in Chinese) and prefix every number with `would be` / `预计`.
+The report will visibly say `DRY-RUN — no files touched` at the top (localized into whatever language you triggered in) and prefix every number with the target-language equivalent of `would be`.
 
 ### Report language
 
-The HTML report is bilingual (EN + ZH) and ships both languages in the same DOM. On first open it uses the locale your conversation triggered: Chinese characters in your message → zh; Japanese kana, Korean, other non-CJK languages → en. A header-corner button toggles the entire page at runtime; the share-to-X button swaps its pre-filled tweet text to match. Third-language support (JP, KR, ES, …) is out of scope for v0.6.
+The HTML report is **single-locale per run**, produced in whatever language you triggered the skill with. The agent detects your conversation language from the triggering message, writes its value (a BCP-47 subtag like `en`, `zh`, `ja`, `es`, `ar`) to the workdir, then writes every natural-language node — hero caption, action reasons, observations, source_label renderings, dry-run prose — directly in that language. Static labels (section titles, button text, column headers) ship with English baselines in the template; for non-English runs the agent translates them once into an embedded dictionary that hydrates on page load. No runtime toggle, no bilingual DOM — the conversation language wins.
+
+Right-to-left scripts (Arabic, Hebrew, Persian) get `<html dir="rtl">`; basic direction flipping works, fine-tuned RTL CSS is a known limitation.
 
 ---
 
@@ -142,7 +144,7 @@ mac-space-cleanup/
 │   ├── report-template.html      # six-region HTML skeleton with paired markers
 │   ├── report.css
 │   └── share-card-template.svg   # 1200×630 X-share card
-├── tests/                        # 85 unit tests (pure stdlib unittest)
+├── tests/                        # pure-stdlib unittest suite
 ├── docs/                         # README screenshots
 ├── CHANGELOG.md
 ├── CLAUDE.md                     # contributor invariants
@@ -151,7 +153,7 @@ mac-space-cleanup/
 
 ---
 
-## Limitations & non-goals (v0.6)
+## Limitations & non-goals (v0.7)
 
 - **No undo stack.** Recovery paths are the native Trash, the workdir's `archive/` tars, and the migrate target volume.
 - **No cron / no background runs.** Every run is user-triggered.
@@ -166,7 +168,7 @@ mac-space-cleanup/
 ## Development
 
 ```bash
-python3 -m unittest discover -s tests -v   # 85 tests
+python3 -m unittest discover -s tests -v
 ./scripts/smoke.sh                          # real-fs sanity
 ./scripts/dry-e2e.sh                        # non-LLM end-to-end
 ```
