@@ -28,21 +28,37 @@ This document defines **where the agent may look** (whitelist) and **where the a
 | `~/Library/Caches/com.apple.Safari` | Safari cache. |
 | `~/Library/Caches/Google/Chrome` | Chrome cache. |
 | `~/Library/Caches/Firefox` | Firefox cache. |
+| `~/Library/Caches/BraveSoftware` | Brave browser cache (if present). |
+| `~/Library/Caches/Microsoft Edge` | Edge cache (if present). |
+| `~/Library/Caches/company.thebrowser.Browser` | Arc browser cache (if present). |
 | `~/Library/Containers/com.tencent.xinWeChat/Data/Library/Caches` | WeChat media cache (if present). |
 | `~/Library/Containers/com.hnc.Discord/Data/Library/Caches` | Discord cache (if present). |
+| `~/Library/Containers/com.tinyspeck.slackmacgap/Data/Library/Caches` | Slack cache (if present). |
+| `~/Library/Containers/com.microsoft.teams2/Data/Library/Caches` | Microsoft Teams cache (if present). |
+| `~/Library/Containers/ru.keepcoder.Telegram/Data/Library/Caches` | Telegram Desktop cache (if present). |
+| `~/Library/Containers/com.electron.lark/Data/Library/Caches` | Feishu/Lark cache (if present; also match `com.bytedance.lark`). |
+| `~/Library/Application Support/Signal/cache` | Signal desktop cache (non-sandboxed; if present). |
+| `~/Library/Group Containers/*/Library/Caches` | Generic Group Container cache sweep — matches shared-cache subtrees for Apple apps + other sandboxed apps. Only descend one level; exclude any container whose identifier contains `Mail`, `Messages`, `CloudKit`, `iCloud` (promote to L4). |
+| `~/Library/Containers/*/Data/Library/Application Support/Cache*` | Generic in-Container Application-Support cache sweep (case-insensitive `Cache*` prefix). Same exclusion list as Group Containers. |
 
-Only touch **caches** subtrees. Never touch profile databases, cookies, or history files.
+Only touch **caches** subtrees. Never touch profile databases, cookies, history files, chat attachments that live outside a `Cache*` subtree, or the app's `Application Support/*.db` stores.
 
 ### Tier D · User download & archive staging
 
 | Path | Notes | Default category |
 | --- | --- | --- |
 | `~/Downloads` | Scan for large `.dmg / .pkg / .xip / .zip / .tar.gz / .iso` older than 30 days. | `downloads` |
+| `~/Desktop` | Scan **only** for macOS-auto-named screen artefacts older than 30 days: `Screenshot *.png`, `Screen Shot *.png`, `Screen Recording *.mov`. Do NOT glob for other files — users curate the Desktop. | `downloads` |
 | `~/Library/Application Support/MobileSync/Backup` | iOS device backups. Only surface entries older than 180 days. | `large_media` |
 
 ### Tier E · Developer ecosystem (scan only when tool detected)
 
-Presence is probed in Stage 2 via `which -a`. Skip the row silently if the tool is missing.
+Presence is probed in Stage 2. Two probe kinds — agent picks one per row:
+
+- **CLI probe**: `which -a <tool>` returns a non-empty path (e.g. `docker`, `brew`, `pnpm`).
+- **Directory probe**: the marker directory exists (e.g. `[ -d ~/.m2 ]`, `[ -d ~/.cocoapods ]`). Used when the tool has no standalone CLI or the CLI is inside the marker dir itself (Android SDK, JetBrains).
+
+Skip the row silently if the probe fails.
 
 | Tool detected | Entry point / path | Default category |
 | --- | --- | --- |
@@ -50,6 +66,9 @@ Presence is probed in Stage 2 via `which -a`. Skip the row silently if the tool 
 | `xcrun simctl` | `~/Library/Developer/Xcode/Archives` | `dev_cache` |
 | `xcrun simctl` | `~/Library/Developer/CoreSimulator/Devices` | `sim_runtime` |
 | `xcrun simctl` | `xcrun simctl delete unavailable` (semantic entry) | `sim_runtime` |
+| `xcrun simctl` | `~/Library/Developer/Xcode/iOS DeviceSupport` (entries older than matching Xcode-supported OS — surface all, let user pick) | `dev_cache` |
+| `xcrun simctl` | `~/Library/Developer/Xcode/watchOS DeviceSupport` | `dev_cache` |
+| `xcrun simctl` | `~/Library/Developer/Xcode/tvOS DeviceSupport` | `dev_cache` |
 | `docker` | `docker system df` output (images / containers / volumes / build cache) | `dev_cache` |
 | `brew` | `brew --cache` directory | `pkg_cache` |
 | `npm` | `npm config get cache` directory | `pkg_cache` |
@@ -61,7 +80,14 @@ Presence is probed in Stage 2 via `which -a`. Skip the row silently if the tool 
 | `go` | `~/Library/Caches/go-build` | `pkg_cache` |
 | `gradle` | `~/.gradle/caches` | `pkg_cache` |
 | `mvn` / `~/.m2` present | `~/.m2/repository` (surface size only, do not auto-clean) | `pkg_cache` |
-| CocoaPods (`~/.cocoapods` present) | `~/.cocoapods/repos`, `~/Library/Caches/CocoaPods` | `pkg_cache` |
+| CocoaPods (`~/.cocoapods` present, dir probe) | `~/.cocoapods/repos`, `~/Library/Caches/CocoaPods` | `pkg_cache` |
+| Android SDK (`~/Library/Android/sdk` present, dir probe) | `~/Library/Android/sdk/system-images` (surface **entries older than 180 days**; current API-level images are large but in active use), `~/Library/Android/sdk/.temp`, `~/Library/Android/sdk/emulator/skins` | `pkg_cache` |
+| `flutter` (CLI probe) | `~/.flutter`, `~/Library/Caches/Flutter`, `~/Library/Caches/com.google.FlutterSdk` | `pkg_cache` |
+| `nvm` (`~/.nvm` present, dir probe — NVM is a shell function, no CLI on PATH) | `~/.nvm/versions/node/*` **except** the version matching `~/.nvm/alias/default` and any version used in the last 90 days (mtime on the version dir). Surface as individual items, one per non-default/stale version. | `pkg_cache` |
+| `fnm` (CLI probe) | `~/Library/Application Support/fnm/node-versions/*` **except** the current one from `fnm current`, `~/Library/Caches/fnm_multishells` | `pkg_cache` |
+| `pyenv` (CLI probe) | `~/.pyenv/versions/*` **except** the version in `pyenv version --bare` and any `pyenv local` pins found in `markers_found` during project scan. Surface per-version. | `pkg_cache` |
+| `rustup` (CLI probe) | `~/.rustup/toolchains/*` **except** the default from `rustup default` and any pinned via `rustup override list`. Surface per-toolchain. | `pkg_cache` |
+| JetBrains (`~/Library/Caches/JetBrains` present, dir probe) | `~/Library/Caches/JetBrains/*` (per-IDE cache: IntelliJIdea, PyCharm, WebStorm, GoLand, RubyMine, CLion, DataGrip, AndroidStudio, RustRover), `~/Library/Logs/JetBrains/*` | `dev_cache` |
 
 ## Blacklist — never touch
 
@@ -132,4 +158,6 @@ When enumerating candidates:
 1. Expand `~` to `$HOME` before passing to `scripts/collect_sizes.py`.
 2. For each whitelist entry, check existence first (`os.path.exists`); skip silently if missing.
 3. For each blacklist entry, never write it into `paths.json`. If a user explicitly asks to clean a blacklisted path, refuse and cite this document.
-4. Tier E rows only appear in `paths.json` when Stage 2 confirmed the tool is installed.
+4. Tier E rows only appear in `paths.json` when Stage 2 confirmed the tool (CLI or directory marker, per row) is present.
+5. For Tier E rows that require a per-entry exclusion (Node version managers, pyenv, rustup, Android SDK age gate), the agent first queries the tool for its "active" / "default" pins, then emits one item per non-active entry. Do not emit a single coarse item for the whole versions root — users need per-version granularity to pick what to keep.
+6. For Tier C Group Containers and in-Container Application-Support cache sweeps, descend **only one level** and filter out any container identifier matching `Mail`, `Messages`, `CloudKit`, `iCloud` (promote those to L4 record-only).

@@ -74,14 +74,18 @@ Run these in parallel and summarise the result internally (do not dump raw outpu
 ```bash
 sw_vers
 df -h /
-which -a docker brew pnpm npm yarn pip uv cargo go gradle xcrun trash
-ls -d ~/.cocoapods ~/.gradle ~/.m2 2>/dev/null
+which -a docker brew pnpm npm yarn pip uv cargo go gradle xcrun trash \
+         flutter fnm pyenv rustup
+ls -d ~/.cocoapods ~/.gradle ~/.m2 ~/.nvm \
+      ~/Library/Android/sdk ~/Library/Caches/JetBrains 2>/dev/null
 ```
+
+The `which -a` line gates Tier E rows that have a CLI probe; the `ls -d` line gates rows with a directory probe (nvm has no CLI on PATH; Android SDK and JetBrains are detected by their marker dirs). Keep these two lines in sync with `references/cleanup-scope.md` Tier E — when a row is added there, extend the matching probe here.
 
 From the output, remember:
 - macOS version.
 - Filesystem free space before cleanup (`free_before`). Capture as bytes for later diff.
-- Which enhancement tools are installed. Skip rows in `references/cleanup-scope.md` Tier E for missing tools.
+- Which enhancement tools are installed (CLI or directory marker). Skip rows in `references/cleanup-scope.md` Tier E for which neither probe fired.
 - **Whether `trash` CLI is installed** (`which trash`). Record as `trash_cli=true|false` in your environment_profile.
 
 Read `references/cleanup-scope.md` once — this is your map of **where to look** and **where never to touch**.
