@@ -2,7 +2,7 @@
 
 All notable changes to mac-space-cleanup. Newest first.
 
-## [Unreleased]
+## v0.5.0 — 2026-04-18
 
 ### Changed (BREAKING)
 - **Report HTML redesigned** as a single long page with eight regions (`hero / share / impact / nextstep / distribution / actions / observations / runmeta`). Old region names (`summary / deferred`) are gone; `summary` split into `hero` + `impact`, `deferred` became the two-column `observations`, and `runmeta` is new. The page uses a bright celebration palette (light ground, mint-teal accent, amber CTA, 80px hero headline) with shape glyphs (● ▲ ■ ✕) carrying the risk encoding alongside colour so hue is not load-bearing.
