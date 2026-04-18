@@ -65,6 +65,14 @@ mkdir -p ~/.cache/mac-space-cleanup
 WORKDIR=$(mktemp -d ~/.cache/mac-space-cleanup/run-XXXXXX)
 ```
 
+**Locale detection.** Inspect the user's triggering message (the one that activated the skill). If it contains any CJK character (regex `[\u4e00-\u9fff]`), set `LOCALE=zh`; otherwise `LOCALE=en`. Persist it:
+
+```bash
+echo "$LOCALE" > "$WORKDIR/locale.txt"
+```
+
+This file is read by Stage 6 to decide the report's default language and to pick which `share.{en,zh}.txt` the X share button links to. It also binds the agent: **any natural-language copy you generate from now on** (Stage 5 `actions.jsonl` reason, Stage 6 hero caption, action reasons, observations recommendations, and each item's `source_label`) **must be emitted in BOTH en and zh**. Static template labels are wired through the i18n dictionary and do not need per-run translation.
+
 Announce the mode and workdir to the user briefly.
 
 ### Stage 2 · Environment probe
@@ -273,37 +281,81 @@ The 10 numbered sub-steps below split into four phases:
    cp assets/report-template.html    "$WORKDIR/report.html"
    cp assets/report.css              "$WORKDIR/report.css"
    cp assets/share-card-template.svg "$WORKDIR/share-card.svg"
+   cp assets/i18n/strings.json       "$WORKDIR/i18n.json"
    ```
 
-4. Use the `Edit` tool to fill the eight paired-marker regions in `$WORKDIR/report.html`. Match the markers exactly; anything you insert must use `source_label` + `category` only, never paths.
+3.5. **Wire the i18n dictionary and locale into the report skeleton.** Read `$WORKDIR/locale.txt` (the value written in Stage 1). Use the `Edit` tool twice against `$WORKDIR/report.html`:
+
+   - Change `<html lang="en" data-locale="en">` so `data-locale` matches the persisted locale (e.g. `data-locale="zh"`). Leave `lang="en"` on the opening tag — the inline script rewrites it at runtime.
+   - Replace the empty placeholder `<script type="application/json" id="i18n-dict">{"en":{},"zh":{}}</script>` with the full JSON from `$WORKDIR/i18n.json`. The content inside the script tag must be exactly the JSON, no pretty-printing required but no wrapping brackets / prose either.
+
+   The embedded JS then hydrates every `data-i18n` node on first paint. `localStorage` is only written when the user explicitly clicks the language toggle, so on a fresh report `data-locale` wins.
+
+4. Use the `Edit` tool to fill the eight paired-marker regions in `$WORKDIR/report.html`. Match the markers exactly; anything you insert must use `source_label` + `category` only, never paths. **Follow the three bilingual patterns below** depending on whether the node has agent-dynamic content:
+
+   **Pattern A — Pure static copy → `data-i18n` key only.** The node has no agent-generated content; all static labels (section titles, button text, column headers, empty notes, risk-meter legend, footer, dry-run banner copy, nextstep dialog / 30-day hints, `nextstep.allgood`) go through the dictionary. Keep an English fallback inside the span so a JS failure still renders something readable, e.g.:
+   `<a class="share-btn" ...><span data-i18n="share.btn">Share to X</span></a>`.
+
+   **Pattern B — Agent number + static suffix → number bare, suffix via `data-i18n`.** When the dynamic part is a human-readable number (e.g. `2.3 GB`, `12 items`), emit the number once (it reads identically in both locales) and attach the localizable suffix as a sibling i18n span:
+   - `{pending_human} still in Trash` → `<span class="pending">{pending_human}</span> <span data-i18n="nextstep.pending.suffix">still in Trash</span>`
+   - `{N} items` → `<span class="count">{N}</span> <span data-i18n="actions.count.suffix">items</span>`
+   - risk-meter segment glyph + bytes inline; the legend row uses `data-i18n="risk.legend.l1..l4"`.
+
+   **Pattern C — Agent natural language → bilingual sibling `<span>` pair.** The node is a sentence or short phrase written by you. Emit both locales; CSS shows whichever matches `html[data-locale]`:
+   ```html
+   <p class="hero-caption">
+     <span data-locale-show="en">Clean run on <strong>MacBook Pro</strong>, macOS 14.5, in 2m 14s.</span>
+     <span data-locale-show="zh">在 <strong>MacBook Pro</strong> 上完成清理，macOS 14.5，耗时 2 分 14 秒。</span>
+   </p>
+   ```
+   Applies to: hero caption, each `actions-row .reason`, each `observations-list .rec`, and each category title (`source_label`) wherever it appears (hero share text is separate — see step 6). Both locales are subject to the same redaction rules as the rest of the report; `validate_report.py` scans both blindly.
+
+   **Filling rules for each region:**
 
    - `<!-- region:hero:start -->` … `<!-- region:hero:end -->`: a `.hero-body` wrapper containing exactly two blocks — (1) a `<p class="hero-headline">` with the `freed_now` number (honest — bytes already off the disk) and a `<span class="unit">freed</span>` beside it; (2) a `<p class="hero-caption">` one-line prose summary weaving in device / os / duration, e.g. `Clean run on <strong>MacBook Pro</strong>, macOS 14.5, in 2m 14s.`. Do **not** add meta chips, risk-level chips, or a pending-in-trash chip here — the full device / os / duration / run_id breakdown lives in `runmeta`, L1-L4 risk distribution lives in the `.risk-meter` inside `runmeta`, and the pending-in-trash number has its own big callout inside `nextstep`'s CTA card. Keeping hero minimal is deliberate.
-   - `<!-- region:share:start -->` … `<!-- region:share:end -->`: a **single** `<a class="share-btn" target="_blank" rel="noopener" href="https://x.com/intent/tweet?text={encoded}">Share to X</a>`, where `{encoded}` is the URL-encoded content of `$WORKDIR/share.en.txt` (produced in step 6). No SVG preview, no language tabs, no text panes — the button goes straight to a composed tweet. The allowed content in the encoded text is still: reclaimed, mode, top-3 categories, mac-space-cleanup, @heyiamlin, hashtags.
+   - `<!-- region:share:start -->` … `<!-- region:share:end -->`: a **single** `<a class="share-btn" target="_blank" rel="noopener" href="https://x.com/intent/tweet?text={encoded}"><span data-i18n="share.btn">Share to X</span></a>`, where `{encoded}` is the URL-encoded content of `$WORKDIR/share.en.txt` when `LOCALE=en`, or `$WORKDIR/share.zh.txt` when `LOCALE=zh` (both files are produced in step 6). No SVG preview, no language tabs, no text panes — the button goes straight to a composed tweet. The allowed content in the encoded text is still: reclaimed, mode, top-3 categories, mac-space-cleanup, @heyiamlin, hashtags. The button label itself is driven by `data-i18n` so it flips with the page toggle.
    - `<!-- region:impact:start -->` … `<!-- region:impact:end -->`: an `.impact-grid` with two `.impact-card`s. First card: a `.water-bar` comparing `free_before → free_after`; each segment gets an inline `style="width:N%"` — `.used-before` = `(total - free_before)/total * 100`, `.freed-delta` = `freed_now/total * 100`, `.free-after` = `(free_after - freed_now)/total * 100`, and a `.water-legend` below with the before/after free-space labels. Second card: a `.stack-bar` of `freed_now_bytes` broken down by category, each `<span>` getting `style="flex-basis:N%"` as a percent of `freed_now_bytes`, followed by a `.stack-legend` with the top five categories (`source_label` only).
-   - `<!-- region:nextstep:start -->` … `<!-- region:nextstep:end -->`: **two fill modes**.
+   - `<!-- region:nextstep:start -->` … `<!-- region:nextstep:end -->`: **two fill modes**. Static copy flows through Pattern A (`data-i18n`), the pending number through Pattern B.
      - **`pending_in_trash_bytes > 0`** — a `<div class="cta-card">` containing:
-       1. `<p class="pending">{pending_human} still in Trash</p>`.
+       1. `<p class="pending"><span class="pending-size">{pending_human}</span> <span data-i18n="nextstep.pending.suffix">still in Trash</span></p>`.
        2. `<code class="empty-cmd">osascript -e 'tell application "Finder" to empty the trash'</code>` (the `user-select: all` on `.empty-cmd` lets the user copy with one click).
-       3. `<p class="auto-note">` that **must include both**: (a) the dialog warning — "Running the command above will trigger a Finder confirmation dialog — click 'Empty Trash' there to actually clear it." and (b) the auto-empty hint — "macOS auto-empties 30 days after items enter the Trash if you've enabled Finder → Settings → Advanced → 'Remove items from the Trash after 30 days'."
-     - **`pending_in_trash_bytes == 0`** — a single line: `<p class="all-good">All freed bytes are immediately reclaimed — no follow-up needed.</p>`. Do not leave the placeholder hint visible.
+       3. `<p class="auto-note"><span data-i18n="nextstep.auto.dialog">Running the command above will trigger a Finder confirmation dialog — click 'Empty Trash' there to actually clear it.</span> <span data-i18n="nextstep.auto.thirty">macOS auto-empties 30 days after items enter the Trash if you've enabled Finder → Settings → Advanced → 'Remove items from the Trash after 30 days'.</span></p>`. Both sentences carry `data-i18n` keys so the runtime toggle flips them together; keep the English fallback inline for JS-off robustness.
+     - **`pending_in_trash_bytes == 0`** — a single line: `<p class="all-good" data-i18n="nextstep.allgood">All freed bytes are immediately reclaimed — no follow-up needed.</p>`. Do not leave the placeholder hint visible.
    - `<!-- region:distribution:start -->` … `<!-- region:distribution:end -->`: a `.dist-grid` with one `.dist-card--detailed` per category, each containing a `.dist-title` (source_label), a three-column `.dist-metrics` row (pre-clean / freed / remaining — label + value), and a `.dist-inline-bar` showing `freed / pre-clean` as an inline `style="width:N%"`.
-   - `<!-- region:actions:start -->` … `<!-- region:actions:end -->`: one `<details class="actions-group">` per action type that has at least one row (auto-cleaned / confirmed / archived / migrated / deferred / skipped / failed), each opening to a `.actions-list` whose `.actions-row` children have four columns: `cat` (source_label) · `size` · `act` badge (class one of `auto / trash / archive / migrate / defer / skip / failed`) · `reason` (one line, no paths). The `<summary>` should carry a `.group-meta` span showing `<span class="count">{N} items</span>` + aggregate bytes.
-   - `<!-- region:observations:start -->` … `<!-- region:observations:end -->`: an `.observations-grid` with two `.observations-col`s. Left column `<h3>You deferred</h3>` lists aggregated `deferred.jsonl` entries (by category). Right column `<h3>Worth a look</h3>` lists L3/L4 items that were surfaced but not acted on. Each row uses `.observations-list` with `.label` + `.rec` (one-line recommendation) + `.size`. If either side is legitimately empty, emit a `<p class="empty-note">Nothing here.</p>` — **not** `.hint`, which is reserved for unfilled template placeholders and is styled as a dashed "missing content" box that would misrepresent an intentional empty column.
-   - `<!-- region:runmeta:start -->` … `<!-- region:runmeta:end -->`: a `<dl class="runmeta-grid">` with rows for `run_id` (wrap the value in `<code>`), `mode`, `started_at`, `finished_at` and duration, `host_info` (`device` / `os` / `free_before` / `free_after`), plus a `.risk-meter-label`, a `.risk-meter` with four `<span class="seg-l{1..4}">` segments (inline `style="flex-basis:N%"` of the L-level's bytes over the scanned total; include `<span class="glyph">●/▲/■/✕</span>` + byte text inside), and a `.risk-meter-legend`.
+   - `<!-- region:actions:start -->` … `<!-- region:actions:end -->`: one `<details class="actions-group">` per action type that has at least one row (auto-cleaned / confirmed / archived / migrated / deferred / skipped / failed), each opening to a `.actions-list` whose `.actions-row` children have four columns. The `cat` cell holds the `source_label` as a Pattern C bilingual pair; `size` is a bare human string; `act` is the badge (class one of `auto / trash / archive / migrate / defer / skip / failed`); `reason` is a Pattern C bilingual pair (one-line, no paths). The `<summary>` should carry a `.group-meta` span showing `<span class="count">{N}</span> <span data-i18n="actions.count.suffix">items</span>` + aggregate bytes. If you want to include the column headers (`cat / size / act / reason`) inside the `<details>` body, hang each on `data-i18n="actions.col.*"`.
+   - `<!-- region:observations:start -->` … `<!-- region:observations:end -->`: an `.observations-grid` with two `.observations-col`s. Left column `<h3 data-i18n="section.obs.deferred">You deferred</h3>` lists aggregated `deferred.jsonl` entries (by category). Right column `<h3 data-i18n="section.obs.worth">Worth a look</h3>` lists L3/L4 items that were surfaced but not acted on. Each row uses `.observations-list` with `.label` (category source_label as a Pattern C bilingual pair) + `.rec` (one-line recommendation, Pattern C bilingual pair) + `.size`. If either side is legitimately empty, emit a `<p class="empty-note" data-i18n="section.obs.empty">Nothing here.</p>` — **not** `.hint`, which is reserved for unfilled template placeholders and is styled as a dashed "missing content" box that would misrepresent an intentional empty column.
+   - `<!-- region:runmeta:start -->` … `<!-- region:runmeta:end -->`: a `<dl class="runmeta-grid">` with rows for `run_id` (wrap the value in `<code>`), `mode`, `started_at`, `finished_at` and duration, `host_info` (`device` / `os` / `free_before` / `free_after`), plus a `.risk-meter-label`, a `.risk-meter` with four `<span class="seg-l{1..4}">` segments (inline `style="flex-basis:N%"` of the L-level's bytes over the scanned total; include `<span class="glyph">●/▲/■/✕</span>` + byte text inside), and a `.risk-meter-legend`. Each `<dt>` uses `data-i18n="runmeta.label.*"` (`run_id` / `mode` / `started` / `finished` / `duration` / `device` / `os` / `free_before` / `free_after`); the `.risk-meter-label` uses `data-i18n="risk.meter.label"` and each legend chip uses `data-i18n="risk.legend.l1..l4"`. `<dd>` values (IDs, dates, byte strings, mode name) are bare — they read identically in both locales. If the mode name needs localisation (`Quick Clean` vs `快速清理`), emit it as a Pattern C bilingual pair.
 
    **Budget**: keep the combined inserted HTML under ~280 lines.
 
    **Dry-run marking (mandatory)**: when the run was a `--dry-run`, the report must clearly say so or it misleads the user into thinking files were touched. Requirements, enforced by `validate_report.py --dry-run`:
-   - **Banner**: insert a sticky `<div class="dry-banner">DRY-RUN — no files touched</div>` at the very top of the `<main class="report">` element, right inside the open tag.
-   - **Number prefixes**: every numeric headline in the report (hero total, category bytes, action aggregates, pending, risk-meter bytes, runmeta free-space values) must include `would be`, `would-be`, or `(simulated)` — e.g. `would be 12.5 GB`, `12.5 GB (simulated)`. Do **not** write bare numbers in dry-run mode.
+   - **Banner**: insert a sticky `<div class="dry-banner" data-i18n="drybanner">DRY-RUN — no files touched</div>` at the very top of the `<main class="report">` element, right inside the open tag. The `data-i18n` key lets the locale toggle switch the banner copy at runtime.
+   - **Number prefixes**: every numeric headline in the report (hero total, category bytes, action aggregates, pending, risk-meter bytes, runmeta free-space values) must include a dry-run marker. Acceptable markers: **`would be`**, **`would-be`**, **`(simulated)`** (English) or **`预计`**, **`模拟`** (Chinese). Pick the one matching the current `LOCALE` — e.g. `would be 12.5 GB` for `en`, `预计 12.5 GB` for `zh`. Do **not** write bare numbers in dry-run mode. Because numeric headlines usually live inside Pattern B (number + suffix) or Pattern C (natural-language caption) nodes, the prefix travels with the corresponding locale variant.
    - For real runs, neither the banner nor the prefixes are required.
 
    **Maintenance note**: if you change a `data-placeholder=...` string or add/remove a region in `assets/report-template.html`, also update `REGIONS` and `_PLACEHOLDER_MARKERS` in `scripts/validate_report.py` so the validator keeps catching unfilled regions.
 
-5. Fill the SVG placeholders in `$WORKDIR/share-card.svg`. The card is **not** embedded into `report.html`, but is written as a standalone artifact so users who want to attach an image to their tweet can grab it from the workdir:
-   - `${free_reclaimed}` → e.g. `37.4 GB` (single human-readable string, no path).
-   - `${mode_label}` → `Quick Clean` or `Deep Clean`.
-   - `${top_categories}` → up to 3 `source_label`s joined with ` · `, e.g. `Docker · Downloads · Xcode`.
+5. Fill the SVG placeholders. The card is **not** embedded into `report.html`, but is written as a standalone artifact so users who want to attach an image to their tweet can grab it from the workdir. Because the SVG has no JS / locale toggle, emit **both** locale variants side by side:
+
+   ```bash
+   cp assets/share-card-template.svg "$WORKDIR/share-card.en.svg"
+   cp assets/share-card-template.svg "$WORKDIR/share-card.zh.svg"
+   # delete the un-suffixed copy from step 3; workdir keeps only the two localised ones
+   rm -f "$WORKDIR/share-card.svg"
+   ```
+
+   Then Edit each file in place, substituting:
+
+   | Placeholder | EN value (en.svg) | ZH value (zh.svg) |
+   | --- | --- | --- |
+   | `${free_reclaimed}` | `37.4 GB` (same human-readable string in both) | `37.4 GB` |
+   | `${mode_label}` | `Quick Clean` / `Deep Clean` | `快速清理` / `深度清理` |
+   | `${top_categories}` | up to 3 English `source_label`s joined with ` · ` | same three labels in Chinese, joined with ` · ` |
+   | `${label_reclaimed}` | `reclaimed on my Mac` | `在我的 Mac 上释放了` |
+   | `${label_top}` | `top sources` | `主要来源` |
+   | `${label_by}` | `by` | `作者` |
+
+   Chinese `source_label`s should stay ≤6 characters per label so the three concatenated entries fit the SVG's `t-top` row (28 px at ~1056 px available width). Truncate with an ellipsis if a label runs long.
 
 6. Write the two share-text files. **Use `freed_now_bytes` as the headline** (not `reclaimed_bytes`) — share text must reflect bytes that are *actually* off the disk, not bytes still sitting in `~/.Trash`. The **English** file is what the region `share` button links to (URL-encoded); the Chinese file is a workdir artifact for users who want to post in Chinese.
 
@@ -329,10 +381,10 @@ The 10 numbered sub-steps below split into four phases:
 
    **Picking the three for resonance**: a tweet that reads `Biggest wins: Xcode DerivedData (6.8 GB), node_modules (3.2 GB), Docker build cache (2.3 GB).` lands for any Mac developer — they've fought those exact folders and the numbers make the scale concrete. One that reads `Biggest wins: Developer caches, Old installers, Generic archives.` reads like a cleanup app's marketing copy, which is the opposite of what we want. When sorting candidates by freed bytes, prefer the specific tool / product name that `source_label` already carries (`Xcode DerivedData`, `node_modules`, `Docker build cache`, `iOS Simulators`, `JetBrains caches`, `Homebrew cache`) over generic category summaries (`Developer caches`, `Package caches`). `references/category-rules.md` already spells source_labels this way for every category; this guidance just says out loud: **copy the specific label, don't paraphrase it up a level of abstraction.** The redaction rules still stand — these names never include personal / project / company info, which is why they're safe to ship.
 
-7. **Spawn a redaction reviewer** sub-agent to independently scan `$WORKDIR/report.html` for leaks the deterministic validator cannot catch (project names, company names, made-up names that look like personal data). Use the `Agent` tool with the prompt template in `references/reviewer-prompts.md` (section "Redaction reviewer"), passing the report HTML verbatim.
+7. **Spawn a redaction reviewer** sub-agent to independently scan `$WORKDIR/report.html` for leaks the deterministic validator cannot catch (project names, company names, made-up names that look like personal data). Use the `Agent` tool with the prompt template in `references/reviewer-prompts.md` (section "Redaction reviewer"), passing the report HTML verbatim. The report carries bilingual content (`data-locale-show="en"` / `"zh"` sibling spans for agent-generated copy, plus two translations for each `source_label`); the reviewer prompt already instructs reviewers to scan both locales — a leak in zh that is absent in en is still a leak.
    - Reviewer returns `{"violations": [...]}`.
    - Empty list → proceed.
-   - Non-empty → edit `$WORKDIR/report.html` to remove/abstract each flagged snippet, then re-spawn the reviewer with the updated HTML. Cap retries at **2**. After the second failure, stop and tell the user which violations remained — do **not** show the report.
+   - Non-empty → edit `$WORKDIR/report.html` to remove/abstract each flagged snippet **in both locale variants** (a leak found in one language is assumed to have a twin in the other and must be scrubbed from both), then re-spawn the reviewer with the updated HTML. Cap retries at **2**. After the second failure, stop and tell the user which violations remained — do **not** show the report.
 
 8. **Run the deterministic validator** as a second line of defence. The reviewer is fuzzy (catches semantic leaks); the validator is exact (catches structural problems and a fixed dictionary of forbidden literal substrings). When the run was a `--dry-run`, also pass `--dry-run` so the banner and number prefixes from step 4 are asserted:
 
