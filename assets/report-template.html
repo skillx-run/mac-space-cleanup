@@ -114,6 +114,14 @@
       const v = dict[loc][k];
       if(v != null) el.textContent = v;
     });
+    // Swap per-locale href targets (e.g. the share-to-X button) so a
+    // language toggle actually changes which text the X composer is
+    // pre-filled with, not just the button label.
+    const hrefKey = 'href' + (loc === 'en' ? 'En' : 'Zh');
+    document.querySelectorAll('[data-href-en][data-href-zh]').forEach(el => {
+      const v = el.dataset[hrefKey];
+      if(v) el.setAttribute('href', v);
+    });
     if(persist) localStorage.setItem(KEY, loc);
     if(btn){
       btn.setAttribute('aria-pressed', loc === 'zh' ? 'true' : 'false');
