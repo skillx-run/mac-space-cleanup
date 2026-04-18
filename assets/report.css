@@ -211,6 +211,17 @@ section h2 {
   border: 1px dashed var(--line-strong);
 }
 
+/* Legitimate empty-state copy (e.g. an observations column with
+ * nothing to show). Visually softer than .hint so it does not read
+ * as "content is missing, please fix". */
+.empty-note {
+  color: var(--subtle);
+  font-size: 13px;
+  font-style: italic;
+  margin: 0;
+  padding: 4px 0;
+}
+
 /* ---- impact --------------------------------------------------------- */
 
 .impact-grid {
