@@ -1,8 +1,8 @@
-# mac-space-cleanup
+# mac-space-cleanup · macOS cleanup skill
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja.md) · [Español](README.es.md) · [Français](README.fr.md) · [العربية](README.ar.md) · **Deutsch**
 
-Ein **agentengesteuerter** Workflow zur Speicherplatzbereinigung unter macOS, ausgeliefert als Agent Skill.
+Ein **skill**, der den Speicherplatz deines Macs bereinigt — umsichtig, ehrlich, mehrstufig.
 
 > Der Skill führt den Agenten durch eine siebenstufige Bereinigung (Modus → Probe → Scan → Klassifikation → Bestätigung → Report → Öffnen) mit **L1–L4-Risikoeinstufung**, **ehrlicher Freispeicher-Bilanzierung** (aufgeteilt in `freed_now` / `pending_in_trash` / `archived`) und **mehreren Sicherheitsnetzen** (eine deterministische Blockliste im Code, ein Sub-Agent zur Privatsphären-Prüfung und ein Validator nach dem Rendering). Null pip-Abhängigkeiten — nur macOS-Befehle und die Python-Standardbibliothek.
 
