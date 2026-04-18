@@ -450,10 +450,25 @@ The 10 numbered sub-steps below split into four phases:
    ```
 
 10. Summarise to the user in one short paragraph that **always reports both numbers**:
-   - `freed_now_bytes` — already off the disk.
+   - `freed_now_bytes` — already off the disk (or "would-be freed" on a dry-run).
    - `pending_in_trash_bytes` — waiting in `~/.Trash`; mention that emptying trash converts it to free space (the report's "One last step" section gives the one-line command).
-   - `archived_count` if any (archive_source goes into the workdir, point user at it).
-   - `deferred_count` and the report path.
+   - `archived_count` if any.
+   - `deferred_count`.
+
+   Then surface the artefacts as an explicit, click-to-open list — terminals (iTerm2, Terminal.app, VS Code) let the user Cmd+click a `file://` URL to reopen the report without retyping `open`:
+
+   ```
+   报告已打开：file:///Users/<you>/.cache/mac-space-cleanup/run-XXXXXX/report.html
+   其他工件：
+     · 审计记录 (full paths, for your eyes only):  file:///.../cleanup-result.json
+     · 分享卡片 (EN):                              file:///.../share-card.en.svg
+     · 分享卡片 (ZH):                              file:///.../share-card.zh.svg
+     · 分享文案 (EN / ZH):                         file:///.../share.en.txt  ·  share.zh.txt
+     · Dry-run 回放基础 (复用此文件去掉 --dry-run 就能实跑):
+         file:///.../confirmed.json
+   ```
+
+   Use the actual absolute `$WORKDIR` path, not the literal placeholder. Do **not** reduce this to "artefacts are in the workdir" — the point is the user should not have to `cd` or `ls` to find anything. Keep the list to one line per artefact, and include at minimum the report URL even in the tersest summary.
 
    Honest framing: never report `reclaimed_bytes` to the user as "freed" — that field is back-compat only.
 
