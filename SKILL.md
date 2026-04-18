@@ -65,13 +65,21 @@ mkdir -p ~/.cache/mac-space-cleanup
 WORKDIR=$(mktemp -d ~/.cache/mac-space-cleanup/run-XXXXXX)
 ```
 
-**Locale detection.** Inspect the user's triggering message (the one that activated the skill). If it contains any CJK character (regex `[\u4e00-\u9fff]`), set `LOCALE=zh`; otherwise `LOCALE=en`. Persist it:
+**Locale detection.** Inspect the user's triggering message (the one that activated the skill) and decide `LOCALE` in this order — the first matching rule wins:
+
+1. Contains Japanese kana (`[\u3040-\u30ff]`, hiragana or katakana) → `LOCALE=en`. Japanese isn't a first-class locale in v0.6; falling back to EN avoids serving JP users a Chinese report just because JP kanji overlap with the CJK Unified Ideographs block.
+2. Contains CJK Unified Ideographs (`[\u4e00-\u9fff]`) and no kana from rule 1 → `LOCALE=zh`.
+3. Everything else (English, Spanish, French, Russian, Arabic, Korean, …) → `LOCALE=en`.
+
+Persist it:
 
 ```bash
 echo "$LOCALE" > "$WORKDIR/locale.txt"
 ```
 
 This file is read by Stage 6 to decide the report's default language and to pick which `share.{en,zh}.txt` the X share button links to. It also binds the agent: **any natural-language copy you generate from now on** (Stage 5 `actions.jsonl` reason, Stage 6 hero caption, action reasons, observations recommendations, and each item's `source_label`) **must be emitted in BOTH en and zh**. Static template labels are wired through the i18n dictionary and do not need per-run translation.
+
+The runtime toggle button in the report still lets any user flip to the other locale manually — EN users can peek at ZH and vice versa — but Stage 1 picks the default. Third-language support (JP, KR, ES, …) is out of scope for v0.6; adding one requires extending `assets/i18n/strings.json` with a new subtree, relaxing the two-key-set validator check in `scripts/validate_report.py`, and giving the toggle more options.
 
 Announce the mode and workdir to the user briefly.
 
