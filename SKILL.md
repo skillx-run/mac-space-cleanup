@@ -137,14 +137,16 @@ echo '{"roots": ["~"], "max_depth": 6}' \
 
 `projects.json` shape (see `scripts/scan_projects.py` docstring): each project carries `root`, `markers_found` (e.g. `["go.mod", "package.json"]`), and an `artifacts[]` list with `path / subtype / kind`.
 
-**For each artifact**, append the path to the list you collected in Stage 3 and re-run `collect_sizes.py` for the new entries (or write a `paths-projects.json` and combine in memory). Sizes are needed before Stage 4 grading.
+**Get sizes for each artifact** by writing a separate `$WORKDIR/paths-projects.json` (one entry per artifact path) and running `collect_sizes.py` again:
 
-**Disambiguation rules at Stage 4** (per `category-rules.md` §10):
+```bash
+python3 scripts/collect_sizes.py < "$WORKDIR/paths-projects.json" \
+  > "$WORKDIR/sizes-projects.json"
+```
 
-- Subtype `vendor` → classify as `project_artifacts` (deletable) **only if** `markers_found` contains `go.mod`. Otherwise classify as `orphan` L4.
-- Subtype `env` → classify as `project_artifacts` (venv) **only if** `markers_found` contains at least one of `pyproject.toml` / `requirements.txt` / `setup.py`. Otherwise classify as `orphan` L4.
-- All other subtypes → straight `project_artifacts`.
-- `source_label` always `"Project " + subtype` (e.g. `"Project node_modules"`). Do NOT include the project root path or basename in `source_label` — those appear only in the live confirm dialog at Stage 5 per the safety-policy confirm-stage exception.
+Two separate paths/sizes JSON files (rather than appending to the Stage 3 `paths.json` and re-running) keeps the audit trail clean: `sizes.json` stays a snapshot of system-wide candidates, `sizes-projects.json` is the project-artifacts snapshot. Combine them in memory when building the candidate list for Stage 4.
+
+**Disambiguation rules at Stage 4** are authoritative in `references/category-rules.md` §10 — read it for the per-subtype L1/L2 grading and the `vendor` (Go-only) / `env` (Python-marker-only) carve-outs that depend on `markers_found`. `source_label` is always `"Project " + subtype` (e.g. `"Project node_modules"`); never include the project root path or basename here — those appear only in the live confirm dialog at Stage 5 per `safety-policy.md` confirm-stage exception.
 
 If `scan_projects.py` exit is 1 (partial errors), check `stats.errors` and surface a one-line summary to the user (e.g. "Skipped 3 directories due to permission denials"). Continue with the projects that were scanned successfully.
 

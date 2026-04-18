@@ -43,6 +43,16 @@ DEFAULT_MAX_DEPTH = 6
 FIND_TIMEOUT_SECONDS = 30
 MAX_WORKERS = 4
 
+# Error `kind` values surfaced via stats.errors[]. Keep aligned with the
+# schema documented in the module docstring.
+ERROR_TIMEOUT = "timeout"
+ERROR_PERMISSION = "permission"
+ERROR_OTHER = "other"
+
+# Artifact `kind` values surfaced per artifact entry.
+KIND_DELETABLE = "deletable"
+KIND_VENV = "venv"
+
 # Directories under each search root to prune from the find walk. These are
 # system / package-manager caches that may contain cloned repos with .git
 # (e.g. Homebrew taps, cocoapods specs, cargo registry checkouts) — they
@@ -66,6 +76,8 @@ PRUNE_RELATIVE = [
 # Files at the project root used to detect what kind of project it is. Used
 # by the agent (via `markers_found`) to decide ambiguous subtypes (vendor
 # only matters for Go; env only matters when there's a Python marker).
+# Keep in sync with the marker list in references/cleanup-scope.md
+# §"Project artifacts allowlist".
 PROJECT_MARKERS = (
     "go.mod",
     "package.json",
@@ -128,17 +140,17 @@ def _find_git_dirs(root: str, max_depth: int) -> tuple[list[str], dict[str, str]
             cmd, capture_output=True, text=True, timeout=FIND_TIMEOUT_SECONDS,
         )
     except subprocess.TimeoutExpired:
-        return [], {"root": root, "kind": "timeout",
+        return [], {"root": root, "kind": ERROR_TIMEOUT,
                     "detail": f"find timed out after {FIND_TIMEOUT_SECONDS}s"}
     except OSError as e:
-        return [], {"root": root, "kind": "other",
+        return [], {"root": root, "kind": ERROR_OTHER,
                     "detail": f"find spawn failed: {e}"}
 
     # find may emit some "Permission denied" lines on stderr but still
     # return useful results. Treat rc != 0 as partial unless stdout is empty.
     paths = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()]
     if proc.returncode != 0 and not paths:
-        return [], {"root": root, "kind": "permission",
+        return [], {"root": root, "kind": ERROR_PERMISSION,
                     "detail": f"find rc={proc.returncode}: {proc.stderr.strip()[:200]}"}
     return paths, None
 
@@ -178,11 +190,11 @@ def _enumerate_artifacts(project_root: str) -> list[dict[str, str]]:
     for sub in ARTIFACT_SUBTYPES_DELETABLE:
         full = os.path.join(project_root, sub)
         if os.path.isdir(full) and not os.path.islink(full):
-            artifacts.append({"path": full, "subtype": sub, "kind": "deletable"})
+            artifacts.append({"path": full, "subtype": sub, "kind": KIND_DELETABLE})
     for sub in ARTIFACT_SUBTYPES_VENV:
         full = os.path.join(project_root, sub)
         if os.path.isdir(full) and not os.path.islink(full):
-            artifacts.append({"path": full, "subtype": sub, "kind": "venv"})
+            artifacts.append({"path": full, "subtype": sub, "kind": KIND_VENV})
     return artifacts
 
 
@@ -208,7 +220,7 @@ def scan(roots: list[str], max_depth: int) -> dict[str, Any]:
             try:
                 paths, err = fut.result()
             except Exception as e:  # defensive
-                errors.append({"root": r, "kind": "other",
+                errors.append({"root": r, "kind": ERROR_OTHER,
                                "detail": f"worker crashed: {e}"})
                 continue
             if err:

@@ -115,7 +115,13 @@ Discovery is via `scripts/scan_projects.py`, never via free-form `find` on `~/Do
 - `.venv`, `venv`, `env` (Python)
   - **Heads-up for `env`**: this name is too generic; agent must skip if project root has no Python marker (`pyproject.toml` / `requirements.txt` / `setup.py`) in `markers_found`.
 
-Project root identification: presence of a `.git` directory. Other markers (`package.json`, `Cargo.toml`, `pyproject.toml`, `go.mod`, etc.) are **not** treated as project roots in v0.4 — `.git` covers ~all real project workspaces and avoids double-counting nested submodules. Bare git checkouts without any language marker are still recognised; markers only inform per-subtype decisions.
+Project root identification: presence of a `.git` directory. Other markers are **not** treated as project roots in v0.4 — `.git` covers ~all real project workspaces and avoids double-counting nested submodules. Bare git checkouts without any language marker are still recognised; markers only inform per-subtype decisions (see `category-rules.md` §10 for `vendor` / `env` carve-outs).
+
+The full set of language markers detected at each project root (mirrored to `markers_found` in the scan output) is:
+
+`go.mod`, `package.json`, `Cargo.toml`, `pyproject.toml`, `requirements.txt`, `setup.py`, `Package.swift`, `Gemfile`, `composer.json`, `pubspec.yaml`.
+
+> **Keep in sync** with `PROJECT_MARKERS` in `scripts/scan_projects.py` — adding a marker requires updating both this list and the script.
 
 System / package-manager directories under `~/Library`, `~/.cache`, `~/.npm`, `~/.cargo`, `~/.cocoapods`, `~/.gradle`, `~/.m2`, `~/.gem`, `~/.bundle`, `~/.local`, `~/.rustup`, `~/.pnpm-store`, `~/.Trash` are pruned from project discovery (they may contain cloned repos with `.git` that are not user projects).
 

@@ -75,6 +75,23 @@ class TestScanProjects(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(out["projects"], [])
 
+    def test_sibling_projects_both_recognised(self):
+        # Boundary: two .git dirs at equal depth with shared parent. Confirms
+        # _dedup_submodules' startswith uses the os.sep guard rather than
+        # bare prefix matching (which would incorrectly drop sibling proj_b
+        # because its root starts with the literal 'proj_a' substring? — no,
+        # they don't share substrings here, but this also confirms equal-len
+        # ordering doesn't accidentally collapse siblings).
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            proj_a = _mkproj(base, "proj-a", subdirs=["node_modules"])
+            proj_b = _mkproj(base, "proj-b", subdirs=["node_modules"])
+            code, out, _ = _scan_dir(base)
+        self.assertEqual(code, 0)
+        roots = sorted(p["root"] for p in out["projects"])
+        self.assertEqual(roots, sorted([str(proj_a), str(proj_b)]))
+        self.assertEqual(len(out["projects"]), 2)
+
     def test_skips_nested_submodule_git(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)
@@ -171,16 +188,13 @@ class TestScanProjects(unittest.TestCase):
 
     def test_find_timeout_isolated(self):
         # Two roots; mock find to time out on the first, succeed on the second.
-        from unittest.mock import patch, MagicMock
-
         def fake_run(cmd, **kw):
             root = cmd[1]
             if "first" in root:
                 raise subprocess.TimeoutExpired(cmd=cmd, timeout=30)
-            stdout = ""
-            return MagicMock(returncode=0, stdout=stdout, stderr="")
+            return mock.MagicMock(returncode=0, stdout="", stderr="")
 
-        with patch.object(scan_projects.subprocess, "run", side_effect=fake_run):
+        with mock.patch.object(scan_projects.subprocess, "run", side_effect=fake_run):
             code, out, _ = run_script_with_json(
                 scan_projects, [],
                 {"roots": ["/tmp/first-root", "/tmp/second-root"], "max_depth": 4},
@@ -197,12 +211,10 @@ class TestScanProjects(unittest.TestCase):
 
     def test_errors_schema(self):
         # Same shape check via permission failure (rc != 0, no stdout).
-        from unittest.mock import patch, MagicMock
-
         def fake_run(cmd, **kw):
-            return MagicMock(returncode=1, stdout="", stderr="Permission denied")
+            return mock.MagicMock(returncode=1, stdout="", stderr="Permission denied")
 
-        with patch.object(scan_projects.subprocess, "run", side_effect=fake_run):
+        with mock.patch.object(scan_projects.subprocess, "run", side_effect=fake_run):
             code, out, _ = run_script_with_json(
                 scan_projects, [],
                 {"roots": ["/no/such/root"], "max_depth": 4},
