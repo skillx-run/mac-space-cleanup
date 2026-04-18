@@ -53,7 +53,13 @@ echo '{"confirmed_items":[]}' | python3 scripts/safe_delete.py --workdir "$WORKD
 ## Commit conventions
 
 - One atomic commit per concern. Do not bundle script changes with reference-doc changes.
-- Prefixes: `feat:` (scripts), `docs:` (SKILL.md + references + CLAUDE.md), `test:` (tests/), `chore:` (scaffold, assets, tooling).
+- Prefixes (Conventional Commits subset):
+  - `feat:` — new capability in `scripts/` (or new probes / rules that unlock capability in `references/` without accompanying code).
+  - `fix:` — corrects a defect in `scripts/` code or behaviour documented in `references/`. Use when the previous state was wrong, not merely less clear.
+  - `refactor:` — restructures code without changing behaviour (rename, extract, dead-code removal, constant rewiring). No user-visible change.
+  - `docs:` — SKILL.md / references / CLAUDE.md prose changes. Use for pure clarification, not for behaviour changes (those go under `fix:` or `feat:`).
+  - `test:` — additions or changes under `tests/`.
+  - `chore:` — scaffold, assets, tooling, release housekeeping.
 - Body should explain *why*, not *what*. Paths and function names already carry the *what*.
 
 ## Known non-goals (v0.1)
