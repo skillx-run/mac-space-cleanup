@@ -4,7 +4,7 @@ These notes apply to anyone (human or agent) working on this skill. For the user
 
 ## Skill positioning
 
-This is an **agent-first skill**. `SKILL.md` is the main deliverable — it instructs the agent through a six-stage cleanup workflow. Python scripts exist only to do what the agent cannot do safely or efficiently:
+This is an **agent-first skill**. `SKILL.md` is the main deliverable — it instructs the agent through a seven-stage cleanup workflow. Python scripts exist only to do what the agent cannot do safely or efficiently:
 
 - `scripts/safe_delete.py` — unified controlled write path (delete / trash / archive / migrate / defer / skip) with actions.jsonl audit trail.
 - `scripts/collect_sizes.py` — parallel `du` with per-path timeout and error isolation.

@@ -49,7 +49,7 @@ If the user's wording is not in the lists but its meaning is unmistakable to you
 3. **Never put filesystem paths, basenames, usernames, project names, or company names into the HTML report, SVG card, or share text.** Use `source_label` + `category` only. See `references/safety-policy.md` for the full redaction policy.
 4. **Never edit the files in `assets/` in place.** Always `cp` them into `$WORKDIR` first and edit the copies.
 
-## Workflow (six stages)
+## Workflow (seven stages)
 
 ### Stage 1 · Mode identification
 
@@ -292,11 +292,11 @@ Use `--dry-run` whenever you want a rehearsal: no filesystem writes except `acti
 
 The report is a **single long page** `report.html` that carries eight regions top-to-bottom: `hero` + `share` (the win and the share CTA, grouped in the header), then `impact`, `nextstep`, `distribution`, `actions`, `observations`, `runmeta`. Everything goes through the same redaction + validator gate before the page is opened.
 
-The 10 numbered sub-steps below split into four phases:
+The 9 numbered sub-steps below split into four phases:
 - **Assemble** (1–2): compute `free_after`, write `cleanup-result.json`.
 - **Fill** (3–6): copy templates, edit the eight paired-marker regions, fill the share card, write share text.
 - **Review** (7–8): redaction reviewer (fuzzy, LLM-based) → `validate_report.py` (deterministic). Both must pass.
-- **Show** (9–10): open the report, summarise to the user.
+- **Show** (9): summarise to the user. **Stage 7** then self-checks `share.txt` and opens the report.
 
 1. Collect host info and compute `free_after`:
    - `free_after`: `df -k / | tail -1 | awk '{print $4}'` → bytes.
@@ -476,13 +476,7 @@ The 10 numbered sub-steps below split into four phases:
 
    Exit 0 → all good. Exit 1 → stdout JSON's `violations` lists each problem (`missing_region`, `empty_region`, `placeholder_left`, `leaked_fragment`, `dry_run_unmarked`). Fix every violation by editing `$WORKDIR/report.html` and re-run the validator until it returns 0. Do not show the user the report while violations remain.
 
-9. Open the report:
-
-   ```bash
-   open "$WORKDIR/report.html"
-   ```
-
-10. Summarise to the user in one short paragraph that **always reports both numbers**:
+9. Summarise to the user in one short paragraph that **always reports both numbers**:
    - `freed_now_bytes` — already off the disk (or "would-be freed" on a dry-run).
    - `pending_in_trash_bytes` — waiting in `~/.Trash`; mention that emptying trash converts it to free space (the report's "One last step" section gives the one-line command).
    - `archived_count` if any (archive_source goes into the workdir, point user at it).
@@ -494,13 +488,27 @@ The 10 numbered sub-steps below split into four phases:
 
    Both lines are required. Do not reduce this to "the report is in the workdir".
 
-   **Self-check on `share.txt` before step 9 (no automation backstop).** `validate_report.py` scans `report.html` only; the share-text file is on an unchecked path. Re-read `$WORKDIR/share.txt` and confirm:
-   - Verb tense matches the run: real-run → past (`reclaimed` / `清出了` / locale equivalent); dry-run → future-tense template from step 6 (`estimates I could reclaim` / `预计能在我的 Mac 上清出` / locale equivalent).
+   Honest framing: never report `reclaimed_bytes` to the user as "freed" — that field is back-compat only.
+
+### Stage 7 · Open the report
+
+Stage 6 ends on the summary paragraph. Before handing the browser window off to the user, run one last gate and then open the report.
+
+1. **Self-check on `share.txt` (no automation backstop).** `validate_report.py` scans `report.html` only; the share-text file is on an unchecked path. Re-read `$WORKDIR/share.txt` and confirm:
+   - Verb tense matches the run: real-run → past (`reclaimed` / `清出了` / locale equivalent); dry-run → future-tense template from Stage 6 step 6 (`estimates I could reclaim` / `预计能在我的 Mac 上清出` / locale equivalent).
    - `{top3_joined}` contains only concrete source_labels from `references/category-rules.md` (rendered in `$LOCALE`) — no `orphan` / `Unclassified large item`.
    - Three hashtags present: `#macspaceclean` and `#buildinpublic` mandatory; the third is a locale-appropriate "mac cleanup" synonym (EN `#maccleanup`; zh `#mac清理`).
-   - No path / username / project name slipped through (the redaction reviewer sub-agent from step 7 only saw `report.html`).
+   - No path / username / project name slipped through (the redaction reviewer sub-agent in Stage 6 step 7 only saw `report.html`).
 
-   Honest framing: never report `reclaimed_bytes` to the user as "freed" — that field is back-compat only.
+   If any check fails, edit `$WORKDIR/share.txt` and re-check before proceeding.
+
+2. **Open the report:**
+
+   ```bash
+   open "$WORKDIR/report.html"
+   ```
+
+This is intentionally a separate stage so (a) the summary paragraph (workdir path, `file://` URL, freed / pending numbers) lands in the terminal *before* the browser window steals focus, and (b) the share-text self-check has its own slot as a gate rather than being buried mid-summary. Do not fold `open` back into Stage 6 or skip it — if any Stage 6 gate (reviewer retry cap, validator violations) aborted the run, you are already blocked upstream and never reach this stage.
 
 ## `cleanup-result.json` schema
 
