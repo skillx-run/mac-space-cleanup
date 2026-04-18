@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja.md) · **Español** · [Français](README.fr.md) · [العربية](README.ar.md) · [Deutsch](README.de.md)
 
-Un flujo de limpieza de espacio en disco para macOS **guiado por agente**, empaquetado como Claude Code Skill. Creado por [@heyiamlin](https://x.com/heyiamlin).
+Un flujo de limpieza de espacio en disco para macOS **guiado por agente**, empaquetado como agent skill. Creado por [@heyiamlin](https://x.com/heyiamlin).
 
 > El skill conduce al agente a través de una limpieza en seis etapas (modo → sondeo → escaneo → clasificación → confirmación → informe) con **clasificación de riesgo L1–L4**, **contabilidad honesta del espacio recuperado** (dividida en `freed_now` / `pending_in_trash` / `archived`) y **múltiples barreras de seguridad** (una blocklist determinista en código, un sub-agente revisor de privacidad y un validador post-render). Cero dependencias de pip — solo comandos de macOS y la biblioteca estándar de Python.
 
@@ -26,13 +26,15 @@ Informe completo (Resumen de impacto · Desglose · Registro detallado · Observ
 
 ## Install
 
+Cualquier harness de agente que cargue skills puede usarlo. El fragmento de abajo utiliza la ruta habitual `~/.claude/skills/`; adáptala al directorio de skills de tu harness si usas otro.
+
 ```bash
 git clone git@github.com:skillx-run/mac-space-cleanup.git
 mkdir -p ~/.claude/skills
 ln -s "$(pwd)/mac-space-cleanup" ~/.claude/skills/mac-space-cleanup
 ```
 
-Abre una **nueva** sesión de Claude Code para que se recargue la lista de skills.
+Recarga tu harness para que la lista de skills tome la entrada nueva (en la mayoría de los harnesses: abre una nueva sesión).
 
 ### Recommended optional dependency
 
@@ -46,7 +48,7 @@ Si falta el CLI `trash`, `safe_delete.py` recurre a mover al `~/.Trash` con `mv`
 
 ## Use
 
-En cualquier sesión de Claude Code, di algo como:
+En tu conversación con el agente, di algo como:
 
 | Tú dices… | El skill elige |
 | --- | --- |

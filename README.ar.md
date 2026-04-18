@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja.md) · [Español](README.es.md) · [Français](README.fr.md) · **العربية** · [Deutsch](README.de.md)
 
-سير عمل لتنظيف مساحة القرص على macOS **تقوده وحدة agent**، مُحزَّم بوصفه Claude Code Skill. من تصميم [@heyiamlin](https://x.com/heyiamlin).
+سير عمل لتنظيف مساحة القرص على macOS **تقوده وحدة agent**، مُحزَّم بوصفه agent skill. من تصميم [@heyiamlin](https://x.com/heyiamlin).
 
 > يقود هذا الـ skill وحدة agent عبر عملية تنظيف من ست مراحل (اختيار الوضع ← استكشاف البيئة ← مسح ← تصنيف ← تأكيد ← تقرير)، مع **تصنيف مخاطر بأربعة مستويات L1–L4**، و**محاسبة صادقة لِما أُفرِغ فعلاً** (مُقسَّمة إلى `freed_now` / `pending_in_trash` / `archived`)، وعدة **طبقات أمان احتياطية** (blocklist حتمية داخل الشيفرة، وsub-agent مراجع للخصوصية، ومُحقِّق بعد العرض). بدون أي اعتمادية pip — فقط أوامر macOS ومكتبة Python القياسية.
 
@@ -26,13 +26,15 @@
 
 ## Install
 
+يصلح هذا الـ skill لأي agent harness يَعرف تحميل الـ skills. يستخدم الأمر أدناه المسار الشائع `~/.claude/skills/`؛ إن كان harness لديك يستخدم مُجلَّد skills مختلفاً فاستبدل المسار بما يناسبه.
+
 ```bash
 git clone git@github.com:skillx-run/mac-space-cleanup.git
 mkdir -p ~/.claude/skills
 ln -s "$(pwd)/mac-space-cleanup" ~/.claude/skills/mac-space-cleanup
 ```
 
-ثم افتح جلسة Claude Code **جديدة** لتُعاد قائمة الـ skills.
+ثم أَعِد تحميل harness ليَلتقط قائمة الـ skills الإدخال الجديد (في معظم الـ harness: يكفي فتح جلسة جديدة).
 
 ### Recommended optional dependency
 
@@ -46,7 +48,7 @@ brew install trash
 
 ## Use
 
-في أي جلسة Claude Code، قُل شيئاً من قبيل:
+في محادثتك مع الـ agent، قُل شيئاً من قبيل:
 
 | أنت تقول… | الـ skill يختار |
 | --- | --- |

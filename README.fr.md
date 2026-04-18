@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja.md) · [Español](README.es.md) · **Français** · [العربية](README.ar.md) · [Deutsch](README.de.md)
 
-Un workflow de nettoyage d'espace disque macOS **piloté par agent**, conditionné comme Claude Code Skill. Créé par [@heyiamlin](https://x.com/heyiamlin).
+Un workflow de nettoyage d'espace disque macOS **piloté par agent**, conditionné comme agent skill. Créé par [@heyiamlin](https://x.com/heyiamlin).
 
 > Le skill guide l'agent à travers un nettoyage en six étapes (mode → sondage → scan → classification → confirmation → rapport) avec un **classement de risque L1–L4**, une **comptabilité honnête de l'espace récupéré** (scindée en `freed_now` / `pending_in_trash` / `archived`) et **plusieurs garde-fous de sécurité** (une blocklist déterministe dans le code, un sous-agent relecteur de confidentialité et un validateur post-rendu). Zéro dépendance pip — uniquement des commandes macOS et la bibliothèque standard de Python.
 
@@ -26,13 +26,15 @@ Rapport complet (Résumé d'impact · Répartition · Journal détaillé · Obse
 
 ## Install
 
+N'importe quel harness d'agent capable de charger des skills peut s'en servir. Le snippet ci-dessous utilise le chemin courant `~/.claude/skills/` ; adaptez-le au répertoire de skills de votre harness si vous en utilisez un autre.
+
 ```bash
 git clone git@github.com:skillx-run/mac-space-cleanup.git
 mkdir -p ~/.claude/skills
 ln -s "$(pwd)/mac-space-cleanup" ~/.claude/skills/mac-space-cleanup
 ```
 
-Ouvrez une **nouvelle** session Claude Code pour que la liste des skills se recharge.
+Rechargez votre harness pour que la liste des skills prenne en compte la nouvelle entrée (pour la plupart des harness : ouvrez une nouvelle session).
 
 ### Recommended optional dependency
 
@@ -46,7 +48,7 @@ Si le CLI `trash` est absent, `safe_delete.py` se rabat sur `mv` vers `~/.Trash`
 
 ## Use
 
-Dans n'importe quelle session Claude Code, dites quelque chose comme :
+Dans votre conversation avec l'agent, dites quelque chose comme :
 
 | Vous dites… | Le skill choisit |
 | --- | --- |

@@ -2,7 +2,7 @@
 
 **English** · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja.md) · [Español](README.es.md) · [Français](README.fr.md) · [العربية](README.ar.md) · [Deutsch](README.de.md)
 
-An **agent-driven** macOS disk space cleanup workflow, packaged as a Claude Code Skill. Built by [@heyiamlin](https://x.com/heyiamlin).
+An **agent-driven** macOS disk space cleanup workflow, packaged as an agent skill. Built by [@heyiamlin](https://x.com/heyiamlin).
 
 > The skill instructs the agent through a six-stage cleanup (mode → probe → scan → classify → confirm → report) with **L1–L4 risk grading**, **honest reclaim accounting** (split into `freed_now` / `pending_in_trash` / `archived`), and **multiple safety backstops** (a deterministic blocklist in code, a redaction reviewer sub-agent, and a post-render validator). Zero pip dependencies — pure macOS commands plus Python stdlib.
 
@@ -26,13 +26,15 @@ Full report (Impact Summary · Breakdown · Detailed Log · Observations · Run 
 
 ## Install
 
+Any agent harness that loads skills can use this. The snippet below uses the `~/.claude/skills/` convention; adapt the target path to your harness's skills directory.
+
 ```bash
 git clone git@github.com:skillx-run/mac-space-cleanup.git
 mkdir -p ~/.claude/skills
 ln -s "$(pwd)/mac-space-cleanup" ~/.claude/skills/mac-space-cleanup
 ```
 
-Open a **new** Claude Code session so the skill list reloads.
+Reload your harness so the skill list picks up the new entry (in most harnesses: open a new session).
 
 ### Recommended optional dependency
 
@@ -46,7 +48,7 @@ brew install trash
 
 ## Use
 
-In any Claude Code session, say something like:
+In your agent conversation, say something like:
 
 | You say… | Skill picks |
 | --- | --- |

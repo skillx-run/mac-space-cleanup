@@ -2,7 +2,7 @@
 
 [English](README.md) · **简体中文** · [繁體中文](README.zh-TW.md) · [日本語](README.ja.md) · [Español](README.es.md) · [Français](README.fr.md) · [العربية](README.ar.md) · [Deutsch](README.de.md)
 
-一个**由 agent 驱动**的 macOS 磁盘空间清理工作流，以 Claude Code Skill 形式交付。作者 [@heyiamlin](https://x.com/heyiamlin)。
+一个**由 agent 驱动**的 macOS 磁盘空间清理工作流，以 agent skill 形式交付。作者 [@heyiamlin](https://x.com/heyiamlin)。
 
 > 本 skill 通过六阶段工作流（模式选择 → 环境探测 → 扫描 → 分级 → 二次确认 → 报告）驱动 agent 完成清理，带有 **L1–L4 风险分级**、**真实回收量统计**（拆分为 `freed_now` / `pending_in_trash` / `archived` 三项）和**多重安全兜底**（代码内置的确定性阻断清单、一个负责隐私脱敏的 reviewer 子 agent、以及渲染后校验器）。零 pip 依赖——纯 macOS 命令加 Python 标准库。
 
@@ -26,13 +26,15 @@
 
 ## Install
 
+任何支持加载 skill 的 agent harness 都可以用这个 skill。下面的命令采用 `~/.claude/skills/` 这一常见路径；如果你的 harness 另用别的 skills 目录，换成对应路径即可。
+
 ```bash
 git clone git@github.com:skillx-run/mac-space-cleanup.git
 mkdir -p ~/.claude/skills
 ln -s "$(pwd)/mac-space-cleanup" ~/.claude/skills/mac-space-cleanup
 ```
 
-然后**新开**一个 Claude Code 会话，让 skill 列表重新加载。
+然后重新加载你的 harness，让 skill 列表刷新（大多数 harness 新开一个会话即可）。
 
 ### Recommended optional dependency
 
@@ -46,7 +48,7 @@ brew install trash
 
 ## Use
 
-在任意 Claude Code 会话里说类似这样的话：
+在你的 agent 会话里说类似这样的话：
 
 | 你说… | Skill 选择 |
 | --- | --- |

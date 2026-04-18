@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja.md) · [Español](README.es.md) · [Français](README.fr.md) · [العربية](README.ar.md) · **Deutsch**
 
-Ein **agentengesteuerter** Workflow zur Speicherplatzbereinigung unter macOS, ausgeliefert als Claude Code Skill. Gebaut von [@heyiamlin](https://x.com/heyiamlin).
+Ein **agentengesteuerter** Workflow zur Speicherplatzbereinigung unter macOS, ausgeliefert als Agent Skill. Gebaut von [@heyiamlin](https://x.com/heyiamlin).
 
 > Der Skill führt den Agenten durch eine sechsstufige Bereinigung (Modus → Probe → Scan → Klassifikation → Bestätigung → Report) mit **L1–L4-Risikoeinstufung**, **ehrlicher Freispeicher-Bilanzierung** (aufgeteilt in `freed_now` / `pending_in_trash` / `archived`) und **mehreren Sicherheitsnetzen** (eine deterministische Blockliste im Code, ein Sub-Agent zur Privatsphären-Prüfung und ein Validator nach dem Rendering). Null pip-Abhängigkeiten — nur macOS-Befehle und die Python-Standardbibliothek.
 
@@ -26,13 +26,15 @@ Vollständiger Report (Wirkungsübersicht · Aufschlüsselung · Detailprotokoll
 
 ## Install
 
+Jedes Agent-Harness, das Skills lädt, kann dies verwenden. Der untenstehende Ausschnitt nutzt den geläufigen Pfad `~/.claude/skills/`; passe ihn an das Skills-Verzeichnis deines Harnesses an, falls es anders heißt.
+
 ```bash
 git clone git@github.com:skillx-run/mac-space-cleanup.git
 mkdir -p ~/.claude/skills
 ln -s "$(pwd)/mac-space-cleanup" ~/.claude/skills/mac-space-cleanup
 ```
 
-Öffne anschließend eine **neue** Claude-Code-Sitzung, damit die Skill-Liste neu geladen wird.
+Lade anschließend dein Harness neu, damit die Skill-Liste den neuen Eintrag aufnimmt (bei den meisten Harnesses: einfach eine neue Sitzung öffnen).
 
 ### Recommended optional dependency
 
@@ -46,7 +48,7 @@ Fehlt das CLI `trash`, fällt `safe_delete.py` darauf zurück, Dateien mit `mv` 
 
 ## Use
 
-Sag in einer beliebigen Claude-Code-Sitzung etwas wie:
+Sag in deiner Agent-Konversation etwas wie:
 
 | Du sagst… | Der Skill wählt |
 | --- | --- |
