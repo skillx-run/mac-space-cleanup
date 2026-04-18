@@ -509,26 +509,44 @@ The 10 numbered sub-steps below split into four phases:
    - `archived_count` if any.
    - `deferred_count`.
 
-   Then surface the artefacts as a **markdown link list** — Claude Code renders assistant messages as markdown, so `[text](file://…)` becomes a real clickable hyperlink that is immune to terminal line-wrapping (plain `file://` URLs break when the terminal wraps them or when a description pushes the URL to a second line). Build each href by concatenating `file://` with the exported `$WORKDIR` from Stage 1. A filled-in summary block reads like this (the `alice` and `A1B2C3` below are only illustration of a real expanded path — **do not copy them literally; substitute the actual `$WORKDIR`**):
+   Then surface the artefacts as a click-to-open list. Agent hosts differ: Claude Code and Claude-Agent-SDK-based apps render markdown (so `[text](file://…)` becomes a real clickable anchor); Codex-style CLIs, plain shell pipes, CI log viewers and some TUIs show raw text. **Plain `file://` URLs are the lowest common denominator** — every modern terminal auto-detects them for Cmd+click, and they stay readable even when markdown is not rendered. `[text](url)` in a non-rendering host is arguably *worse* than a bare URL (the trailing `)` can confuse some URL detectors). So:
+
+   **Default — plain URLs, one per line, URL at end of line.** A short label, a colon, two spaces, then the URL. No indent, no alignment padding, no two URLs sharing a line. Example (the `alice` and `A1B2C3` are illustrative — **substitute the actual `$WORKDIR`**):
+
+   ```
+   报告已打开：
+   report.html           file:///Users/alice/.cache/mac-space-cleanup/run-A1B2C3/report.html
+
+   其他工件：
+   cleanup-result.json   file:///Users/alice/.cache/.../cleanup-result.json
+   share-card.en.svg     file:///Users/alice/.cache/.../share-card.en.svg
+   share-card.zh.svg     file:///Users/alice/.cache/.../share-card.zh.svg
+   share.en.txt          file:///Users/alice/.cache/.../share.en.txt
+   share.zh.txt          file:///Users/alice/.cache/.../share.zh.txt
+   confirmed.json        file:///Users/alice/.cache/.../confirmed.json   (dry-run only)
+   ```
+
+   **Optional upgrade — markdown link list**, if the agent knows the current host renders markdown (Claude Code session, an SDK app with a markdown-capable UI). Markdown links dodge terminal URL-detection entirely so they survive visual wrap even better. Same content as above:
 
    ```markdown
-   **报告已打开：** [report.html](file:///Users/alice/.cache/mac-space-cleanup/run-A1B2C3/report.html)
+   **报告已打开：** [report.html](file:///Users/alice/.cache/.../report.html)
 
    **其他工件：**
-   - [cleanup-result.json](file:///Users/alice/.cache/.../cleanup-result.json) — 审计记录，含完整路径
+   - [cleanup-result.json](file:///Users/alice/.cache/.../cleanup-result.json) — 审计记录
    - [share-card.en.svg](file:///Users/alice/.cache/.../share-card.en.svg) — 英文分享卡片
    - [share-card.zh.svg](file:///Users/alice/.cache/.../share-card.zh.svg) — 中文分享卡片
    - [share.en.txt](file:///Users/alice/.cache/.../share.en.txt) — 英文推文
    - [share.zh.txt](file:///Users/alice/.cache/.../share.zh.txt) — 中文推文
-   - [confirmed.json](file:///Users/alice/.cache/.../confirmed.json) — 回放基础（dry-run only，去掉 `--dry-run` 可实跑）
+   - [confirmed.json](file:///Users/alice/.cache/.../confirmed.json) — 回放基础（dry-run only）
    ```
 
-   Rules:
-   - **Link text = filename**, description goes after `—` em-dash. This keeps the clickable target short and avoids description text eating the click region.
-   - **One artefact per list item.** Do not combine `share.en.txt` and `share.zh.txt` on a single line — two separate list items, two separate links.
-   - The last `confirmed.json` line is **dry-run only** — omit it on real runs, since re-running `confirmed.json` against already-cleaned paths just produces `action=skip, reason="already gone"` noise.
-   - Do **not** reduce this to "artefacts are in the workdir"; the point is the user should not have to `cd` or `ls` to find anything. At minimum include the report link even in the tersest summary.
-   - Plain `file://…` URLs are still acceptable as a fallback (e.g. if you really want to paste a raw path for a user who is copying to another tool), but markdown links are the default because they survive terminal wrap.
+   When in doubt, use the plain-URL form — it works everywhere, and any host that renders markdown will also auto-link a bare `file://` URL.
+
+   Rules (both formats):
+   - **One artefact per line / list item.** Do not combine `share.en.txt` + `share.zh.txt` onto one line.
+   - The `confirmed.json` line is **dry-run only** — omit on real runs, where re-executing it just produces `action=skip, reason="already gone"` noise.
+   - Substitute the real `$WORKDIR`; do not emit the literal `alice/A1B2C3` example.
+   - At minimum include the report URL in the tersest summary.
 
    **Self-check on `share.{en,zh}.txt` before step 9 (no automation backstop).** `validate_report.py` scans `report.html` only; the share-text files are on an unchecked path. Re-read both files and confirm:
    - Verb tense matches the run: real-run → past (`reclaimed` / `清出了`); dry-run → future-tense template from step 6 (`estimates I could reclaim` / `预计能在我的 Mac 上清出`).
