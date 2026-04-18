@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · **日本語** · [Español](README.es.md) · [Français](README.fr.md) · [العربية](README.ar.md) · [Deutsch](README.de.md)
 
-**agent 駆動**の macOS ディスク容量クリーンアップワークフローを、agent skill としてパッケージ化したものです。作者: [@heyiamlin](https://x.com/heyiamlin)。
+**agent 駆動**の macOS ディスク容量クリーンアップワークフローを、agent skill としてパッケージ化したものです。
 
 > 本 skill は agent を 6 段階のワークフロー（モード選択 → 環境プローブ → スキャン → 分類 → 確認 → レポート）に沿って誘導し、**L1–L4 リスクグレーディング**、**正直な回収量の内訳**（`freed_now` / `pending_in_trash` / `archived` の 3 項目に分割）、そして**多層の安全ガード**（コード内蔵の決定的ブロックリスト、プライバシー監査用のサブ agent、レンダリング後のバリデータ）を提供します。pip 依存ゼロ — 純粋な macOS コマンドと Python 標準ライブラリのみ。
 

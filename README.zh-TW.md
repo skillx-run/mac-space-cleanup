@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md) · **繁體中文** · [日本語](README.ja.md) · [Español](README.es.md) · [Français](README.fr.md) · [العربية](README.ar.md) · [Deutsch](README.de.md)
 
-一個**由 agent 驅動**的 macOS 磁碟空間清理工作流程，以 agent skill 形式交付。作者 [@heyiamlin](https://x.com/heyiamlin)。
+一個**由 agent 驅動**的 macOS 磁碟空間清理工作流程，以 agent skill 形式交付。
 
 > 本 skill 透過六階段工作流程（模式選擇 → 環境探測 → 掃描 → 分級 → 二次確認 → 報告）驅動 agent 完成清理，具備 **L1–L4 風險分級**、**誠實的回收量統計**（拆分為 `freed_now` / `pending_in_trash` / `archived` 三項）和**多重安全兜底**（程式碼內建的確定性封鎖清單、一個負責隱私脫敏的 reviewer 子 agent，以及渲染後驗證器）。零 pip 相依——純 macOS 指令加 Python 標準函式庫。
 

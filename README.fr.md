@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja.md) · [Español](README.es.md) · **Français** · [العربية](README.ar.md) · [Deutsch](README.de.md)
 
-Un workflow de nettoyage d'espace disque macOS **piloté par agent**, conditionné comme agent skill. Créé par [@heyiamlin](https://x.com/heyiamlin).
+Un workflow de nettoyage d'espace disque macOS **piloté par agent**, conditionné comme agent skill.
 
 > Le skill guide l'agent à travers un nettoyage en six étapes (mode → sondage → scan → classification → confirmation → rapport) avec un **classement de risque L1–L4**, une **comptabilité honnête de l'espace récupéré** (scindée en `freed_now` / `pending_in_trash` / `archived`) et **plusieurs garde-fous de sécurité** (une blocklist déterministe dans le code, un sous-agent relecteur de confidentialité et un validateur post-rendu). Zéro dépendance pip — uniquement des commandes macOS et la bibliothèque standard de Python.
 
