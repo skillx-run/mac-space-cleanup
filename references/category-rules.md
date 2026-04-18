@@ -12,14 +12,22 @@ Developer build caches. Fully regenerable by rebuilding.
 
 - `~/Library/Developer/Xcode/DerivedData/**` (directory)
 - `~/Library/Developer/Xcode/Archives/**` older than 90 days
+- `~/Library/Developer/Xcode/iOS DeviceSupport/**` (per-entry: one item per OS-version subdir; mtime exposes when Xcode last mounted a device of that OS)
+- `~/Library/Developer/Xcode/watchOS DeviceSupport/**` (same granularity)
+- `~/Library/Developer/Xcode/tvOS DeviceSupport/**` (same granularity)
 - `~/Library/Caches/go-build/**`
 - `~/.gradle/caches/**`
+- `~/Library/Caches/JetBrains/**` (per-IDE: IntelliJIdea, PyCharm, WebStorm, GoLand, RubyMine, CLion, DataGrip, AndroidStudio, RustRover — each subdir is one item)
+- `~/Library/Logs/JetBrains/**`
+- `~/.flutter/**`, `~/Library/Caches/Flutter/**`, `~/Library/Caches/com.google.FlutterSdk/**`
 - Docker build cache reported by `docker builder du` (semantic path `docker:build-cache`)
 - Docker dangling images from `docker images -f dangling=true` (semantic path `docker:dangling-images`)
 
 Defaults: **L1**, `delete`, `mode_hit_tags=["quick","deep"]`.
 
-Exception: Xcode Archives younger than 90 days → treat as `dev_cache` L2 `trash` (might still be needed for App Store upload).
+Exceptions:
+- Xcode Archives younger than 90 days → `dev_cache` L2 `trash` (might still be needed for App Store upload).
+- iOS DeviceSupport for the OS version currently installed on a paired device (not knowable without `xcrun devicectl list` — agent should skip this check; emit all DeviceSupport entries as L1 but surface per-OS so user can uncheck active ones in deep mode).
 
 ---
 
@@ -50,10 +58,20 @@ Language / package manager caches.
 - `~/.cargo/registry/cache/**`, `~/.cargo/registry/src/**`
 - `~/.cocoapods/repos/**` older than 180 days
 - `~/Library/Caches/CocoaPods/**`
+- `~/Library/Android/sdk/system-images/*` where the entry's mtime is older than 180 days (each API-level/arch subdir is one item; active development keeps the dir fresh)
+- `~/Library/Android/sdk/.temp/**`, `~/Library/Android/sdk/emulator/skins/**`
+- `~/.nvm/versions/node/*` excluding the `~/.nvm/alias/default` target and any version dir touched in the last 90 days (one item per kept-out version)
+- `~/Library/Application Support/fnm/node-versions/*` excluding the result of `fnm current`
+- `~/Library/Caches/fnm_multishells/**` (shell-session caches, always disposable)
+- `~/.pyenv/versions/*` excluding `pyenv version --bare` and any pin discovered via `pyenv local` in scanned projects
+- `~/.rustup/toolchains/*` excluding the `rustup default` toolchain and any `rustup override list` pin
 
 Defaults: **L1**, `delete`, `mode_hit_tags=["quick","deep"]`.
 
-Exception: `~/.m2/repository/**` — surface size but set **L3** `defer` (Maven has no clean CLI, manual users prefer to keep).
+Exceptions:
+- `~/.m2/repository/**` — surface size but set **L3** `defer` (Maven has no clean CLI, manual users prefer to keep).
+- Node/Python/Rust per-version entries above default to **L2** `trash` (not delete) because reinstalling a specific point-release can fail — PyPI yanks, ABI drift, private registries. `mode_hit_tags=["deep"]` — quick mode skips these to avoid surprise removal of a runtime in active use.
+- Android `system-images` entries default to **L2** `trash` for the same re-download-friction reason: the SDK Manager GUI can restore them, but it is a multi-click flow.
 
 ---
 
@@ -64,11 +82,16 @@ User-facing application caches (non-developer).
 - `~/Library/Caches/*` that do **not** match `dev_cache` or `pkg_cache` rules above
 - `~/Library/Saved Application State/**`
 - `~/Library/Containers/*/Data/Library/Caches/**`
+- `~/Library/Group Containers/*/Library/Caches/**` (one level deep; shared Apple-app caches)
+- `~/Library/Containers/*/Data/Library/Application Support/Cache*` (case-insensitive; some Electron apps stash cache outside the `Caches` tree)
 - `~/.Trash/**` (yes — trash itself is app-cache-like; `delete` empties it)
 
 Defaults: **L1**, `delete`, `mode_hit_tags=["quick","deep"]`.
 
-Exception: if the cache subdir name contains `Mail`, `Keychain`, `iCloud`, or `CloudKit` → **L4** `skip` (surface only; never touch per `cleanup-scope.md` blacklist).
+Exceptions:
+- If the cache subdir / container identifier contains `Mail`, `Keychain`, `iCloud`, or `CloudKit` → **L4** `skip` (surface only; never touch per `cleanup-scope.md` blacklist).
+- If the path matches a **Tier C** entry in `cleanup-scope.md` (browser or messaging-app cache — Safari/Chrome/Firefox/Brave/Edge/Arc, WeChat/Discord/Slack/Teams/Telegram/Lark/Signal), override to **L2** `trash`. Rationale: these caches re-populate on the next app launch, but a trash recovery window avoids nuking an active chat session or a signed-in browser profile.
+- `~/Library/Group Containers/*` and in-Container `Application Support/Cache*` sweeps also inherit the L2 trash exception when their identifier matches a Tier C browser/messaging app (the generic sweep pattern is Tier C-adjacent by design).
 
 ---
 
@@ -211,10 +234,10 @@ Stage 4 produces in-memory items with these fields (matches `cleanup-result.json
 
 | Category | Typical source_label values |
 | --- | --- |
-| `dev_cache` | `"Xcode DerivedData"`, `"Xcode Archives"`, `"Go build cache"`, `"Gradle cache"`, `"Docker build cache"` |
+| `dev_cache` | `"Xcode DerivedData"`, `"Xcode Archives"`, `"iOS DeviceSupport"`, `"watchOS DeviceSupport"`, `"tvOS DeviceSupport"`, `"Go build cache"`, `"Gradle cache"`, `"Docker build cache"`, `"JetBrains cache"`, `"Flutter SDK cache"` |
 | `sim_runtime` | `"Xcode Simulator Runtimes"`, `"Xcode Simulator Devices"` |
-| `pkg_cache` | `"Homebrew cache"`, `"npm cache"`, `"pnpm store"`, `"pip cache"`, `"uv cache"`, `"Cargo cache"` |
-| `app_cache` | `"System caches"`, `"Saved application state"`, `"Trash"` |
+| `pkg_cache` | `"Homebrew cache"`, `"npm cache"`, `"pnpm store"`, `"pip cache"`, `"uv cache"`, `"Cargo cache"`, `"Android SDK image"`, `"Node version manager"`, `"Python version manager"`, `"Rust toolchain"` |
+| `app_cache` | `"System caches"`, `"Saved application state"`, `"Trash"`, `"Browser cache"`, `"Messaging cache"` |
 | `logs` | `"User logs"`, `"Crash reports"`, `"System logs"` |
 | `downloads` | `"Old installers"`, `"Large archives in Downloads"` |
 | `large_media` | `"iOS backups"`, `"Large files in Movies"` |
