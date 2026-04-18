@@ -81,70 +81,48 @@ print("B OK")
 PY
 
 # ---------------------------------------------------------------------
-# C. Stage 6 simulation: copy both templates to workdir, splice in fixture
-# fill content for each region (4 on report.html, 4 on details.html),
-# then run validate_report twice with --kind.
+# C. Stage 6 simulation: copy template to workdir, splice in fixture
+# fill content for each region, then run validate_report.
 # ---------------------------------------------------------------------
-cp assets/report-template.html  "$WORKDIR/report.html"
-cp assets/details-template.html "$WORKDIR/details.html"
-cp assets/report.css            "$WORKDIR/report.css"
+cp assets/report-template.html "$WORKDIR/report.html"
+cp assets/report.css "$WORKDIR/report.css"
 
 FILL="tests/fixtures/sample-fill.html.fragment" python3 <<'PY'
 import os, re
 
 src = open(os.environ["FILL"]).read()
-workdir = os.environ["WORKDIR"]
+report_path = os.path.join(os.environ["WORKDIR"], "report.html")
+report = open(report_path).read()
 
 # Extract each "<!-- BEGIN region:NAME -->...<!-- END region:NAME -->" block
 # from the fixture and use it to replace the matching paired marker in the
-# file that declares that region.
+# report template.
 block_re = re.compile(
     r"<!--\s*BEGIN\s+region:(\w+)\s*-->(.*?)<!--\s*END\s+region:\1\s*-->",
     re.DOTALL,
 )
 replacements = {name: body.strip() for name, body in block_re.findall(src)}
 
-HERO = {"hero", "impact", "nextstep", "share"}
-DETAILS = {"distribution", "actions", "observations", "runmeta"}
-files = {
-    os.path.join(workdir, "report.html"):  HERO,
-    os.path.join(workdir, "details.html"): DETAILS,
-}
+for name, body in replacements.items():
+    pattern = re.compile(
+        rf"(<!--\s*region:{name}:start\s*-->).*?(<!--\s*region:{name}:end\s*-->)",
+        re.DOTALL,
+    )
+    if not pattern.search(report):
+        raise SystemExit(f"template missing region: {name}")
+    report = pattern.sub(rf"\1\n{body}\n\2", report)
 
-for path, region_set in files.items():
-    text = open(path).read()
-    for name in region_set:
-        if name not in replacements:
-            raise SystemExit(f"fixture missing region: {name}")
-        pattern = re.compile(
-            rf"(<!--\s*region:{name}:start\s*-->).*?(<!--\s*region:{name}:end\s*-->)",
-            re.DOTALL,
-        )
-        if not pattern.search(text):
-            raise SystemExit(f"template {path} missing region: {name}")
-        text = pattern.sub(rf"\1\n{replacements[name]}\n\2", text)
-    open(path, "w").write(text)
-print(f"C: filled {len(replacements)} regions across both pages")
+open(report_path, "w").write(report)
+print(f"C: filled {len(replacements)} regions into report.html")
 PY
 
-echo "--- C: validate_report (hero) ---"
-python3 scripts/validate_report.py --report "$WORKDIR/report.html" \
-  --kind hero > "$WORKDIR/validate-hero.json"
-VAL="$WORKDIR/validate-hero.json" python3 <<'PY'
+echo "--- C: validate_report ---"
+python3 scripts/validate_report.py --report "$WORKDIR/report.html" > "$WORKDIR/validate.json"
+VAL="$WORKDIR/validate.json" python3 <<'PY'
 import json, os
 v = json.load(open(os.environ["VAL"]))
 assert v["ok"] is True, v
-print("C hero OK")
-PY
-
-echo "--- C: validate_report (details) ---"
-python3 scripts/validate_report.py --report "$WORKDIR/details.html" \
-  --kind details > "$WORKDIR/validate-details.json"
-VAL="$WORKDIR/validate-details.json" python3 <<'PY'
-import json, os
-v = json.load(open(os.environ["VAL"]))
-assert v["ok"] is True, v
-print("C details OK")
+print("C OK")
 PY
 
 echo ""
