@@ -119,19 +119,20 @@ mac-space-cleanup/
 ├── scripts/
 │   ├── safe_delete.py            # six-action dispatcher + blocklist backstop
 │   ├── collect_sizes.py          # parallel du -sk
+│   ├── scan_projects.py          # find .git-rooted projects + enumerate cleanable artifacts
 │   ├── validate_report.py        # post-render check (regions / placeholders / leaks / dry-run marking)
 │   ├── smoke.sh                  # real-fs smoke
 │   └── dry-e2e.sh                # non-LLM end-to-end harness
 ├── references/
 │   ├── cleanup-scope.md          # whitelist / blacklist (with cross-ref to safe_delete blocklist)
 │   ├── safety-policy.md          # L1-L4 grading + redaction + degradation
-│   ├── category-rules.md         # 9 categories with patterns + risk_level + action
+│   ├── category-rules.md         # 10 categories with patterns + risk_level + action
 │   └── reviewer-prompts.md       # prompt template for the redaction sub-agent
 ├── assets/
 │   ├── report-template.html      # six-region HTML skeleton with paired markers
 │   ├── report.css
 │   └── share-card-template.svg   # 1200×630 X-share card
-├── tests/                        # 40 unit tests (pure stdlib unittest)
+├── tests/                        # 55 unit tests (pure stdlib unittest)
 ├── docs/                         # README screenshots
 ├── CHANGELOG.md
 ├── CLAUDE.md                     # contributor invariants
@@ -155,7 +156,7 @@ mac-space-cleanup/
 ## Development
 
 ```bash
-python3 -m unittest discover -s tests -v   # 40 tests
+python3 -m unittest discover -s tests -v   # 55 tests
 ./scripts/smoke.sh                          # real-fs sanity
 ./scripts/dry-e2e.sh                        # non-LLM end-to-end
 ```

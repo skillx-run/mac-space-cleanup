@@ -35,7 +35,7 @@ All tests are pure-stdlib `unittest`, no external dependencies.
 python3 -m unittest discover -s tests -v
 ```
 
-The test suite covers only the scripts (20 tests total). Agent behaviour (Stages 1–6) is verified end-to-end through manual dry-runs, not unit tests — rule interpretation is the agent's responsibility and is not mechanically testable without LLM-in-loop harnesses.
+The test suite covers only the scripts (55 tests total). Agent behaviour (Stages 1–6) is verified end-to-end through manual dry-runs, not unit tests — rule interpretation is the agent's responsibility and is not mechanically testable without LLM-in-loop harnesses.
 
 When you touch `scripts/*.py`, add or update tests in the same commit. Smoke-test the whole pipeline with:
 
