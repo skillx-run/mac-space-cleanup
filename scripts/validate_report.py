@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """validate_report.py — deterministic post-render check for report.html.
 
-Two responsibilities:
+Three responsibilities:
   1. Structural: every paired region marker has been replaced with real
      content (no leftover `<p class="hint">` placeholder strings, no
      unfilled markers).
@@ -9,6 +9,10 @@ Two responsibilities:
      paths, the current user's home prefix, common credential hints —
      that would leak data the agent should have abstracted into
      source_label.
+  3. i18n integrity: the inline `<script id="i18n-dict">` must carry a
+     valid JSON object with matching `en` / `zh` subtree key sets, and
+     any `data-locale-show` span must be paired (en/zh counts equal)
+     so the runtime toggle cannot reveal one-locale-only content.
 
 This is a deterministic second line of defence behind the agent's own
 discipline and the optional reviewer sub-agent. Failures from here mean
@@ -85,11 +89,86 @@ def _runtime_forbidden() -> list[str]:
     return out
 
 
-_DRY_RUN_MARKERS = ("would be", "would-be", "(simulated)")
+_DRY_RUN_MARKERS = ("would be", "would-be", "(simulated)", "预计", "模拟")
 _DRY_RUN_BANNER_RE = re.compile(
     r'<[^>]+class="[^"]*\bdry-banner\b[^"]*"[^>]*>',
     re.IGNORECASE,
 )
+
+_I18N_DICT_RE = re.compile(
+    r'<script\b[^>]*\bid="i18n-dict"[^>]*>(.*?)</script>',
+    re.DOTALL | re.IGNORECASE,
+)
+# Count data-locale-show="en" vs "zh" spans as a cheap sibling-pair
+# sanity check. HTML is not strict XML so we don't try to pair by
+# parent; equal totals catch the common "forgot to add the zh twin"
+# regression with zero false positives for well-formed reports.
+_LOCALE_SHOW_EN_RE = re.compile(r'\bdata-locale-show\s*=\s*"en"')
+_LOCALE_SHOW_ZH_RE = re.compile(r'\bdata-locale-show\s*=\s*"zh"')
+
+
+def _check_i18n_dict(html: str) -> list[dict[str, str]]:
+    """Validate the inline i18n dictionary embedded in the report."""
+    m = _I18N_DICT_RE.search(html)
+    if not m:
+        return [{
+            "kind": "i18n_dict_malformed",
+            "detail": "missing <script id=\"i18n-dict\"> block",
+        }]
+    body = m.group(1).strip()
+    try:
+        data = json.loads(body)
+    except json.JSONDecodeError as e:
+        return [{
+            "kind": "i18n_dict_malformed",
+            "detail": f"JSON parse error: {e.msg} at line {e.lineno}",
+        }]
+    if not isinstance(data, dict):
+        return [{
+            "kind": "i18n_dict_malformed",
+            "detail": "top-level i18n dict is not a JSON object",
+        }]
+    missing = [k for k in ("en", "zh") if k not in data]
+    if missing:
+        return [{
+            "kind": "i18n_dict_malformed",
+            "detail": f"missing top-level key(s): {', '.join(missing)}",
+        }]
+    if not isinstance(data["en"], dict) or not isinstance(data["zh"], dict):
+        return [{
+            "kind": "i18n_dict_malformed",
+            "detail": "'en' and 'zh' subtrees must be JSON objects",
+        }]
+    en_keys = set(data["en"].keys())
+    zh_keys = set(data["zh"].keys())
+    if en_keys != zh_keys:
+        only_en = sorted(en_keys - zh_keys)
+        only_zh = sorted(zh_keys - en_keys)
+        detail_parts = []
+        if only_en:
+            detail_parts.append(f"only in en: {only_en}")
+        if only_zh:
+            detail_parts.append(f"only in zh: {only_zh}")
+        return [{
+            "kind": "i18n_dict_malformed",
+            "detail": "en/zh key sets differ — " + "; ".join(detail_parts),
+        }]
+    return []
+
+
+def _check_locale_pair_balance(html: str) -> list[dict[str, str]]:
+    """Require equal counts of data-locale-show="en" and data-locale-show="zh"."""
+    en_count = len(_LOCALE_SHOW_EN_RE.findall(html))
+    zh_count = len(_LOCALE_SHOW_ZH_RE.findall(html))
+    if en_count != zh_count:
+        return [{
+            "kind": "locale_unpaired",
+            "detail": (
+                f"data-locale-show en={en_count} zh={zh_count} — each "
+                "bilingual node must ship both locales"
+            ),
+        }]
+    return []
 
 
 def validate(
@@ -127,7 +206,13 @@ def validate(
             violations.append({"kind": "leaked_fragment",
                                "detail": f"contains: {fragment!r}"})
 
-    # 4. Dry-run marking (only when caller asserts the run was a dry-run).
+    # 4. i18n dict must exist with symmetric en/zh subtrees.
+    violations.extend(_check_i18n_dict(html))
+
+    # 5. Bilingual spans must be paired (equal en/zh counts).
+    violations.extend(_check_locale_pair_balance(html))
+
+    # 6. Dry-run marking (only when caller asserts the run was a dry-run).
     if expect_dry_run:
         if not _DRY_RUN_BANNER_RE.search(html):
             violations.append({

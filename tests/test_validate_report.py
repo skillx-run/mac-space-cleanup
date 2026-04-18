@@ -16,13 +16,25 @@ import validate_report  # noqa: E402
 from _helpers import run_script  # noqa: E402
 
 
-def _well_formed_html(extra: str = "") -> str:
-    """A minimal report.html that fills every region."""
+_MIN_I18N_DICT = (
+    '<script type="application/json" id="i18n-dict">'
+    '{"en":{},"zh":{}}'
+    '</script>'
+)
+
+
+def _well_formed_html(extra: str = "", i18n_dict: str | None = None) -> str:
+    """A minimal report.html that fills every region and carries a
+    validator-clean i18n dict. Override ``i18n_dict`` to test dict
+    violations; omit to get the default symmetric empty-subtree form."""
     parts = [
         f"<!-- region:{r}:start --><p>filled {r}</p><!-- region:{r}:end -->"
         for r in validate_report.REGIONS
     ]
-    return f"<html><body>{''.join(parts)}{extra}</body></html>"
+    dict_block = _MIN_I18N_DICT if i18n_dict is None else i18n_dict
+    return (
+        f"<html><body>{dict_block}{''.join(parts)}{extra}</body></html>"
+    )
 
 
 def _run(report: Path) -> tuple[int, dict, str]:
@@ -234,6 +246,166 @@ class TestValidateReport(unittest.TestCase):
             code, out, _ = _run(report)
         self.assertEqual(code, 0)
         self.assertTrue(out["ok"])
+
+    # ---------- i18n: dry-run markers (bilingual) ----------
+
+    def test_dry_run_flag_accepts_chinese_marker(self):
+        """A Chinese dry-run report marks numbers with '预计' / '模拟'
+        instead of 'would be'. Validator must accept either vocabulary."""
+        with tempfile.TemporaryDirectory() as td:
+            report = Path(td) / "report.html"
+            html = _well_formed_html(
+                extra=(
+                    '<div class="dry-banner">预演模式 — 未改动任何文件</div>'
+                    '<p>预计 12.5 GB 可释放</p>'
+                ),
+            )
+            report.write_text(html)
+            code, out, _ = run_script(
+                validate_report,
+                ["--report", str(report), "--dry-run"],
+                None,
+            )
+        self.assertEqual(code, 0, msg=out)
+        self.assertTrue(out["ok"])
+
+    def test_dry_run_flag_missing_all_language_markers_fails(self):
+        """Dry-run banner present but no numeric marker in either
+        language → fails with dry_run_unmarked."""
+        with tempfile.TemporaryDirectory() as td:
+            report = Path(td) / "report.html"
+            html = _well_formed_html(
+                extra=(
+                    '<div class="dry-banner">DRY-RUN</div>'
+                    '<p>12.5 GB</p>'
+                ),
+            )
+            report.write_text(html)
+            code, out, _ = run_script(
+                validate_report,
+                ["--report", str(report), "--dry-run"],
+                None,
+            )
+        self.assertEqual(code, 1)
+        kinds = [v["kind"] for v in out["violations"]]
+        self.assertIn("dry_run_unmarked", kinds)
+
+    # ---------- i18n: dict structure ----------
+
+    def test_i18n_dict_missing_fails(self):
+        with tempfile.TemporaryDirectory() as td:
+            report = Path(td) / "report.html"
+            report.write_text(_well_formed_html(i18n_dict=""))
+            code, out, _ = _run(report)
+        self.assertEqual(code, 1)
+        kinds = [v["kind"] for v in out["violations"]]
+        self.assertIn("i18n_dict_malformed", kinds)
+        details = " ".join(v["detail"] for v in out["violations"])
+        self.assertIn("missing", details)
+
+    def test_i18n_dict_invalid_json_fails(self):
+        with tempfile.TemporaryDirectory() as td:
+            report = Path(td) / "report.html"
+            html = _well_formed_html(
+                i18n_dict='<script id="i18n-dict">{not valid json}</script>',
+            )
+            report.write_text(html)
+            code, out, _ = _run(report)
+        self.assertEqual(code, 1)
+        kinds = [v["kind"] for v in out["violations"]]
+        self.assertIn("i18n_dict_malformed", kinds)
+        details = " ".join(v["detail"] for v in out["violations"])
+        self.assertIn("JSON parse error", details)
+
+    def test_i18n_dict_missing_zh_subtree_fails(self):
+        with tempfile.TemporaryDirectory() as td:
+            report = Path(td) / "report.html"
+            html = _well_formed_html(
+                i18n_dict='<script id="i18n-dict">{"en":{}}</script>',
+            )
+            report.write_text(html)
+            code, out, _ = _run(report)
+        self.assertEqual(code, 1)
+        kinds = [v["kind"] for v in out["violations"]]
+        self.assertIn("i18n_dict_malformed", kinds)
+
+    def test_i18n_dict_key_mismatch_fails(self):
+        """en has a key that zh is missing — asymmetric subtrees must
+        flag or a zh user sees untranslated fallback silently."""
+        with tempfile.TemporaryDirectory() as td:
+            report = Path(td) / "report.html"
+            html = _well_formed_html(
+                i18n_dict=(
+                    '<script id="i18n-dict">'
+                    '{"en":{"section.foo":"Foo","brand.by":"by"},'
+                    '"zh":{"brand.by":"作者"}}'
+                    '</script>'
+                ),
+            )
+            report.write_text(html)
+            code, out, _ = _run(report)
+        self.assertEqual(code, 1)
+        kinds = [v["kind"] for v in out["violations"]]
+        self.assertIn("i18n_dict_malformed", kinds)
+        details = " ".join(v["detail"] for v in out["violations"])
+        self.assertIn("section.foo", details)
+
+    def test_i18n_dict_symmetric_populated_passes(self):
+        """A non-trivial symmetric dict (both subtrees with the same
+        key set) passes — confirms the check is about key-set equality,
+        not emptiness."""
+        with tempfile.TemporaryDirectory() as td:
+            report = Path(td) / "report.html"
+            html = _well_formed_html(
+                i18n_dict=(
+                    '<script id="i18n-dict">'
+                    '{"en":{"brand.by":"by","hero.unit":"freed"},'
+                    '"zh":{"brand.by":"作者","hero.unit":"已释放"}}'
+                    '</script>'
+                ),
+            )
+            report.write_text(html)
+            code, out, _ = _run(report)
+        self.assertEqual(code, 0, msg=out)
+        self.assertTrue(out["ok"])
+
+    # ---------- i18n: bilingual span pairing ----------
+
+    def test_locale_pair_balance_ok(self):
+        with tempfile.TemporaryDirectory() as td:
+            report = Path(td) / "report.html"
+            html = _well_formed_html(
+                extra=(
+                    '<p><span data-locale-show="en">Clean run</span>'
+                    '<span data-locale-show="zh">清理完成</span></p>'
+                    '<p><span data-locale-show="en">Nice</span>'
+                    '<span data-locale-show="zh">不错</span></p>'
+                ),
+            )
+            report.write_text(html)
+            code, out, _ = _run(report)
+        self.assertEqual(code, 0, msg=out)
+
+    def test_locale_pair_missing_zh_twin_fails(self):
+        """An en span without its zh sibling is the classic regression —
+        zh users would see an empty block. Count mismatch catches it."""
+        with tempfile.TemporaryDirectory() as td:
+            report = Path(td) / "report.html"
+            html = _well_formed_html(
+                extra=(
+                    '<p><span data-locale-show="en">Clean run</span>'
+                    '<span data-locale-show="zh">清理完成</span></p>'
+                    '<p><span data-locale-show="en">Orphan caption</span></p>'
+                ),
+            )
+            report.write_text(html)
+            code, out, _ = _run(report)
+        self.assertEqual(code, 1)
+        kinds = [v["kind"] for v in out["violations"]]
+        self.assertIn("locale_unpaired", kinds)
+        details = " ".join(v["detail"] for v in out["violations"])
+        self.assertIn("en=2", details)
+        self.assertIn("zh=1", details)
 
 
 if __name__ == "__main__":
