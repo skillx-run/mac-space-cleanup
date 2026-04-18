@@ -183,6 +183,10 @@ a:hover {
   font-size: 17px;
   color: var(--muted);
   max-width: 500px;
+  /* Reserve two lines of caption height so the share-button row
+   * below doesn't jump when the user toggles between a one-line EN
+   * caption and a two-line ZH caption (CJK tends to wrap wider). */
+  min-height: 2.8em;
   margin: 0 auto;
 }
 .hero-caption strong {
