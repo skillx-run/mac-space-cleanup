@@ -326,6 +326,7 @@ section h2 {
   margin-bottom: 16px;
   word-break: break-all;
   border: 1px solid rgba(255, 255, 255, 0.2);
+  user-select: all;
 }
 
 .auto-note {
