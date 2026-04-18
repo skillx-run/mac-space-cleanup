@@ -2,6 +2,23 @@
 
 All notable changes to mac-space-cleanup. Newest first.
 
+## [Unreleased]
+
+### Added
+- **Bilingual report with runtime EN/ZH toggle.** `report.html` now ships both English and Chinese copy in the same DOM and flips between them via a header-corner button. Static labels (section titles, column headers, legends, button text, dry-run banner, nextstep warnings) are driven by `data-i18n` keys backed by the inline `<script id="i18n-dict">`; agent-authored natural language (hero caption, action reasons, observations recommendations, per-category `source_label`) is emitted as sibling `data-locale-show="en"` / `data-locale-show="zh"` spans and toggled by CSS. `localStorage` only records an explicit user toggle, so a fresh report always opens in the locale the agent picked (based on the user's triggering message — CJK → `zh`, otherwise `en`, persisted to `$WORKDIR/locale.txt` in Stage 1).
+- **`assets/i18n/strings.json`** as the single source of truth for UI labels (41 keys per locale). Stage 6 step 3.5 copies it into the workdir and inlines it into the report.
+- **SVG share card is now emitted per locale** (`share-card.en.svg` + `share-card.zh.svg`) since the SVG has no JS toggle. Template gains three new label placeholders (`${label_reclaimed}` / `${label_top}` / `${label_by}`) filled from a fixed translation table.
+- **`references/category-rules.md` "Source label bilingual naming" appendix** mapping every `source_label` to its Chinese rendering, so Stage 6 Pattern C stays consistent across runs.
+
+### Changed
+- **`validate_report.py` gains three checks**: `i18n_dict_malformed` (script block present, valid JSON, symmetric en/zh subtrees), `locale_unpaired` (data-locale-show en/zh counts equal), and extended `_DRY_RUN_MARKERS` to accept `预计` / `模拟` alongside the English triplet. Redaction scanning remains locale-agnostic — a leak in either locale is caught by the same literal rules.
+- **Redaction reviewer sub-agent prompt** (`references/reviewer-prompts.md`) now instructs reviewers to scan both locale variants and adds a `locale` field to the violation schema; leaks must be scrubbed from both sibling spans in the same fix pass.
+- **Share button href** flips to `share.zh.txt` when `LOCALE=zh` (the file already existed as a workdir artifact; it now actually drives the button). `share.en.txt` is still generated for EN users.
+- **`CLAUDE.md` invariant #7**: new static labels must land in both i18n subtrees; new agent-authored nodes must ship both `data-locale-show` siblings; new `source_label` entries need a Chinese rendering in the same commit.
+
+### Tests
+- 76 → **85** (`test_validate_report.py` adds 9 cases: Chinese dry-run marker, missing / invalid / asymmetric i18n dict variants, balanced and unbalanced `data-locale-show` span counts).
+
 ## v0.5.0 — 2026-04-18
 
 ### Changed (BREAKING)
