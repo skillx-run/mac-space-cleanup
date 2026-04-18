@@ -246,3 +246,54 @@ Stage 4 produces in-memory items with these fields (matches `cleanup-result.json
 | `orphan` | `"Unclassified large item"` |
 
 Never put a path or basename into `source_label`.
+
+---
+
+## Source label bilingual naming (Stage 6 Pattern C)
+
+Every `source_label` the agent emits is wrapped in a Pattern C bilingual span pair (`data-locale-show="en"` + `data-locale-show="zh"`). The English side uses the table above verbatim. The Chinese side is agent-authored at Stage 6 from the same taxonomy — not a pre-baked enum — but should follow the naming references below to stay stable across runs and to fit the share-card SVG's width budget (≤6 Chinese characters per label; truncate with `…` if a label overflows).
+
+| English source_label | Chinese source_label |
+| --- | --- |
+| Xcode DerivedData | Xcode 派生数据 |
+| Xcode Archives | Xcode 归档 |
+| iOS DeviceSupport | iOS 设备支持 |
+| watchOS DeviceSupport | watchOS 设备支持 |
+| tvOS DeviceSupport | tvOS 设备支持 |
+| Go build cache | Go 构建缓存 |
+| Gradle cache | Gradle 缓存 |
+| Docker build cache | Docker 构建缓存 |
+| JetBrains cache | JetBrains 缓存 |
+| Flutter SDK cache | Flutter 缓存 |
+| Xcode Simulator Runtimes | Xcode 模拟器运行时 |
+| Xcode Simulator Devices | Xcode 模拟器 |
+| Homebrew cache | Homebrew 缓存 |
+| npm cache | npm 缓存 |
+| pnpm store | pnpm 存储 |
+| pip cache | pip 缓存 |
+| uv cache | uv 缓存 |
+| Cargo cache | Cargo 缓存 |
+| Android SDK image | Android SDK 镜像 |
+| Node version manager | Node 版本管理 |
+| Python version manager | Python 版本管理 |
+| Rust toolchain | Rust 工具链 |
+| System caches | 系统缓存 |
+| Saved application state | 应用恢复状态 |
+| Trash | 废纸篓 |
+| Browser cache | 浏览器缓存 |
+| Messaging cache | 聊天应用缓存 |
+| User logs | 用户日志 |
+| Crash reports | 崩溃日志 |
+| System logs | 系统日志 |
+| Old installers | 过期安装包 |
+| Large archives in Downloads | 下载夹大压缩包 |
+| iOS backups | iOS 备份 |
+| Large files in Movies | 影片大文件 |
+| Time Machine local snapshots | 时间机器快照 |
+| Project node_modules | 项目 node_modules |
+| Project target | 项目 target |
+| Project build | 项目 build |
+| Project .venv | 项目 .venv |
+| Unclassified large item | 未分类大项 |
+
+Untranslated proper nouns (`node_modules`, `npm`, `Docker`, IDE / SDK names) stay in ASCII — both for length economy and because Chinese developers read them as-is. If a new `source_label` is added to the table above, add its Chinese rendering in the same commit so Stage 6 doesn't have to improvise.

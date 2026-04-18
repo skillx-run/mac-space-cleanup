@@ -22,6 +22,19 @@ this HTML was instructed to render only category names ("Xcode DerivedData",
 basenames, system usernames, project names, company names, or strings that
 look like credentials (.env, id_rsa, BEGIN PRIVATE KEY, etc.).
 
+The report is bilingual. Agent-authored natural-language copy appears twice
+in the DOM — once inside <span data-locale-show="en"> and once inside
+<span data-locale-show="zh"> (sibling spans). Category source_label values
+have the same structure. You must scan BOTH locale variants. A Chinese
+translation of a leaked project name is still a leak (e.g. "Acme 财报" is as
+unsafe as "Acme Q3 report"); a leak in only one language still counts and
+the fix must remove it from both siblings. Do not assume one locale has been
+pre-cleaned because the other looks safe.
+
+The <script id="i18n-dict"> JSON block carries only fixed UI labels
+(section titles, button text, etc.) populated from a static translation
+table — those strings cannot leak user data and can be ignored.
+
 Your job is to scan the HTML below and report every leak you find. You are
 adversarial — assume the agent missed things. Look at every text node, every
 attribute value, every comment.
@@ -31,15 +44,17 @@ Return a single JSON object with this shape:
   "violations": [
     {
       "kind": "path" | "username" | "project" | "company" | "credential" | "other",
+      "locale": "en" | "zh" | "both" | "none",
       "snippet": "<the exact offending substring, ≤80 chars>",
-      "where": "<short hint where in the document, e.g. 'distribution card #2'>",
+      "where": "<short hint where in the document, e.g. 'distribution card #2 (zh span)'>",
       "why": "<one sentence explaining the leak>"
     }
   ]
 }
 
-Empty list = clean. Do not include fields you did not find. Do not editorialise
-in prose; the JSON is the entire response.
+Use "locale": "none" for leaks outside any bilingual span (e.g. a comment or
+a Pattern B number node). Empty list = clean. Do not include fields you did
+not find. Do not editorialise in prose; the JSON is the entire response.
 
 HTML to review:
 ---
@@ -49,7 +64,7 @@ HTML to review:
 
 **Acceptance**: parse the response as JSON. If `violations` is empty list, the report passes. Otherwise:
 
-- For each violation, edit `$WORKDIR/report.html` to remove or abstract the leaked content (replace the snippet with a generic source_label or drop it).
+- For each violation, edit `$WORKDIR/report.html` to remove or abstract the leaked content (replace the snippet with a generic source_label or drop it). If the violation sits inside a `data-locale-show` bilingual pair, scrub **both** sibling spans in the same edit pass — do not rely on the reviewer to catch the twin on the next round.
 - Re-run the redaction reviewer (with the updated HTML).
 - After 2 failed retries, stop and tell the user which violations remained — do not show or share the report.
 

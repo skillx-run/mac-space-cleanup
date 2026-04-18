@@ -31,7 +31,7 @@ This document defines the **risk grading, default actions, confirmation bars, re
 
 ## Privacy redaction rules (UI layer)
 
-`cleanup-result.json` may contain full paths for local audit. **Anything rendered into `report.html`, `share-card.svg`, or share text must be redacted.**
+`cleanup-result.json` may contain full paths for local audit. **Anything rendered into `report.html`, `share-card.{en,zh}.svg`, or share text must be redacted.**
 
 ### Forbidden in UI/share output
 
@@ -55,7 +55,16 @@ This document defines the **risk grading, default actions, confirmation bars, re
 
 - The agent must construct UI strings from `source_label` + `category`, never from `path` or `basename(path)`.
 - Before writing share text, mentally scan the string for any forbidden token; if in doubt, drop to a generic label.
-- `share-card-template.svg` accepts only the three whitelisted placeholders: `${free_reclaimed}`, `${mode_label}`, `${top_categories}` (a comma-joined list of up to 3 category labels).
+- `share-card-template.svg` accepts only these whitelisted placeholders: `${free_reclaimed}`, `${mode_label}`, `${top_categories}` (a ` · `-joined list of up to 3 category labels), `${label_reclaimed}`, `${label_top}`, `${label_by}`. The last three are locale strings Stage 6 fills from a fixed translation table, not free-form agent text — they cannot leak user data.
+
+### Localized content redaction
+
+The report is bilingual: agent-authored natural-language copy (hero caption, action reasons, observations recommendations, per-category `source_label`) is emitted twice — once in `<span data-locale-show="en">` and once in `<span data-locale-show="zh">`. Share card and share text also exist per locale (`share-card.{en,zh}.svg`, `share.{en,zh}.txt`).
+
+- **Both locales are held to the same redaction rules.** A Chinese translation of a leaked project or company name is still a leak.
+- `validate_report.py` scans the HTML as plain text; it makes no locale distinction and will catch path / username / credential literals wherever they appear.
+- The redaction reviewer sub-agent is instructed to scan both locale variants; a leak flagged in one locale must be removed from **both** sibling spans so the user cannot toggle back to a leaked version.
+- The confirm-stage basename exception below is unchanged — it still applies only to the live conversation, and both persisted locales must be basename-free.
 
 ## Confirm-stage exception (agent ↔ user dialog only)
 
@@ -73,7 +82,7 @@ Strict rules for the exception:
 
 | Failure (design doc §14) | Handler | Behaviour |
 | --- | --- | --- |
-| §14.1 Scan failure (timeout / permission denied for a path) | agent (Stage 3) + `collect_sizes.py` | Record the path in an in-memory `errors[]` list; do not abort. Report surfaces "未扫描完成项". |
+| §14.1 Scan failure (timeout / permission denied for a path) | agent (Stage 3) + `collect_sizes.py` | Record the path in an in-memory `errors[]` list; do not abort. Report surfaces the count as a bilingual Pattern C node (e.g. "2 paths not fully scanned" / "有 2 项未扫描完成"), never the path itself. |
 | §14.2 Classification failure (agent cannot decide category) | agent (Stage 4) | Assign `category=orphan`, `risk_level=L4`; show in deferred region, never execute. |
 | §14.3 Execution failure (single item) | `safe_delete.py` | Per-item try/except, write `status=failed` + `error`, continue the batch. Overall exit 1 if any failures. |
 | §14.4 Report render failure | agent (Stage 6) | Keep `cleanup-result.json` on disk; summarise results as plain text to the user. |
