@@ -506,47 +506,10 @@ The 10 numbered sub-steps below split into four phases:
 10. Summarise to the user in one short paragraph that **always reports both numbers**:
    - `freed_now_bytes` — already off the disk (or "would-be freed" on a dry-run).
    - `pending_in_trash_bytes` — waiting in `~/.Trash`; mention that emptying trash converts it to free space (the report's "One last step" section gives the one-line command).
-   - `archived_count` if any.
+   - `archived_count` if any (archive_source goes into the workdir, point user at it).
    - `deferred_count`.
 
-   Then surface the artefacts as a click-to-open list. Agent hosts differ: Claude Code and Claude-Agent-SDK-based apps render markdown (so `[text](file://…)` becomes a real clickable anchor); Codex-style CLIs, plain shell pipes, CI log viewers and some TUIs show raw text. **Plain `file://` URLs are the lowest common denominator** — every modern terminal auto-detects them for Cmd+click, and they stay readable even when markdown is not rendered. `[text](url)` in a non-rendering host is arguably *worse* than a bare URL (the trailing `)` can confuse some URL detectors). So:
-
-   **Default — plain URLs, one per line, URL at end of line.** A short label, a colon, two spaces, then the URL. No indent, no alignment padding, no two URLs sharing a line. Example (the `alice` and `A1B2C3` are illustrative — **substitute the actual `$WORKDIR`**):
-
-   ```
-   报告已打开：
-   report.html           file:///Users/alice/.cache/mac-space-cleanup/run-A1B2C3/report.html
-
-   其他工件：
-   cleanup-result.json   file:///Users/alice/.cache/.../cleanup-result.json
-   share-card.en.svg     file:///Users/alice/.cache/.../share-card.en.svg
-   share-card.zh.svg     file:///Users/alice/.cache/.../share-card.zh.svg
-   share.en.txt          file:///Users/alice/.cache/.../share.en.txt
-   share.zh.txt          file:///Users/alice/.cache/.../share.zh.txt
-   confirmed.json        file:///Users/alice/.cache/.../confirmed.json   (dry-run only)
-   ```
-
-   **Optional upgrade — markdown link list**, if the agent knows the current host renders markdown (Claude Code session, an SDK app with a markdown-capable UI). Markdown links dodge terminal URL-detection entirely so they survive visual wrap even better. Same content as above:
-
-   ```markdown
-   **报告已打开：** [report.html](file:///Users/alice/.cache/.../report.html)
-
-   **其他工件：**
-   - [cleanup-result.json](file:///Users/alice/.cache/.../cleanup-result.json) — 审计记录
-   - [share-card.en.svg](file:///Users/alice/.cache/.../share-card.en.svg) — 英文分享卡片
-   - [share-card.zh.svg](file:///Users/alice/.cache/.../share-card.zh.svg) — 中文分享卡片
-   - [share.en.txt](file:///Users/alice/.cache/.../share.en.txt) — 英文推文
-   - [share.zh.txt](file:///Users/alice/.cache/.../share.zh.txt) — 中文推文
-   - [confirmed.json](file:///Users/alice/.cache/.../confirmed.json) — 回放基础（dry-run only）
-   ```
-
-   When in doubt, use the plain-URL form — it works everywhere, and any host that renders markdown will also auto-link a bare `file://` URL.
-
-   Rules (both formats):
-   - **One artefact per line / list item.** Do not combine `share.en.txt` + `share.zh.txt` onto one line.
-   - The `confirmed.json` line is **dry-run only** — omit on real runs, where re-executing it just produces `action=skip, reason="already gone"` noise.
-   - Substitute the real `$WORKDIR`; do not emit the literal `alice/A1B2C3` example.
-   - At minimum include the report URL in the tersest summary.
+   Print the report path explicitly as a `file://` URL on its own line, e.g. `file://$WORKDIR/report.html` expanded. Do not reduce this to "the report is in the workdir" — the URL must appear so the user can Cmd+click it in their terminal or click it in a markdown-rendering host. Other workdir artefacts (`cleanup-result.json`, the share cards, share texts, `confirmed.json`) only need to be surfaced if the user asks for them.
 
    **Self-check on `share.{en,zh}.txt` before step 9 (no automation backstop).** `validate_report.py` scans `report.html` only; the share-text files are on an unchecked path. Re-read both files and confirm:
    - Verb tense matches the run: real-run → past (`reclaimed` / `清出了`); dry-run → future-tense template from step 6 (`estimates I could reclaim` / `预计能在我的 Mac 上清出`).
