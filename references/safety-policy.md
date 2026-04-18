@@ -79,6 +79,17 @@ Strict rules for the exception:
 | §14.4 Report render failure | agent (Stage 6) | Keep `cleanup-result.json` on disk; summarise results as plain text to the user. |
 | §14.5 Enhancement tool missing (Docker/brew/etc.) | agent (Stage 2) | Skip the corresponding Tier E rows from `cleanup-scope.md`; proceed with whatever is detected. |
 
+## History-driven UI adjustments (v0.5+)
+
+`scripts/aggregate_history.py` surfaces cross-run confidence into `$WORKDIR/history.json` (see SKILL.md Stage 2.6). Stage 5 may use this data to collapse repetitive per-item confirmation into batch confirmation for `(source_label, category)` tuples the user has approved **≥3 times with 0 rejections**. These constraints are non-negotiable:
+
+1. **Risk-level boundaries are never crossed.** A tag with 100 prior confirmations whose default is L3 stays on L3; history can only move it from "per-item confirm" to "batch confirm", never to "auto-execute". L4 never becomes interactive. The mapping in SKILL.md Stage 5 is the authoritative allow-list of downgrades.
+2. **Mode boundaries are never crossed.** A tag whose `mode_hit_tags` excludes the current mode must not surface in that mode regardless of how strong the history is. History influences *how we ask*, not *what we surface*.
+3. **One decline resets.** If `declined > 0` for a tag, treat it as if history were empty. The user expressed doubt once; the next session re-asks at the default bar. Confidence must be unbroken to earn the downgrade.
+4. **Blocklist is supreme.** The `_BLOCKED_PATTERNS` regex set in `scripts/safe_delete.py` refuses any fs-touching action regardless of history. A repeatedly-approved path that subsequently drifts into blocklist territory is still refused.
+5. **Dry-run and failed actions never count.** `aggregate_history.py` already excludes `dry_run=true` and `status=failed` records; do not build a workaround that uses them as a confidence signal.
+6. **History only influences Stage 5 presentation.** Never use it to change Stage 4 grading, scope selection, or source_label emission. The classifier must produce the same output as a first-run classifier would, given the same filesystem.
+
 ## Operating invariants
 
 1. **Agent never writes the filesystem directly for cleanup purposes.** Every `delete / trash / archive / migrate / defer` must go through `scripts/safe_delete.py`. The only direct filesystem writes the agent performs are: (a) writing JSON files to `$WORKDIR`, (b) copying templates into `$WORKDIR` and editing the copies.

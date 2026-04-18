@@ -98,6 +98,20 @@ If Stage 2 found `trash_cli=false`, before proceeding to Stage 3 surface a singl
 
 Then proceed to Stage 3 without waiting for an answer. The user can interrupt to install if they want; otherwise they have the heads-up. Do not nudge again in subsequent runs of the same session.
 
+### Stage 2.6 · History recall
+
+Before scanning, load cross-run confidence so Stage 5 knows which `(source_label, category)` tuples the user has previously approved or declined.
+
+```bash
+python3 scripts/aggregate_history.py --workdir "$WORKDIR" > /dev/null
+```
+
+This writes `$WORKDIR/history.json`. The script also garbage-collects `run-*` directories older than the 20 most recent (pass `--no-gc` to disable, `--keep N` to widen the window). The caller's workdir is always pinned regardless of age.
+
+Read `$WORKDIR/history.json` and keep it in memory as `HISTORY_BY_LABEL`, keyed by `(source_label, category)`. See `references/safety-policy.md` §"History-driven UI adjustments" for the rules that bind how this data may influence Stage 5 — summary: history can only collapse per-item prompts into batch prompts, **never cross a risk-level boundary and never auto-execute something that would otherwise ask**.
+
+On the first run of the skill on a given Mac, `history.json` will have `runs_analyzed: 0` and `by_label: []` — that's fine; every tag falls through to default behaviour.
+
 ### Stage 3 · Scan
 
 Build a target path list from `cleanup-scope.md` filtered by what Stage 2 found. Write it to `$WORKDIR/paths.json`:
@@ -179,6 +193,21 @@ Present the candidates to the user, grouped by risk level. The confirmation bar 
 | `deep` | Show list + pre-checked; ask for batch OK† | Batch confirm by category | Per-item hard confirm, show default `trash`, allow override | Show as read-only |
 
 † L1 includes `sim_runtime` (dispatched to `xcrun simctl delete`, which itself refuses to delete a booted simulator) and `system_snapshots` (dispatched to `tmutil deletelocalsnapshots`). These are L1 because the Apple-provided tools carry their own safety guards — `safe_delete.py` never `rm -rf`s these categories.
+
+**History-driven confidence downgrade**: for each candidate with a `(source_label, category)` entry in `HISTORY_BY_LABEL` (loaded in Stage 2.6) where `confirmed ≥ 3` and `declined == 0`, collapse the prompt **one step finer**:
+
+| Default bar for this tag | Downgraded bar (history-driven) | Bound |
+| --- | --- | --- |
+| L3 per-item hard confirm | batch-confirm all instances of the tag with a single Y/N | never auto-executes; still asks once |
+| L2 batch by category | unchanged (already minimal) | n/a |
+| L1 quick-auto / deep batch | unchanged | n/a |
+
+Hard rules — see `references/safety-policy.md` §"History-driven UI adjustments" for the authoritative statement:
+
+- Never cross a risk-level boundary. History cannot move L3 to L2 or to auto-execute. L4 never becomes interactive.
+- Never cross a mode boundary. Tags whose `mode_hit_tags` excludes the current mode stay hidden regardless of history.
+- One decline resets. If `declined > 0` for a tag, revert to the default confirmation bar.
+- The `_BLOCKED_PATTERNS` regex inside `safe_delete.py` still overrides everything.
 
 **Project artifacts (`category=project_artifacts`, only present in deep mode)** get their own confirmation grouping rather than being lumped with other L1/L2:
 
