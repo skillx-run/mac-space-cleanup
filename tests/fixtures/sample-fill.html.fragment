@@ -22,12 +22,14 @@
   <div class="impact-card">
     <div class="title">Distribution of Freed Space</div>
     <div class="stack-bar">
-      <span class="seg-1" style="flex-basis:67%" title="Old installers: 8 KB"></span>
-      <span class="seg-2" style="flex-basis:33%" title="Developer caches: 4 KB"></span>
+      <span class="seg-1" style="flex-basis:55%" title="Xcode DerivedData: 6.8 GB"></span>
+      <span class="seg-2" style="flex-basis:26%" title="node_modules: 3.2 GB"></span>
+      <span class="seg-3" style="flex-basis:19%" title="Docker build cache: 2.3 GB"></span>
     </div>
     <ul class="stack-legend">
-      <li><span class="swatch" style="background:var(--seg-1)"></span><span class="name">Old installers</span><span class="bytes">8 KB</span></li>
-      <li><span class="swatch" style="background:var(--seg-2)"></span><span class="name">Developer caches</span><span class="bytes">4 KB</span></li>
+      <li><span class="swatch" style="background:var(--seg-1)"></span><span class="name">Xcode DerivedData</span><span class="bytes">6.8 GB</span></li>
+      <li><span class="swatch" style="background:var(--seg-2)"></span><span class="name">node_modules</span><span class="bytes">3.2 GB</span></li>
+      <li><span class="swatch" style="background:var(--seg-3)"></span><span class="name">Docker build cache</span><span class="bytes">2.3 GB</span></li>
     </ul>
   </div>
 </div>
@@ -42,24 +44,32 @@
 <!-- END region:nextstep -->
 
 <!-- BEGIN region:share -->
-<a class="share-btn" target="_blank" rel="noopener" href="https://x.com/intent/tweet?text=I%20just%20reclaimed%2012.3%20GB%20on%20my%20Mac%20with%20the%20mac-space-cleanup%20skill%20by%20%40heyiamlin.%0A%0ABiggest%20wins%3A%20Old%20installers%2C%20Developer%20caches%2C%20Generic%20archives.%0A%0A%23macspaceclean%20%23maccleanup%20%23buildinpublic">Share to X</a>
+<a class="share-btn" target="_blank" rel="noopener" href="https://x.com/intent/tweet?text=I%20just%20reclaimed%2012.3%20GB%20on%20my%20Mac%20with%20the%20mac-space-cleanup%20skill%20by%20%40heyiamlin.%0A%0ABiggest%20wins%3A%20Xcode%20DerivedData%2C%20node_modules%2C%20Docker%20build%20cache.%0A%0A%23macspaceclean%20%23maccleanup%20%23buildinpublic">Share to X</a>
 <!-- END region:share -->
 
 <!-- BEGIN region:distribution -->
 <div class="dist-grid">
   <div class="dist-card--detailed">
-    <div class="dist-title">Developer caches</div>
+    <div class="dist-title">Xcode DerivedData</div>
     <div class="dist-metrics">
-      <div><div class="metric-label">Pre-clean</div><div class="metric-value">4.0 KB</div></div>
-      <div><div class="metric-label">Freed</div><div class="metric-value freed">4.0 KB</div></div>
+      <div><div class="metric-label">Pre-clean</div><div class="metric-value">6.8 GB</div></div>
+      <div><div class="metric-label">Freed</div><div class="metric-value freed">6.8 GB</div></div>
       <div><div class="metric-label">Remaining</div><div class="metric-value">0 B</div></div>
     </div>
   </div>
   <div class="dist-card--detailed">
-    <div class="dist-title">Old installers</div>
+    <div class="dist-title">node_modules</div>
     <div class="dist-metrics">
-      <div><div class="metric-label">Pre-clean</div><div class="metric-value">8.0 KB</div></div>
-      <div><div class="metric-label">Freed</div><div class="metric-value freed">8.0 KB</div></div>
+      <div><div class="metric-label">Pre-clean</div><div class="metric-value">3.2 GB</div></div>
+      <div><div class="metric-label">Freed</div><div class="metric-value freed">3.2 GB</div></div>
+      <div><div class="metric-label">Remaining</div><div class="metric-value">0 B</div></div>
+    </div>
+  </div>
+  <div class="dist-card--detailed">
+    <div class="dist-title">Docker build cache</div>
+    <div class="dist-metrics">
+      <div><div class="metric-label">Pre-clean</div><div class="metric-value">2.3 GB</div></div>
+      <div><div class="metric-label">Freed</div><div class="metric-value freed">2.3 GB</div></div>
       <div><div class="metric-label">Remaining</div><div class="metric-value">0 B</div></div>
     </div>
   </div>
@@ -68,10 +78,11 @@
 
 <!-- BEGIN region:actions -->
 <details class="actions-group" open>
-  <summary>Auto-cleaned <span class="group-meta">2 items · 12 KB</span></summary>
+  <summary>Auto-cleaned <span class="group-meta">3 items &middot; 12.3 GB</span></summary>
   <ul class="actions-list">
-    <li class="actions-row"><span class="cat">Developer caches</span><span class="size">4 KB</span><span class="act auto">AUTO</span><span class="reason">L1 cache, fully regenerable.</span></li>
-    <li class="actions-row"><span class="cat">Old installers</span><span class="size">8 KB</span><span class="act auto">AUTO</span><span class="reason">Generic installer, not referenced.</span></li>
+    <li class="actions-row"><span class="cat">Xcode DerivedData</span><span class="size">6.8 GB</span><span class="act auto">AUTO</span><span class="reason">L1 Xcode build cache, rebuilt on next compile.</span></li>
+    <li class="actions-row"><span class="cat">node_modules</span><span class="size">3.2 GB</span><span class="act auto">AUTO</span><span class="reason">Project build output, recreated by install.</span></li>
+    <li class="actions-row"><span class="cat">Docker build cache</span><span class="size">2.3 GB</span><span class="act auto">AUTO</span><span class="reason">Docker layer cache, rebuilt on next docker build.</span></li>
   </ul>
 </details>
 <!-- END region:actions -->
