@@ -494,20 +494,26 @@ The 10 numbered sub-steps below split into four phases:
    - `archived_count` if any.
    - `deferred_count`.
 
-   Then surface the artefacts as an explicit, click-to-open list — terminals (iTerm2, Terminal.app, VS Code) let the user Cmd+click a `file://` URL to reopen the report without retyping `open`:
+   Then surface the artefacts as an explicit, click-to-open list — terminals (iTerm2, Terminal.app, VS Code) let the user Cmd+click a `file://` URL to reopen the report without retyping `open`. Print URLs by concatenating `file://` with the exported `$WORKDIR` (which is already an absolute path from `mktemp -d`), e.g. `echo "file://$WORKDIR/report.html"`. A filled-in summary block reads literally like this (the `alice` and `A1B2C3` below are only illustration of a real expanded path — **do not copy them; substitute your actual `$WORKDIR`**):
 
    ```
-   报告已打开：file:///Users/<you>/.cache/mac-space-cleanup/run-XXXXXX/report.html
+   报告已打开：file:///Users/alice/.cache/mac-space-cleanup/run-A1B2C3/report.html
    其他工件：
-     · 审计记录 (full paths, for your eyes only):  file:///.../cleanup-result.json
-     · 分享卡片 (EN):                              file:///.../share-card.en.svg
-     · 分享卡片 (ZH):                              file:///.../share-card.zh.svg
-     · 分享文案 (EN / ZH):                         file:///.../share.en.txt  ·  share.zh.txt
-     · Dry-run 回放基础 (复用此文件去掉 --dry-run 就能实跑):
-         file:///.../confirmed.json
+     · 审计记录 (full paths, for your eyes only):  file:///Users/alice/.cache/.../cleanup-result.json
+     · 分享卡片 (EN):                              file:///Users/alice/.cache/.../share-card.en.svg
+     · 分享卡片 (ZH):                              file:///Users/alice/.cache/.../share-card.zh.svg
+     · 分享文案 (EN / ZH):                         file:///Users/alice/.cache/.../share.en.txt  ·  share.zh.txt
+     · 回放基础 (dry-run only, 复用此文件去掉 --dry-run 就能实跑):
+         file:///Users/alice/.cache/.../confirmed.json
    ```
 
-   Use the actual absolute `$WORKDIR` path, not the literal placeholder. Do **not** reduce this to "artefacts are in the workdir" — the point is the user should not have to `cd` or `ls` to find anything. Keep the list to one line per artefact, and include at minimum the report URL even in the tersest summary.
+   The last "回放基础" line is **dry-run only** — omit it on real runs, since re-running `confirmed.json` against already-cleaned paths just produces a run full of `action=skip, reason="already gone"` noise. Do **not** reduce any of this to "artefacts are in the workdir" — the point is the user should not have to `cd` or `ls` to find anything. Keep the list to one line per artefact, and include at minimum the report URL even in the tersest summary.
+
+   **Self-check on `share.{en,zh}.txt` before step 9 (no automation backstop).** `validate_report.py` scans `report.html` only; the share-text files are on an unchecked path. Re-read both files and confirm:
+   - Verb tense matches the run: real-run → past (`reclaimed` / `清出了`); dry-run → future-tense template from step 6 (`estimates I could reclaim` / `预计能在我的 Mac 上清出`).
+   - `{top3_joined}` / `{top3_joined_zh}` contain only concrete source_labels from `references/category-rules.md` — no `orphan` / `Unclassified large item` / `未分类大项`.
+   - All three hashtags present (`#macspaceclean #maccleanup #buildinpublic` for EN, `#mac清理 #macspaceclean #buildinpublic` for ZH).
+   - No path / username / project name slipped through (the redaction reviewer sub-agent from step 7 only saw `report.html`).
 
    Honest framing: never report `reclaimed_bytes` to the user as "freed" — that field is back-compat only.
 
