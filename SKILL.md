@@ -255,43 +255,56 @@ Use `--dry-run` whenever you want a rehearsal: no filesystem writes except `acti
 
 ### Stage 6 · Report & share
 
+The report ships as **two files**: `report.html` is the hero / impact / share landing page the user sees first (and is the page meant for screenshots), and `details.html` is the per-category / per-action drill-down. Both pages are written for every run; both go through the same redaction + validator gate before being opened.
+
 The 10 numbered sub-steps below split into four phases:
 - **Assemble** (1–2): compute `free_after`, write `cleanup-result.json`.
-- **Fill** (3–6): copy templates, edit the six paired-marker regions, write share text.
-- **Review** (7–8): redaction reviewer (fuzzy, LLM-based) → `validate_report.py` (deterministic). Both must pass.
-- **Show** (9–10): open the report, summarise to the user.
+- **Fill** (3–6): copy both templates, edit the four hero regions + four details regions, write share text.
+- **Review** (7–8): redaction reviewer (fuzzy, LLM-based) over both files → `validate_report.py` twice (deterministic, one call per file). Both must pass.
+- **Show** (9–10): open the landing page, summarise to the user.
 
-1. Compute `free_after`: `df -k / | tail -1 | awk '{print $4}'` → bytes.
+1. Collect host info and compute `free_after`:
+   - `free_after`: `df -k / | tail -1 | awk '{print $4}'` → bytes.
+   - `device`: `system_profiler SPHardwareDataType 2>/dev/null | awk -F': ' '/Model Name/ {print $2; exit}'` → e.g. `MacBook Pro`. If the command fails, fall back to `"Mac"`.
 2. Assemble an in-memory `CleanupResult` (see schema below) from scan observations + `actions.jsonl`. Write it to `$WORKDIR/cleanup-result.json` — this is the local audit record and **may contain full paths**.
 3. Copy templates into the workdir (never edit `assets/` in place):
 
    ```bash
-   cp assets/report-template.html "$WORKDIR/report.html"
-   cp assets/report.css "$WORKDIR/report.css"
+   cp assets/report-template.html  "$WORKDIR/report.html"
+   cp assets/details-template.html "$WORKDIR/details.html"
+   cp assets/report.css            "$WORKDIR/report.css"
    cp assets/share-card-template.svg "$WORKDIR/share-card.svg"
    ```
 
-4. Use the `Edit` tool to fill the **six** report regions in `$WORKDIR/report.html`. Match the paired markers exactly:
-   - `<!-- region:summary:start -->` … `<!-- region:summary:end -->`: headline `freed_now` (the honest number), mode chip, L1-L4 count chips. If `pending_in_trash_bytes > 0`, also show a smaller "+ {pending_human} pending in trash" line.
-   - `<!-- region:distribution:start -->` … `<!-- region:distribution:end -->`: one card per category, showing pre-clean size / freed / remaining candidates. Use `source_label` names only.
-   - `<!-- region:actions:start -->` … `<!-- region:actions:end -->`: a list grouped by action type (auto-cleaned / confirmed / archived / migrated / deferred / skipped / failed). Each row: source_label + size + action badge + one-line reason. No paths.
-   - `<!-- region:deferred:start -->` … `<!-- region:deferred:end -->`: recommendations for `deferred.jsonl` entries and L3/L4 observations, at category granularity.
-   - `<!-- region:nextstep:start -->` … `<!-- region:nextstep:end -->`: **two fill modes depending on `pending_in_trash_bytes`**:
-     - **`pending_in_trash_bytes > 0`** — fill with three pieces:
-       1. A `<p class="pending">{pending_human} still in Trash</p>` headline.
-       2. A `<code class="empty-cmd">osascript -e 'tell application "Finder" to empty the trash'</code>` block (user can copy with one click thanks to `user-select: all`).
-       3. A `<p class="auto-note">` paragraph that **must include both**: (a) the dialog warning — "Running the command above will trigger a Finder confirmation dialog — click 'Empty Trash' there to actually clear it." and (b) the auto-empty hint — "macOS auto-empties 30 days after items enter the Trash if you've enabled Finder → Settings → Advanced → 'Remove items from the Trash after 30 days'."
-     - **`pending_in_trash_bytes == 0`** — replace the placeholder with a single positive line: `<p class="all-good">All freed bytes are immediately reclaimed — no follow-up needed.</p>`. Do not leave the placeholder hint visible.
-   - `<!-- region:share:start -->` … `<!-- region:share:end -->`: embedded SVG card (inline or via `<img>`), English share text in a `.share-text` block, Chinese share text below it, and an X share button.
+4. Use the `Edit` tool to fill both files. Match the paired markers exactly; anything you insert must use `source_label` + `category` only, never paths.
 
-   Budget: keep the combined inserted HTML under ~250 lines.
+   **4.a — Fill the four regions in `$WORKDIR/report.html`** (the hero landing page):
 
-   **Dry-run marking (mandatory)**: when the run was a `--dry-run`, the report must clearly say so or it misleads the user into thinking files were touched. Two requirements, both enforced by `validate_report.py`:
-   - **Banner**: insert a sticky `<div class="dry-banner">DRY-RUN — no files touched</div>` at the very top of the `<main class="report">` element (right inside the open tag), so it is visible regardless of which region the eye lands on first.
-   - **Number prefixes**: every numeric headline anywhere in the report (summary, distribution cards, actions list aggregates, next-step pending) must include `would be`, `would-be`, or `(simulated)` — e.g. `would be 12.5 GB`, `12.5 GB (simulated)`. Do **not** write bare numbers like "12.5 GB freed" in dry-run mode.
+   - `<!-- region:hero:start -->` … `<!-- region:hero:end -->`: a `.hero-headline` block with the `freed_now` number (honest — bytes already off the disk), followed by a `.hero-caption` line, the meta chip row (`mode / device / os / duration / finished_at`), and a `.risk-strip` with four small `.risk-chip` elements (one per L1-L4) each showing bytes + a shape glyph. If `pending_in_trash_bytes > 0`, also append a `<span class="pending-note">+ {pending_human} pending in trash</span>` so the hero never overstates.
+   - `<!-- region:impact:start -->` … `<!-- region:impact:end -->`: an `.impact-grid` with two `.impact-card`s. First card: a `.water-bar` comparing `free_before → free_after`; each segment gets an inline `style="width:N%"` — `.used-before` = `(total - free_before)/total * 100`, `.freed-delta` = `freed_now/total * 100`, `.free-after` = `(free_after - freed_now)/total * 100`, and a `.water-legend` below with the before/after free-space labels. Second card: a `.stack-bar` of `freed_now_bytes` broken down by category, each `<span>` getting `style="flex-basis:N%"` as a percent of `freed_now_bytes`, followed by a `.stack-legend` with the top five categories (`source_label` only).
+   - `<!-- region:nextstep:start -->` … `<!-- region:nextstep:end -->`: **two fill modes**.
+     - **`pending_in_trash_bytes > 0`** — a `<div class="cta-card">` containing:
+       1. `<p class="pending">{pending_human} still in Trash</p>`.
+       2. `<code class="empty-cmd">osascript -e 'tell application "Finder" to empty the trash'</code>` (the `user-select: all` on `.empty-cmd` lets the user copy with one click).
+       3. `<p class="auto-note">` that **must include both**: (a) the dialog warning — "Running the command above will trigger a Finder confirmation dialog — click 'Empty Trash' there to actually clear it." and (b) the auto-empty hint — "macOS auto-empties 30 days after items enter the Trash if you've enabled Finder → Settings → Advanced → 'Remove items from the Trash after 30 days'."
+     - **`pending_in_trash_bytes == 0`** — a single line: `<p class="all-good">All freed bytes are immediately reclaimed — no follow-up needed.</p>`. Do not leave the placeholder hint visible.
+   - `<!-- region:share:start -->` … `<!-- region:share:end -->`: the share card wrapped in `<div class="share-card-wrap"><img src="./share-card.svg" alt=""></div>` on the left, and a `.share-right` column on the right holding the EN/ZH `.share-tabs` (two `<input type="radio" name="share-lang">` + labels with ids `share-en` / `share-zh`), the two `.share-text-pane.en` / `.share-text-pane.zh` blocks (content identical to `share.en.txt` / `share.zh.txt`), and an `<a class="share-btn" target="_blank" rel="noopener" href="https://x.com/intent/tweet?text=...">` button linked to URL-encoded English text. Keep only the allowed fields: reclaimed, mode, top-3 categories, mac-space-cleanup, @heyiamlin, hashtags.
+
+   **4.b — Fill the four regions in `$WORKDIR/details.html`** (the drill-down page):
+
+   - `<!-- region:distribution:start -->` … `<!-- region:distribution:end -->`: a `.dist-grid` with one `.dist-card--detailed` per category, each containing a `.dist-title` (source_label), a three-column `.dist-metrics` row (pre-clean / freed / remaining — label + value), and a `.dist-inline-bar` showing `freed / pre-clean` as an inline `style="width:N%"`.
+   - `<!-- region:actions:start -->` … `<!-- region:actions:end -->`: one `<details class="actions-group">` per action type that has at least one row (auto-cleaned / confirmed / archived / migrated / deferred / skipped / failed), each opening to a `.actions-list` whose `.actions-row` children have four columns: `cat` (source_label) · `size` · `act` badge (class one of `auto / trash / archive / migrate / defer / skip / failed`) · `reason` (one line, no paths). The `<summary>` should carry a `.group-meta` span showing `<span class="count">{N} items</span>` + aggregate bytes.
+   - `<!-- region:observations:start -->` … `<!-- region:observations:end -->`: an `.observations-grid` with two `.observations-col`s. Left column `<h3>You deferred</h3>` lists aggregated `deferred.jsonl` entries (by category). Right column `<h3>Worth a look</h3>` lists L3/L4 items that were surfaced but not acted on. Each row uses `.observations-list` with `.label` + `.rec` (one-line recommendation) + `.size`. If either side is empty, emit an `<p class="hint">Nothing here.</p>` — do **not** leave the placeholder hint.
+   - `<!-- region:runmeta:start -->` … `<!-- region:runmeta:end -->`: a `<dl class="runmeta-grid">` with rows for `run_id` (wrap the value in `<code>`), `mode`, `started_at`, `finished_at` and duration, `host_info` (`device` / `os` / `free_before` / `free_after`), plus a `.risk-meter-label`, a `.risk-meter` with four `<span class="seg-l{1..4}">` segments (inline `style="flex-basis:N%"` of the L-level's bytes over the scanned total; include `<span class="glyph">●/▲/■/✕</span>` + byte text inside), and a `.risk-meter-legend`.
+
+   **Budget**: keep the combined inserted HTML under ~180 lines for `report.html` and ~250 lines for `details.html`.
+
+   **Dry-run marking (mandatory)**: when the run was a `--dry-run`, both files must clearly say so or they mislead the user into thinking files were touched. Requirements, enforced by `validate_report.py --dry-run` on each file:
+   - **Banner**: insert a sticky `<div class="dry-banner">DRY-RUN — no files touched</div>` at the very top of the `<main class="report">` element of **both** `report.html` and `details.html`, right inside the open tag.
+   - **Number prefixes**: every numeric headline in either file (hero total, category bytes, action aggregates, pending, risk-meter bytes, runmeta free-space values) must include `would be`, `would-be`, or `(simulated)` — e.g. `would be 12.5 GB`, `12.5 GB (simulated)`. Do **not** write bare numbers in dry-run mode.
    - For real runs, neither the banner nor the prefixes are required.
 
-   **Maintenance note**: if you change the `data-placeholder=...` strings or the placeholder hint copy in `assets/report-template.html`, also update `_PLACEHOLDER_MARKERS` in `scripts/validate_report.py` so the validator keeps catching unfilled regions.
+   **Maintenance note**: if you change a `data-placeholder=...` string or the placeholder hint copy in either template, also update `_PLACEHOLDER_MARKERS` / `HERO_REGIONS` / `DETAILS_REGIONS` in `scripts/validate_report.py` so the validator keeps catching unfilled regions.
 
 5. Fill the SVG placeholders in `$WORKDIR/share-card.svg`:
    - `${free_reclaimed}` → e.g. `37.4 GB` (single human-readable string, no path).
@@ -318,28 +331,32 @@ The 10 numbered sub-steps below split into four phases:
 
    Only substitute: `{freed_now}` (human-readable string from `freed_now_bytes`), `{top3_joined}`, `{top3_joined_zh}`. Same `source_label` taxonomy applies; no paths, usernames, or project names.
 
-7. **Spawn a redaction reviewer** sub-agent to independently scan `$WORKDIR/report.html` for leaks the deterministic validator cannot catch (project names, company names, made-up names that look like personal data). Use the `Agent` tool with the prompt template in `references/reviewer-prompts.md` (section "Redaction reviewer"), passing the report HTML verbatim.
-   - Reviewer returns `{"violations": [...]}`.
-   - Empty list → proceed.
-   - Non-empty → edit `$WORKDIR/report.html` to remove/abstract each flagged snippet, then re-spawn the reviewer with the updated HTML. Cap retries at **2**. After the second failure, stop and tell the user which violations remained — do **not** show the report.
+7. **Spawn a redaction reviewer** sub-agent to independently scan for leaks the deterministic validator cannot catch (project names, company names, made-up names that look like personal data). Use the `Agent` tool with the prompt template in `references/reviewer-prompts.md` (section "Redaction reviewer"). Run it against **both** files — spawn one reviewer for `$WORKDIR/report.html` and another for `$WORKDIR/details.html` (run in parallel is fine).
+   - Each reviewer returns `{"violations": [...]}`.
+   - Empty list on both → proceed.
+   - Non-empty on either → edit the offending file to remove/abstract each flagged snippet, then re-spawn the reviewer for that file. Cap retries at **2** per file. After the second failure, stop and tell the user which violations remained — do **not** open either report.
 
-8. **Run the deterministic validator** as a second line of defence. The reviewer is fuzzy (catches semantic leaks); the validator is exact (catches structural problems and a fixed dictionary of forbidden literal substrings). When this run was a `--dry-run`, also pass `--dry-run` to the validator so it asserts the dry-run banner and number prefixes from step 4 are in place:
+8. **Run the deterministic validator** as a second line of defence. The reviewer is fuzzy (catches semantic leaks); the validator is exact (catches structural problems and a fixed dictionary of forbidden literal substrings). Invoke it **once per file** with the matching `--kind`. When the run was a `--dry-run`, also pass `--dry-run` to both invocations:
 
    ```bash
    # real run
-   python3 scripts/validate_report.py --report "$WORKDIR/report.html"
+   python3 scripts/validate_report.py --report "$WORKDIR/report.html"   --kind hero
+   python3 scripts/validate_report.py --report "$WORKDIR/details.html" --kind details
 
    # dry-run
-   python3 scripts/validate_report.py --report "$WORKDIR/report.html" --dry-run
+   python3 scripts/validate_report.py --report "$WORKDIR/report.html"   --kind hero    --dry-run
+   python3 scripts/validate_report.py --report "$WORKDIR/details.html" --kind details --dry-run
    ```
 
-   Exit 0 → all good. Exit 1 → stdout JSON's `violations` lists each problem (`missing_region`, `empty_region`, `placeholder_left`, `leaked_fragment`, `dry_run_unmarked`). Fix every violation by editing `$WORKDIR/report.html` and re-run the validator until it returns 0. Do not show the user the report while violations remain.
+   Exit 0 → all good. Exit 1 → stdout JSON's `violations` lists each problem (`missing_region`, `empty_region`, `placeholder_left`, `leaked_fragment`, `dry_run_unmarked`). Fix every violation by editing the offending file and re-run the validator for that file until it returns 0. Do not show the user either report while violations remain on either file.
 
-9. Open the report:
+9. Open the landing page:
 
    ```bash
    open "$WORKDIR/report.html"
    ```
+
+   The page has a "View full details →" link to `details.html`; the user can follow it from the browser. Do not open `details.html` yourself.
 
 10. Summarise to the user in one short paragraph that **always reports both numbers**:
    - `freed_now_bytes` — already off the disk.
@@ -357,7 +374,7 @@ The 10 numbered sub-steps below split into four phases:
   "started_at": <iso8601>,
   "finished_at": <iso8601>,
   "mode": "quick" | "deep",
-  "host_info": {"os": "macOS 14.x", "free_before": <bytes>, "free_after": <bytes>},
+  "host_info": {"device": "MacBook Pro", "os": "macOS 14.x", "free_before": <bytes>, "free_after": <bytes>},
   "items": [
     {"id", "path", "category", "size_bytes", "mtime", "risk_level",
      "recommended_action", "source_label", "mode_hit_tags":["quick"|"deep"],
