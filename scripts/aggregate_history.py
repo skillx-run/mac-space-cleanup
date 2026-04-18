@@ -46,7 +46,10 @@ DEFAULT_KEEP = 20
 
 FS_ACTIONS = {"delete", "trash", "archive", "migrate"}
 DECLINED_ACTIONS = {"defer"}
-IGNORED_ACTIONS = {"skip"}  # L4 record-only, not user intent
+# Actions that reflect neither approval nor rejection of an item.
+# ``skip`` covers L4 record-only; any future record-only disposition
+# should be added here so _classify_action filters it explicitly.
+IGNORED_ACTIONS = {"skip"}
 
 STATUS_SUCCESS = "success"
 STATUS_ARCHIVE_ONLY = "archive_only_success"
@@ -88,7 +91,7 @@ def _classify_action(record: dict[str, Any]) -> str | None:
 
     - dry_run records never reflect user intent → None.
     - failed records are treated as neutral → None.
-    - skip is L4 record-only → None.
+    - IGNORED_ACTIONS (skip and friends) → None, filtered explicitly.
     - delete/trash/archive/migrate with success → 'confirmed'.
     - defer → 'declined' (user intentionally postponed).
     - archive_only_success is still a user-approved action → 'confirmed'.
@@ -99,11 +102,14 @@ def _classify_action(record: dict[str, Any]) -> str | None:
     if status not in (STATUS_SUCCESS, STATUS_ARCHIVE_ONLY):
         return None
     action = record.get("action")
+    if action in IGNORED_ACTIONS:
+        return None
     if action in FS_ACTIONS:
         return "confirmed"
     if action in DECLINED_ACTIONS:
         return "declined"
-    # ACTION_SKIP and anything unknown → ignored
+    # Unknown action names fall through to ignored; keeps the function
+    # robust against future schema additions in safe_delete.py.
     return None
 
 
