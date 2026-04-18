@@ -42,18 +42,6 @@ brew install trash
 
 `trash` CLI が無い場合、`safe_delete.py` は `mv` で `~/.Trash` にファイルを移動する（`-<timestamp>` サフィックス付き）フォールバックに切り替わります — 動作はしますが、Finder 上でサフィックスが少し不自然に見えます。初回実行時には skill 自身もインストールを促します。
 
-### Migrating from `mac-space-clean` (pre-v0.4.0)
-
-v0.4.0 の開発期間中、この skill は `mac-space-clean` から `mac-space-cleanup` に改名されました（「cleanup」が標準的な複合名詞です。`brew cleanup` の用法を参照）。pre-v0.4.0 のローカルクローンを試していた場合:
-
-1. **GitHub 上でリポジトリをリネーム**（1 回のみ、github.com 上）: Settings → Repository name → `mac-space-cleanup`。GitHub が旧 URL を自動リダイレクトします。
-2. **ローカル作業ツリーの同期**（任意、パスを揃えておくと整合的）: `mv ~/path/to/mac-space-clean ~/path/to/mac-space-cleanup`
-3. **`~/.claude/skills/` 下のシンボリックリンクを張り直す**: `rm ~/.claude/skills/mac-space-clean && ln -s ~/path/to/mac-space-cleanup ~/.claude/skills/mac-space-cleanup`
-4. **git リモートを更新**: `git remote set-url origin git@github.com:skillx-run/mac-space-cleanup.git`
-5. **旧作業ディレクトリキャッシュを削除**（データリスク回避のため自動移行はしません）: `rm -rf ~/.cache/mac-space-clean`
-
-ステップ 3 のあとに新しい Claude Code セッションを開き、skill リストを新しい名前で再読込させます。
-
 ---
 
 ## Use

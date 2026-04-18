@@ -42,18 +42,6 @@ brew install trash
 
 `safe_delete.py` will fall back to `mv` into `~/.Trash` (with a `-<timestamp>` suffix) if the `trash` CLI is missing — works, but the suffix looks odd in Finder. The skill itself nudges you about this on first run.
 
-### Migrating from `mac-space-clean` (pre-v0.4.0)
-
-The skill was renamed during v0.4.0 development from `mac-space-clean` to `mac-space-cleanup` ("cleanup" is the standard compound noun, cf. `brew cleanup`). If you were testing a pre-v0.4.0 local clone:
-
-1. **GitHub repo rename** (one-time, on github.com): Settings → Repository name → `mac-space-cleanup`. GitHub auto-redirects the old URL.
-2. **Local working tree** (optional, keeps your path consistent): `mv ~/path/to/mac-space-clean ~/path/to/mac-space-cleanup`
-3. **Symlink under `~/.claude/skills/`**: `rm ~/.claude/skills/mac-space-clean && ln -s ~/path/to/mac-space-cleanup ~/.claude/skills/mac-space-cleanup`
-4. **Update git remote**: `git remote set-url origin git@github.com:skillx-run/mac-space-cleanup.git`
-5. **Old workdir cache** (no auto-migration to avoid data risk): `rm -rf ~/.cache/mac-space-clean`
-
-After step 3, open a new Claude Code session so the skill list reloads with the new name.
-
 ---
 
 ## Use
