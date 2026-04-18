@@ -320,7 +320,13 @@ The 10 numbered sub-steps below split into four phases:
 
    **Filling rules for each region:**
 
-   - `<!-- region:hero:start -->` … `<!-- region:hero:end -->`: a `.hero-body` wrapper containing exactly two blocks — (1) a `<p class="hero-headline">` with the `freed_now` number (honest — bytes already off the disk) and a `<span class="unit">freed</span>` beside it; (2) a `<p class="hero-caption">` one-line prose summary weaving in device / os / duration, e.g. `Clean run on <strong>MacBook Pro</strong>, macOS 14.5, in 2m 14s.`. Do **not** add meta chips, risk-level chips, or a pending-in-trash chip here — the full device / os / duration / run_id breakdown lives in `runmeta`, L1-L4 risk distribution lives in the `.risk-meter` inside `runmeta`, and the pending-in-trash number has its own big callout inside `nextstep`'s CTA card. Keeping hero minimal is deliberate.
+   - `<!-- region:hero:start -->` … `<!-- region:hero:end -->`: a `.hero-body` wrapper containing exactly two blocks — (1) a `<p class="hero-headline">` with the `freed_now` number and a unit span beside it; (2) a `<p class="hero-caption">` one-line prose summary weaving in device / os / duration, e.g. `Clean run on <strong>MacBook Pro</strong>, macOS 14.5, in 2m 14s.`. Do **not** add meta chips, risk-level chips, or a pending-in-trash chip here — the full device / os / duration / run_id breakdown lives in `runmeta`, L1-L4 risk distribution lives in the `.risk-meter` inside `runmeta`, and the pending-in-trash number has its own big callout inside `nextstep`'s CTA card. Keeping hero minimal is deliberate.
+
+     **Hero unit tense (important)**: the unit span's copy depends on whether the run was real or dry:
+     - **Real run** → Pattern A, driven by the dictionary: `<span class="unit" data-i18n="hero.unit">freed</span>`. The zh dict value is `已释放` (past completion), which reads correctly when the bytes are actually off the disk.
+     - **Dry run** → Pattern C bilingual pair, **do NOT use `data-i18n="hero.unit"`**. The `预计` number prefix (required on every dry-run number) plus `已释放` reads as a tense contradiction ("estimated … already freed"). Emit instead:
+       `<span class="unit"><span data-locale-show="en">freed</span><span data-locale-show="zh">可释放</span></span>`.
+       The EN side stays `freed` because `would be X GB freed` is idiomatic English virtual mood. ZH needs the modal-future `可释放` ("can be freed") to sit naturally beside `预计`.
    - `<!-- region:share:start -->` … `<!-- region:share:end -->`: a **single** share button that carries **both** locale tweet targets so the page toggle can switch the composer text, not just the button label. Emit:
      ```html
      <a class="share-btn" target="_blank" rel="noopener"
@@ -390,6 +396,26 @@ The 10 numbered sub-steps below split into four phases:
      用 @heyiamlin 的 mac-space-cleanup 给我的 Mac 清出了 {freed_now} 空间。
 
      这次清理的大头：{top3_joined_zh}。
+
+     #mac清理 #macspaceclean #buildinpublic
+     ```
+
+   **Dry-run variants (use these when the run was `--dry-run`)** — the past-tense "reclaimed" / "清出了" misleads when nothing was touched:
+
+   - `$WORKDIR/share.en.txt` (dry-run):
+     ```
+     Previewed with @heyiamlin's mac-space-cleanup — it estimates I could reclaim {freed_now} on my Mac.
+
+     Biggest wins in the preview: {top3_joined}.
+
+     #macspaceclean #maccleanup #buildinpublic
+     ```
+
+   - `$WORKDIR/share.zh.txt` (dry-run):
+     ```
+     预演一下：用 @heyiamlin 的 mac-space-cleanup，预计能在我的 Mac 上清出 {freed_now} 空间。
+
+     这次预演的大头：{top3_joined_zh}。
 
      #mac清理 #macspaceclean #buildinpublic
      ```
