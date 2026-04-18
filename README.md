@@ -120,6 +120,7 @@ mac-space-cleanup/
 │   ├── safe_delete.py            # six-action dispatcher + blocklist backstop
 │   ├── collect_sizes.py          # parallel du -sk
 │   ├── scan_projects.py          # find .git-rooted projects + enumerate cleanable artifacts
+│   ├── aggregate_history.py      # cross-run confidence aggregator (Stage 5 HISTORY_BY_LABEL) + run-* GC
 │   ├── validate_report.py        # post-render check (regions / placeholders / leaks / dry-run marking)
 │   ├── smoke.sh                  # real-fs smoke
 │   └── dry-e2e.sh                # non-LLM end-to-end harness
@@ -132,7 +133,7 @@ mac-space-cleanup/
 │   ├── report-template.html      # six-region HTML skeleton with paired markers
 │   ├── report.css
 │   └── share-card-template.svg   # 1200×630 X-share card
-├── tests/                        # 55 unit tests (pure stdlib unittest)
+├── tests/                        # 76 unit tests (pure stdlib unittest)
 ├── docs/                         # README screenshots
 ├── CHANGELOG.md
 ├── CLAUDE.md                     # contributor invariants
@@ -141,7 +142,7 @@ mac-space-cleanup/
 
 ---
 
-## Limitations & non-goals (v0.4)
+## Limitations & non-goals (v0.5)
 
 - **No undo stack.** Recovery paths are the native Trash, the workdir's `archive/` tars, and the migrate target volume.
 - **No cron / no background runs.** Every run is user-triggered.
@@ -156,7 +157,7 @@ mac-space-cleanup/
 ## Development
 
 ```bash
-python3 -m unittest discover -s tests -v   # 55 tests
+python3 -m unittest discover -s tests -v   # 76 tests
 ./scripts/smoke.sh                          # real-fs sanity
 ./scripts/dry-e2e.sh                        # non-LLM end-to-end
 ```
@@ -169,7 +170,7 @@ See `CLAUDE.md` for non-negotiable invariants (no direct fs writes from the agen
 
 ## License
 
-MIT (see `LICENSE`).
+Apache-2.0 (see `LICENSE` and `NOTICE`).
 
 ## Credits
 
