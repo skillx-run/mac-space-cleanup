@@ -117,14 +117,42 @@ For semantic/tool entries (not plain paths), probe directly:
 Collect every observation into your in-memory candidate list. If `collect_sizes.py` reports errors for some paths, note them but continue.
 
 **Mode affects scan depth**:
-- `quick`: skip `large_media` category; skip Tier C browser caches deeper than one level; prefer Tier A + Tier E `dev_cache / pkg_cache`.
-- `deep`: scan everything in Tier A–E, plus `tmutil` snapshots.
+- `quick`: skip `large_media` category; skip Tier C browser caches deeper than one level; prefer Tier A + Tier E `dev_cache / pkg_cache`. **Skip Stage 3.5 entirely.**
+- `deep`: scan everything in Tier A–E, plus `tmutil` snapshots, plus run Stage 3.5.
+
+### Stage 3.5 · Project artifacts scan (deep mode only)
+
+Skip in quick mode (`category-rules.md` §10 has `mode_hit_tags=["deep"]`).
+
+**Tell the user before starting** — first run on a developer Mac with many repos can take 10–30s because `find` walks `~`. Single-line nudge inline (no `AskUserQuestion`):
+
+> Scanning your projects for cleanable build artifacts (node_modules, target, .venv, …). May take 10–30 seconds on first run.
+
+Then:
+
+```bash
+echo '{"roots": ["~"], "max_depth": 6}' \
+  | python3 scripts/scan_projects.py > "$WORKDIR/projects.json"
+```
+
+`projects.json` shape (see `scripts/scan_projects.py` docstring): each project carries `root`, `markers_found` (e.g. `["go.mod", "package.json"]`), and an `artifacts[]` list with `path / subtype / kind`.
+
+**For each artifact**, append the path to the list you collected in Stage 3 and re-run `collect_sizes.py` for the new entries (or write a `paths-projects.json` and combine in memory). Sizes are needed before Stage 4 grading.
+
+**Disambiguation rules at Stage 4** (per `category-rules.md` §10):
+
+- Subtype `vendor` → classify as `project_artifacts` (deletable) **only if** `markers_found` contains `go.mod`. Otherwise classify as `orphan` L4.
+- Subtype `env` → classify as `project_artifacts` (venv) **only if** `markers_found` contains at least one of `pyproject.toml` / `requirements.txt` / `setup.py`. Otherwise classify as `orphan` L4.
+- All other subtypes → straight `project_artifacts`.
+- `source_label` always `"Project " + subtype` (e.g. `"Project node_modules"`). Do NOT include the project root path or basename in `source_label` — those appear only in the live confirm dialog at Stage 5 per the safety-policy confirm-stage exception.
+
+If `scan_projects.py` exit is 1 (partial errors), check `stats.errors` and surface a one-line summary to the user (e.g. "Skipped 3 directories due to permission denials"). Continue with the projects that were scanned successfully.
 
 ### Stage 4 · Classify & grade
 
 For each candidate, consult `references/category-rules.md` and `references/safety-policy.md` to assign:
 
-- `category` (one of 9, see rules doc)
+- `category` (one of 10, see rules doc)
 - `risk_level` (`L1 | L2 | L3 | L4`)
 - `recommended_action` (`delete | trash | archive | migrate | defer | skip`)
 - `source_label` (UI-safe label, see rules doc table)
@@ -145,6 +173,22 @@ Present the candidates to the user, grouped by risk level. The confirmation bar 
 | `deep` | Show list + pre-checked; ask for batch OK† | Batch confirm by category | Per-item hard confirm, show default `trash`, allow override | Show as read-only |
 
 † L1 includes `sim_runtime` (dispatched to `xcrun simctl delete`, which itself refuses to delete a booted simulator) and `system_snapshots` (dispatched to `tmutil deletelocalsnapshots`). These are L1 because the Apple-provided tools carry their own safety guards — `safe_delete.py` never `rm -rf`s these categories.
+
+**Project artifacts (`category=project_artifacts`, only present in deep mode)** get their own confirmation grouping rather than being lumped with other L1/L2:
+
+> "Found 12 Node projects with node_modules totalling 9.2 GB. Delete all? [yes / yes-but-let-me-pick / no]"
+>
+> "Found 3 Python virtual environments totalling 1.4 GB. Move to Trash? [yes / yes-but-let-me-pick / no]"
+
+If the user picks `yes-but-let-me-pick`, enter per-project selection. Per the **confirm-stage exception** in `references/safety-policy.md`, you MAY use the project root's basename (e.g. `foo-app`) as a label in this conversation so the user can pick by name:
+
+> "Pick which Node projects to clean (sorted by size):
+>   [x] foo-app — 2.4 GB
+>   [x] bar-frontend — 1.8 GB
+>   [ ] internal-secret-tool — 800 MB
+>   ..."
+
+But **NEVER** write project basenames to `report.html` / `share-card.svg` / `share.{en,zh}.txt` / `cleanup-result.json`'s `source_label`. Those continue to use only the generic `source_label` ("Project node_modules"). The post-render redaction reviewer + `validate_report.py` will catch leaks if you slip.
 
 When the user asks "what's that huge folder?", run `ls -lah` / `file` / `head` live and explain in terms of `source_label`, not paths.
 
