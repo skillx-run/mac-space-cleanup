@@ -8,6 +8,9 @@ This is an **agent-first skill**. `SKILL.md` is the main deliverable — it inst
 
 - `scripts/safe_delete.py` — unified controlled write path (delete / trash / archive / migrate / defer / skip) with actions.jsonl audit trail.
 - `scripts/collect_sizes.py` — parallel `du` with per-path timeout and error isolation.
+- `scripts/scan_projects.py` — project-artifact discovery (node_modules, target, .venv…) scoped to `.git`-marked roots.
+- `scripts/aggregate_history.py` — cross-run confidence aggregator feeding Stage 5 `HISTORY_BY_LABEL`; also GCs old `run-*` directories.
+- `scripts/validate_report.py` — deterministic second-line redaction check on the rendered report.
 
 Do not re-introduce `scan_space.py`, `classify_items.py`, `build_report.py`, or `share_text.py` — those responsibilities belong to the agent (Bash probes, rule-based judgement, HTML/share-text composition).
 
@@ -18,6 +21,7 @@ Do not re-introduce `scan_space.py`, `classify_items.py`, `build_report.py`, or 
 3. **Workdir is per-run**: `~/.cache/mac-space-cleanup/run-XXXXXX` created by `mktemp -d`. Never reuse across runs.
 4. **Templates in `assets/` are immutable at runtime.** Agent must `cp` them into `$WORKDIR` before editing.
 5. **`actions.jsonl` is append-only and authoritative.** Safe_delete re-runs are idempotent: already-gone paths become `action=skip, status=success, reason="already gone"`.
+6. **History-driven UI decisions never cross risk-level or mode boundaries.** `scripts/aggregate_history.py` produces a per-run `history.json` that Stage 5 may consult to collapse per-item prompts into batch prompts. It MUST NOT be used to auto-execute a tag that would otherwise prompt, to up-tier a Quick-mode scan, or to influence Stage 4 grading. See `references/safety-policy.md` §"History-driven UI adjustments" for the authoritative rules.
 
 ## Editing the reference docs
 
@@ -35,7 +39,7 @@ All tests are pure-stdlib `unittest`, no external dependencies.
 python3 -m unittest discover -s tests -v
 ```
 
-The test suite covers only the scripts (55 tests total). Agent behaviour (Stages 1–6) is verified end-to-end through manual dry-runs, not unit tests — rule interpretation is the agent's responsibility and is not mechanically testable without LLM-in-loop harnesses.
+The test suite covers only the scripts (72 tests total as of v0.5). Agent behaviour (Stages 1–6) is verified end-to-end through manual dry-runs, not unit tests — rule interpretation is the agent's responsibility and is not mechanically testable without LLM-in-loop harnesses.
 
 When you touch `scripts/*.py`, add or update tests in the same commit. Smoke-test the whole pipeline with:
 
