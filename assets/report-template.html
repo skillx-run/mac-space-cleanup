@@ -95,7 +95,13 @@
   let dict = {en:{}, zh:{}};
   try { dict = JSON.parse(node.textContent); } catch(e) { return; }
   const KEY = 'msc-locale';
-  const initial = localStorage.getItem(KEY) || html.dataset.locale || 'en';
+  // Priority: data-locale (written by Stage 6 from the detected
+  // conversation locale) > localStorage (fallback only; data-locale
+  // is always present on real runs) > 'en'. Putting data-locale
+  // first keeps the promise "report follows the conversation
+  // language" across runs — a previous manual toggle on another
+  // report.html will not override today's freshly-detected locale.
+  const initial = html.dataset.locale || localStorage.getItem(KEY) || 'en';
   const btn = document.querySelector('[data-lang-toggle]');
   function apply(loc, persist){
     if(!dict[loc]) return;
