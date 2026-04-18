@@ -81,6 +81,23 @@ This file is read by Stage 6 to decide the report's default language and to pick
 
 The runtime toggle button in the report still lets any user flip to the other locale manually — EN users can peek at ZH and vice versa — but Stage 1 picks the default. Third-language support (JP, KR, ES, …) is out of scope for v0.6; adding one requires extending `assets/i18n/strings.json` with a new subtree, relaxing the two-key-set validator check in `scripts/validate_report.py`, and giving the toggle more options.
 
+**Dry-run detection.** Decide `DRY_RUN` from the triggering message and persist it next to `locale.txt` — Stage 5 and multiple Stage 6 branches read this flag, so it must be a single source of truth, not re-derived from conversation history each time:
+
+- `DRY_RUN=true` if the triggering message contains any of: `--dry-run`, `dry run`, `dry-run`, `预演`, `模拟`, `演练` (case-insensitive).
+- Otherwise `DRY_RUN=false`.
+
+```bash
+echo "$DRY_RUN" > "$WORKDIR/dry_run.txt"
+```
+
+Downstream readers:
+- **Stage 5** must pass `--dry-run` to `safe_delete.py` iff this flag is true.
+- **Stage 6 step 4** reads it to pick real-run vs dry-run copy for hero unit (§ "Hero unit tense") and nextstep (§ three fill modes).
+- **Stage 6 step 6** reads it to pick real-run vs dry-run templates for `share.{en,zh}.txt`.
+- **Stage 6 step 8** reads it to decide whether to pass `--dry-run` to `validate_report.py` (which asserts the banner + number-prefix markers).
+
+Never infer dry-run state from "did I just pass --dry-run to safe_delete?" or from the conversation scroll-back — always read `$WORKDIR/dry_run.txt`.
+
 Announce the mode and workdir to the user briefly.
 
 ### Stage 2 · Environment probe
