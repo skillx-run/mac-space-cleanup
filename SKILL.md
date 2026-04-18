@@ -319,7 +319,16 @@ The 10 numbered sub-steps below split into four phases:
 
    Then decide what goes inside the `<script type="application/json" id="i18n-dict">...</script>` container:
    - **If `$LOCALE == en`**: leave it as `{}`. The template ships English baseline text inside every `<span data-i18n="...">` node, so the hydration script has nothing to replace and the page renders English directly. Skip the rest of this step.
-   - **If `$LOCALE != en`**: open `$WORKDIR/i18n.json` (the flat EN dict copied in step 3), translate **every** value into `$LOCALE` — all ~40 keys, in a single pass — and write the result as a JSON object into the container. The shape is `{"doc.title": "<translated>", "section.impact.title": "<translated>", ...}` with the original keys preserved verbatim. No pretty-printing required; the Edit tool replaces the container body with the serialized JSON in one go.
+   - **If `$LOCALE != en`**: open `$WORKDIR/i18n.json` (the flat EN dict copied in step 3), translate **every** value into `$LOCALE` — all ~40 keys, **in a single mental pass** (read the full dict, produce all translations together as one response, don't iterate key-by-key) — and write the result as a JSON object into the container. Use one `Edit` call that replaces `{}` with the serialized dict:
+     ```
+     # Pseudocode — what you actually do as a single edit
+     Edit(
+       file_path="$WORKDIR/report.html",
+       old_string='<script type="application/json" id="i18n-dict">{}</script>',
+       new_string='<script type="application/json" id="i18n-dict">{"doc.title":"<translated>","brand.by":"<translated>",...,"footer.generated":"<translated>"}</script>',
+     )
+     ```
+     Keys are preserved verbatim; only the values are translated. No pretty-printing required — serialize the JSON compactly on one line.
 
    Translation quality notes:
    - Keep labels short and idiomatic in the target language — match natural UI phrasing, not literal word-by-word translation.

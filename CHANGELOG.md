@@ -2,6 +2,29 @@
 
 All notable changes to mac-space-cleanup. Newest first.
 
+## v0.7.0 — 2026-04-18
+
+### Changed (BREAKING)
+- **Report is single-locale per run, in whatever language the conversation is.** The bilingual EN/ZH DOM, the header-corner language toggle, the `data-locale-show` sibling-span pair pattern, the `data-href-en` / `data-href-zh` dual share button, the per-locale `share-card.{en,zh}.svg` / `share.{en,zh}.txt` artefacts, and the pattern-A/B/C triage introduced in v0.6 are all gone. Stage 1's `locale.txt` now holds a BCP-47 primary subtag (`en` / `zh` / `ja` / `es` / `ar` / …, default `en` on ambiguity) and Stage 6 writes every hero caption, action reason, observation recommendation, source_label rendering, and dry-run prose once, in that locale. RTL scripts (`ar` / `he` / `fa` / `ur`) get an explicit `<html dir="rtl">`.
+- **`assets/i18n/strings.json` collapses from `{"en": {...}, "zh": {...}}` to a single flat `{key: value}` EN dict**, now the canonical source for every `data-i18n` label. Stage 6 step 3.5 either leaves the `<script id="i18n-dict">` container as `{}` (English runs; baseline renders directly) or batch-translates all ~40 values into `$LOCALE` in one pass and writes the result as a single JSON object.
+- **Template runtime script shrinks from ~50 lines (toggle + localStorage + href-swap) to ~10 lines (one hydration pass).** `hero-caption` loses its `min-height: 2.8em` reservation (it existed to prevent layout shift during toggling); `.lang-toggle` and `[data-locale-show]` CSS rules are deleted. Added: minimal `.dryrun-prefix` rule for the structural dry-run marker.
+- **`CLAUDE.md` invariant #7** rewritten: static labels still go through `data-i18n`, but the dict is a single flat EN object, translation happens per-run, and the four validator rules are spelled out structurally.
+
+### Added
+- **`.dry-banner[data-dryrun="true"]` attribute** and **`<span class="dryrun-prefix">…</span>` sibling** on every dry-run headline number: structural, language-agnostic markers that replace the v0.6 vocabulary match (`would be` / `预计` / `(simulated)` / `模拟`). A dry-run report can now be written entirely in Japanese, Arabic, Spanish, etc., and still pass validation.
+
+### Removed
+- `references/category-rules.md` "Source label bilingual naming" appendix (the 41-entry EN→ZH table). With any-language support, the table would need to multiply by every locale the skill is used in, which is neither scalable nor necessary: Stage 6 translates each source_label on the fly from its English canonical form.
+- `validate_report.py`: `_check_locale_pair_balance` (data-locale-show en/zh count equality), the `_LOCALE_SHOW_EN_RE` / `_LOCALE_SHOW_ZH_RE` regex pair, and the EN/ZH key-set parity check inside `_check_i18n_dict`. Replaced with: `dict keys ⊆ template data-i18n keys` and `template data-i18n keys ⊆ canonical strings.json keys`.
+- Dry-run vocabulary table (`_DRY_RUN_MARKERS` accepted `would be` / `would-be` / `(simulated)` / `预计` / `模拟`) — validation is now by class / attribute presence only.
+
+### Migration notes
+- Pre-v0.7 reports already opened on the user's disk (`$WORKDIR/report.html`) are self-contained static HTML and continue to work with the old toggle UI. Only new runs produce the new single-locale shape.
+- Contributors: if you added a new static label in a v0.6 branch, drop the `zh` subtree from your `assets/i18n/strings.json` diff — the top-level is now flat. Any new `data-locale-show` pairs must be rewritten as single-locale spans.
+
+### Tests
+- 85 → **86** (`test_validate_report.py`): removed 7 bilingual tests (Chinese dry-run vocab, EN/ZH dict subtree parity, locale-pair balance), kept the two shape-level dict tests, added 11 covering the new rules (empty-dict pass, populated-dict with canonical keys, non-string value, dict-key-not-in-template, template-key-not-in-strings, banner-requires-data-dryrun, prefix-required, any-language banner prose, attribute-order-insensitive banner regex).
+
 ## v0.6.0 — 2026-04-18
 
 ### Added
