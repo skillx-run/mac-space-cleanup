@@ -8,12 +8,17 @@ An **agent-driven** macOS disk space cleanup workflow, packaged as a Claude Code
 
 ## Demo
 
-> _Sample report and share-card screenshots will be added here once a real end-to-end run is captured._
+The report is **bilingual** — it opens in whichever language you triggered the skill with (CJK → Chinese, otherwise English), and a header-corner button flips the entire page at runtime. Below: first-screen impression (EN left, ZH right), followed by links to the full-page captures.
 
-```
-docs/sample-report.png       (placeholder — add screenshot here)
-docs/sample-share-card.png   (placeholder — add screenshot here)
-```
+<table>
+<tr>
+<td width="50%"><img src="assets/mac-space-cleanup.en.png" alt="mac-space-cleanup report, first screen, English" /></td>
+<td width="50%"><img src="assets/mac-space-cleanup.zh.png" alt="mac-space-cleanup 报告首屏，中文" /></td>
+</tr>
+</table>
+
+Full report (Impact Summary · Breakdown · Detailed Log · Observations · Run Details · L1–L4 risk distribution):
+[English full page](assets/mac-space-cleanup.full.en.png) · [中文整页](assets/mac-space-cleanup.full.zh.png)
 
 ---
 
@@ -63,7 +68,11 @@ To preview without touching the filesystem, add `--dry-run` to your message:
 
 > "深度清理一下我的 Mac，但请用 --dry-run 模式不真的删任何文件"
 
-The report will visibly say `DRY-RUN — no files touched` at the top and prefix every number with `would be`.
+The report will visibly say `DRY-RUN — no files touched` at the top (or `预演模式 — 未改动任何文件` in Chinese) and prefix every number with `would be` / `预计`.
+
+### Report language
+
+The HTML report is bilingual (EN + ZH) and ships both languages in the same DOM. On first open it uses the locale your conversation triggered: Chinese characters in your message → zh; Japanese kana, Korean, other non-CJK languages → en. A header-corner button toggles the entire page at runtime; the share-to-X button swaps its pre-filled tweet text to match. Third-language support (JP, KR, ES, …) is out of scope for v0.6.
 
 ---
 
@@ -133,7 +142,7 @@ mac-space-cleanup/
 │   ├── report-template.html      # six-region HTML skeleton with paired markers
 │   ├── report.css
 │   └── share-card-template.svg   # 1200×630 X-share card
-├── tests/                        # 76 unit tests (pure stdlib unittest)
+├── tests/                        # 85 unit tests (pure stdlib unittest)
 ├── docs/                         # README screenshots
 ├── CHANGELOG.md
 ├── CLAUDE.md                     # contributor invariants
@@ -142,7 +151,7 @@ mac-space-cleanup/
 
 ---
 
-## Limitations & non-goals (v0.5)
+## Limitations & non-goals (v0.6)
 
 - **No undo stack.** Recovery paths are the native Trash, the workdir's `archive/` tars, and the migrate target volume.
 - **No cron / no background runs.** Every run is user-triggered.
@@ -157,7 +166,7 @@ mac-space-cleanup/
 ## Development
 
 ```bash
-python3 -m unittest discover -s tests -v   # 76 tests
+python3 -m unittest discover -s tests -v   # 85 tests
 ./scripts/smoke.sh                          # real-fs sanity
 ./scripts/dry-e2e.sh                        # non-LLM end-to-end
 ```
