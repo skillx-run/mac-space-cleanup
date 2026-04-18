@@ -116,6 +116,14 @@ a:hover {
   letter-spacing: 0;
   opacity: 0.7;
 }
+.brand .by a {
+  color: inherit;
+  border-bottom: 1px dotted currentColor;
+}
+.brand .by a:hover {
+  opacity: 1;
+  border-bottom-style: solid;
+}
 
 /* ---- hero ----------------------------------------------------------- */
 
