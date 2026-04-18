@@ -119,10 +119,15 @@ def _aggregate_run(
 ) -> tuple[bool, bool]:
     """Fold one run's actions.jsonl into ``buckets``.
 
-    Returns ``(analyzed, had_result_json)`` — analyzed is True when we at
-    least opened actions.jsonl (even if every line was ignored);
-    had_result_json is True when the run also had a usable
-    cleanup-result.json.
+    Returns ``(analyzed, had_result_json)`` — analyzed is True when the
+    run has an ``actions.jsonl`` file on disk (even if we cannot open or
+    parse it, and even if every line is later ignored); had_result_json
+    is True when the run also had a usable ``cleanup-result.json`` whose
+    items[] we could index for source_label / category tagging.
+
+    Runs where actions.jsonl cannot be opened (permission denied, etc.)
+    are still counted as ``analyzed`` so the caller can tell them apart
+    from runs that were missing the file entirely.
     """
     actions_path = run_dir / "actions.jsonl"
     if not actions_path.is_file():
@@ -131,14 +136,15 @@ def _aggregate_run(
     label_index = _load_result_index(run_dir)
     had_result = label_index is not None
     if label_index is None:
-        # We still counted the run as analyzed but cannot aggregate without
-        # the source_label / category tags.
         return (True, False)
 
     try:
         fh = actions_path.open()
     except OSError:
-        return (False, False)
+        # File existed but is unreadable — count the run as analyzed
+        # (with had_result reflecting whether we at least got the index)
+        # instead of silently dropping it.
+        return (True, had_result)
 
     with fh:
         for line in fh:

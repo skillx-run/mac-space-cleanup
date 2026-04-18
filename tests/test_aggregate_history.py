@@ -7,6 +7,7 @@ import os
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -194,6 +195,34 @@ class TestAggregateHistory(unittest.TestCase):
 
         _, out, _ = _invoke(self.cache, self.workdir, "--no-gc")
         self.assertEqual(out["by_label"][0]["confirmed"], 2)
+
+    def test_unreadable_actions_jsonl_still_counted_as_analyzed(self):
+        # actions.jsonl exists but opening raises OSError (simulated via
+        # a monkey-patched Path.open). The run should still be counted
+        # as analyzed so operators can tell it apart from a run missing
+        # the file entirely.
+        _write_run(
+            self.cache, "run-01",
+            items=[{"id": "a", "source_label": "Gradle cache", "category": "pkg_cache"}],
+            action_records=[
+                {"item_id": "a", "action": "delete", "status": "success",
+                 "dry_run": False, "timestamp": 100},
+            ],
+        )
+        real_open = Path.open
+
+        def fake_open(self_, *a, **kw):
+            if self_.name == "actions.jsonl":
+                raise PermissionError("simulated")
+            return real_open(self_, *a, **kw)
+
+        with unittest.mock.patch.object(Path, "open", fake_open):
+            _, out, _ = _invoke(self.cache, self.workdir, "--no-gc")
+        self.assertEqual(out["runs_analyzed"], 1)
+        # had_result was True (cleanup-result.json readable) so this
+        # is not counted under runs_without_result_json.
+        self.assertEqual(out["runs_without_result_json"], 0)
+        self.assertEqual(out["by_label"], [])
 
     def test_run_without_result_json_counted_separately(self):
         _write_run(
