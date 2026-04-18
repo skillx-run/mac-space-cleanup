@@ -379,9 +379,11 @@ The 10 numbered sub-steps below split into four phases:
 
    - `$WORKDIR/share.zh.txt`:
      ```
-     我刚用 mac-space-cleanup 这个 skill 清理了 Mac,释放了 {freed_now} 空间,作者 @heyiamlin。
+     用 @heyiamlin 的 mac-space-cleanup 给我的 Mac 清出了 {freed_now} 空间。
 
-     这次最大的空间回收来自 {top3_joined_zh}。
+     这次清理的大头：{top3_joined_zh}。
+
+     #mac清理 #macspaceclean #buildinpublic
      ```
 
    Only substitute: `{freed_now}` (human-readable string from `freed_now_bytes`), `{top3_joined}`, `{top3_joined_zh}`. Same `source_label` taxonomy applies; no paths, usernames, or project names.
