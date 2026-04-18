@@ -2,7 +2,7 @@
 
 All notable changes to mac-space-cleanup. Newest first.
 
-## [Unreleased]
+## v0.6.0 — 2026-04-18
 
 ### Added
 - **Bilingual report with runtime EN/ZH toggle.** `report.html` now ships both English and Chinese copy in the same DOM and flips between them via a header-corner button. Static labels (section titles, column headers, legends, button text, dry-run banner, nextstep warnings) are driven by `data-i18n` keys backed by the inline `<script id="i18n-dict">`; agent-authored natural language (hero caption, action reasons, observations recommendations, per-category `source_label`) is emitted as sibling `data-locale-show="en"` / `data-locale-show="zh"` spans and toggled by CSS. `localStorage` only records an explicit user toggle, so a fresh report always opens in the locale the agent picked (based on the user's triggering message — CJK → `zh`, otherwise `en`, persisted to `$WORKDIR/locale.txt` in Stage 1).

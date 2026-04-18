@@ -1,7 +1,7 @@
 ---
 name: mac-space-cleanup
-description: "Guide the agent through macOS disk space cleanup with quick/deep modes and L1-L4 risk grading. Trigger when the user says things like \"clean up my Mac\", \"free up disk space\", \"what's eating my disk\", \"Mac 空间满了\", \"快速清理 / 深度清理\", \"腾点空间\". Produces an HTML report and EN/ZH share text with @heyiamlin attribution."
-version: "0.4.0"
+description: "Guide the agent through macOS disk space cleanup with quick/deep modes and L1-L4 risk grading. Trigger when the user says things like \"clean up my Mac\", \"free up disk space\", \"what's eating my disk\", \"Mac 空间满了\", \"快速清理 / 深度清理\", \"腾点空间\". Produces a bilingual (EN/ZH) HTML report with a runtime language toggle and matching share text, all attributed to @heyiamlin."
+version: "0.6.0"
 author: "heyiamlin"
 ---
 
