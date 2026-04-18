@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# smoke.sh — end-to-end sanity check for the mac-space-clean scripts.
+# smoke.sh — end-to-end sanity check for the mac-space-cleanup scripts.
 # Runs collect_sizes.py against real macOS paths (some may be missing on
 # CI runners — that's fine, error isolation is part of what we test) and
 # safe_delete.py with --dry-run across all six action types, then asserts
@@ -12,8 +12,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$REPO_ROOT"
 
-mkdir -p ~/.cache/mac-space-clean
-WORKDIR="$(mktemp -d ~/.cache/mac-space-clean/smoke-XXXXXX)"
+mkdir -p ~/.cache/mac-space-cleanup
+WORKDIR="$(mktemp -d ~/.cache/mac-space-cleanup/smoke-XXXXXX)"
 trap 'rm -rf "$WORKDIR"' EXIT
 
 echo "smoke workdir: $WORKDIR"
@@ -24,9 +24,9 @@ echo "smoke workdir: $WORKDIR"
 # (including CI runners where ~/.Trash or ~/Library/Caches may be missing
 # or empty).
 # ---------------------------------------------------------------------
-REAL_A="$(mktemp -d -t mac-space-clean-real-A-XXXXXX)"
-REAL_B="$(mktemp -d -t mac-space-clean-real-B-XXXXXX)"
-REAL_C="$(mktemp -d -t mac-space-clean-real-C-XXXXXX)"
+REAL_A="$(mktemp -d -t mac-space-cleanup-real-A-XXXXXX)"
+REAL_B="$(mktemp -d -t mac-space-cleanup-real-B-XXXXXX)"
+REAL_C="$(mktemp -d -t mac-space-cleanup-real-C-XXXXXX)"
 echo "x" > "$REAL_A/sample"
 dd if=/dev/zero of="$REAL_B/blob" bs=1024 count=4 status=none
 dd if=/dev/zero of="$REAL_C/blob" bs=1024 count=8 status=none
@@ -137,7 +137,7 @@ echo "B2 OK: no deferred.jsonl, no archive/, no /tmp side effects"
 # Stage C: real (non-dry-run) trash on a temp file we created
 # ---------------------------------------------------------------------
 echo "--- C1: real trash of a temp file ---"
-REAL_TARGET="$(mktemp -t mac-space-clean-smoke-real-XXXXXX)"
+REAL_TARGET="$(mktemp -t mac-space-cleanup-smoke-real-XXXXXX)"
 echo "real target: $REAL_TARGET"
 ls -la "$REAL_TARGET"
 TARGET_SIZE=$(stat -f "%z" "$REAL_TARGET")

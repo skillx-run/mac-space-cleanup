@@ -20,7 +20,7 @@
   <rect width="1200" height="630" fill="url(#bg)"/>
   <rect x="24" y="24" width="1152" height="582" rx="20" ry="20" fill="none" stroke="#262c34" stroke-width="2"/>
 
-  <text x="72" y="110" class="t-brand">mac-space-clean</text>
+  <text x="72" y="110" class="t-brand">mac-space-cleanup</text>
   <text x="72" y="150" class="t-mode">${mode_label}</text>
 
   <text x="72" y="360" class="t-free">${free_reclaimed}</text>

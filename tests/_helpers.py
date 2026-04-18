@@ -1,4 +1,4 @@
-"""Shared test helpers for mac-space-clean unit tests.
+"""Shared test helpers for mac-space-cleanup unit tests.
 
 Each script under scripts/ exposes a `run(argv)` entry point that reads
 JSON from stdin (when applicable) and writes JSON to stdout. The helpers

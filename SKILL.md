@@ -1,11 +1,11 @@
 ---
-name: mac-space-clean
+name: mac-space-cleanup
 description: "Guide the agent through macOS disk space cleanup with quick/deep modes and L1-L4 risk grading. Trigger when the user says things like \"clean up my Mac\", \"free up disk space\", \"what's eating my disk\", \"Mac 空间满了\", \"快速清理 / 深度清理\", \"腾点空间\". Produces an HTML report and EN/ZH share text with @heyiamlin attribution."
 version: "0.4.0"
 author: "heyiamlin"
 ---
 
-# mac-space-clean
+# mac-space-cleanup
 
 An agent-driven macOS cleanup workflow. You (the agent) are the decision-maker; two small scripts under `scripts/` handle the write side (safe deletion) and bulk IO (parallel size collection). Three reference docs under `references/` are your knowledge base. Three templates under `assets/` are the report / share-card skeleton.
 
@@ -61,8 +61,8 @@ Apply the three-tier decision from "Mode selection" above:
 Then create a per-run workdir (the parent dir may not exist on first run, so `mkdir -p` first):
 
 ```bash
-mkdir -p ~/.cache/mac-space-clean
-WORKDIR=$(mktemp -d ~/.cache/mac-space-clean/run-XXXXXX)
+mkdir -p ~/.cache/mac-space-cleanup
+WORKDIR=$(mktemp -d ~/.cache/mac-space-cleanup/run-XXXXXX)
 ```
 
 Announce the mode and workdir to the user briefly.
@@ -269,7 +269,7 @@ The 10 numbered sub-steps below split into four phases:
 
    - `$WORKDIR/share.en.txt` (default):
      ```
-     I just reclaimed {freed_now} on my Mac with the mac-space-clean skill by @heyiamlin.
+     I just reclaimed {freed_now} on my Mac with the mac-space-cleanup skill by @heyiamlin.
 
      Biggest wins: {top3_joined}.
 
@@ -278,7 +278,7 @@ The 10 numbered sub-steps below split into four phases:
 
    - `$WORKDIR/share.zh.txt`:
      ```
-     我刚用 mac-space-clean 这个 skill 清理了 Mac,释放了 {freed_now} 空间,作者 @heyiamlin。
+     我刚用 mac-space-cleanup 这个 skill 清理了 Mac,释放了 {freed_now} 空间,作者 @heyiamlin。
 
      这次最大的空间回收来自 {top3_joined_zh}。
      ```
@@ -348,7 +348,7 @@ The 10 numbered sub-steps below split into four phases:
 
 ## Quick reference
 
-- **Workdir**: `~/.cache/mac-space-clean/run-XXXXXX`, per run.
+- **Workdir**: `~/.cache/mac-space-cleanup/run-XXXXXX`, per run.
 - **Never direct-write for cleanup**: route through `scripts/safe_delete.py`.
 - **Redaction**: UI/share output uses `source_label` + `category` only; see `references/safety-policy.md`.
 - **Enumerations**:

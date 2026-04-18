@@ -1,4 +1,4 @@
-# mac-space-clean
+# mac-space-cleanup
 
 An **agent-driven** macOS disk space cleanup workflow, packaged as a Claude Code Skill. Built by [@heyiamlin](https://x.com/heyiamlin).
 
@@ -20,9 +20,9 @@ docs/sample-share-card.png   (placeholder — add screenshot here)
 ## Install
 
 ```bash
-git clone git@github.com:skillx-run/mac-space-clean.git
+git clone git@github.com:skillx-run/mac-space-cleanup.git
 mkdir -p ~/.claude/skills
-ln -s "$(pwd)/mac-space-clean" ~/.claude/skills/mac-space-clean
+ln -s "$(pwd)/mac-space-cleanup" ~/.claude/skills/mac-space-cleanup
 ```
 
 Open a **new** Claude Code session so the skill list reloads.
@@ -84,7 +84,7 @@ The agent itself reads `references/cleanup-scope.md` for the user-facing whiteli
 
 ## Architecture (one paragraph)
 
-`SKILL.md` is the workflow contract — agent does the judgement (mode pick, classification, conversation, HTML rendering). Two small Python scripts do the things agent shouldn't: `scripts/safe_delete.py` is the **only** path through which fs writes happen (six dispatched actions: delete / trash / archive / migrate / defer / skip; idempotent; per-item error isolation; append-only `actions.jsonl`); `scripts/collect_sizes.py` runs `du -sk` in parallel with per-path 30s timeout and structured JSON output. Three reference docs (`references/`) are the agent's knowledge base. Three asset templates (`assets/`) are the report skeleton the agent fills in. Two reviewer/validator layers in Stage 6 catch privacy leaks before the user sees the report. Workdir per run lives at `~/.cache/mac-space-clean/run-XXXXXX/`.
+`SKILL.md` is the workflow contract — agent does the judgement (mode pick, classification, conversation, HTML rendering). Two small Python scripts do the things agent shouldn't: `scripts/safe_delete.py` is the **only** path through which fs writes happen (six dispatched actions: delete / trash / archive / migrate / defer / skip; idempotent; per-item error isolation; append-only `actions.jsonl`); `scripts/collect_sizes.py` runs `du -sk` in parallel with per-path 30s timeout and structured JSON output. Three reference docs (`references/`) are the agent's knowledge base. Three asset templates (`assets/`) are the report skeleton the agent fills in. Two reviewer/validator layers in Stage 6 catch privacy leaks before the user sees the report. Workdir per run lives at `~/.cache/mac-space-cleanup/run-XXXXXX/`.
 
 ---
 
@@ -102,7 +102,7 @@ Every disk-cleanup tool inflates its "freed N GB" number by counting what it pus
 ## Project layout
 
 ```
-mac-space-clean/
+mac-space-cleanup/
 ├── SKILL.md                      # main agent workflow (six stages)
 ├── scripts/
 │   ├── safe_delete.py            # six-action dispatcher + blocklist backstop

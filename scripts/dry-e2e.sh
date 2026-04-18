@@ -14,9 +14,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$REPO_ROOT"
 
-mkdir -p ~/.cache/mac-space-clean
-export WORKDIR="$(mktemp -d ~/.cache/mac-space-clean/dry-e2e-XXXXXX)"
-export SCRATCH="$(mktemp -d -t mac-space-clean-dry-e2e-scratch-XXXXXX)"
+mkdir -p ~/.cache/mac-space-cleanup
+export WORKDIR="$(mktemp -d ~/.cache/mac-space-cleanup/dry-e2e-XXXXXX)"
+export SCRATCH="$(mktemp -d -t mac-space-cleanup-dry-e2e-scratch-XXXXXX)"
 trap 'rm -rf "$WORKDIR" "$SCRATCH"' EXIT
 
 echo "dry-e2e workdir: $WORKDIR"

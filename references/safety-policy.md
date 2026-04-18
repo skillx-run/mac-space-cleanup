@@ -48,7 +48,7 @@ This document defines the **risk grading, default actions, confirmation bars, re
 - Source label at app or tool granularity: `"Xcode Simulator Runtimes"`, `"Docker build cache"`, `"Homebrew cache"`, `"Large archive in Downloads"`.
 - Aggregate sizes.
 - Risk level symbols / labels.
-- Brand strings: `mac-space-clean`, `@heyiamlin`, hashtags.
+- Brand strings: `mac-space-cleanup`, `@heyiamlin`, hashtags.
 - Mode label: `Quick Clean`, `Deep Clean`.
 
 ### Enforcement
@@ -82,7 +82,7 @@ Strict rules for the exception:
 ## Operating invariants
 
 1. **Agent never writes the filesystem directly for cleanup purposes.** Every `delete / trash / archive / migrate / defer` must go through `scripts/safe_delete.py`. The only direct filesystem writes the agent performs are: (a) writing JSON files to `$WORKDIR`, (b) copying templates into `$WORKDIR` and editing the copies.
-2. **Workdir is per-run.** `$WORKDIR = ~/.cache/mac-space-clean/run-XXXXXX` from `mktemp -d`. Never reuse across runs.
+2. **Workdir is per-run.** `$WORKDIR = ~/.cache/mac-space-cleanup/run-XXXXXX` from `mktemp -d`. Never reuse across runs.
 3. **`actions.jsonl` is append-only and authoritative.** If the batch is interrupted, re-running with the same `confirmed.json` is safe: already-processed items (paths gone) become `skip` with `reason="already gone"`.
 4. **Reclaimed bytes are honest, and split into three buckets.** A single `reclaimed_bytes` number is misleading because trash does not free disk until `~/.Trash` is emptied. `safe_delete.py` therefore reports four fields:
    - `freed_now_bytes` — disk *is already* free (delete + migrate).

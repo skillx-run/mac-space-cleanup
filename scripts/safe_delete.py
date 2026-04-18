@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""safe_delete.py — unified controlled dispatcher for mac-space-clean.
+"""safe_delete.py — unified controlled dispatcher for mac-space-cleanup.
 
 Reads a confirmed.json from stdin, dispatches each item to one of:
   delete / trash / archive / migrate / defer / skip
@@ -444,7 +444,7 @@ def dispatch(
 
 
 def run(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="mac-space-clean safe dispatcher")
+    parser = argparse.ArgumentParser(description="mac-space-cleanup safe dispatcher")
     parser.add_argument("--workdir", required=True, type=Path)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)

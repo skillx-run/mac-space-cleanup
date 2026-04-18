@@ -1,4 +1,4 @@
-# mac-space-clean — Contributor Notes
+# mac-space-cleanup — Contributor Notes
 
 These notes apply to anyone (human or agent) working on this skill. For the user-facing workflow, read `SKILL.md`; for the safety model, read `references/safety-policy.md`.
 
@@ -15,7 +15,7 @@ Do not re-introduce `scan_space.py`, `classify_items.py`, `build_report.py`, or 
 
 1. **Agent never writes the filesystem for cleanup purposes.** Every `delete / trash / archive / migrate / defer` must route through `scripts/safe_delete.py`. The only direct agent writes are JSON/HTML files under `$WORKDIR`.
 2. **Redaction is absolute.** Anything that reaches `report.html`, `share-card.svg`, or share text must use `source_label` + `category` only. No paths, basenames, usernames, project names, or company names. See `references/safety-policy.md` §"Privacy redaction rules".
-3. **Workdir is per-run**: `~/.cache/mac-space-clean/run-XXXXXX` created by `mktemp -d`. Never reuse across runs.
+3. **Workdir is per-run**: `~/.cache/mac-space-cleanup/run-XXXXXX` created by `mktemp -d`. Never reuse across runs.
 4. **Templates in `assets/` are immutable at runtime.** Agent must `cp` them into `$WORKDIR` before editing.
 5. **`actions.jsonl` is append-only and authoritative.** Safe_delete re-runs are idempotent: already-gone paths become `action=skip, status=success, reason="already gone"`.
 
@@ -40,7 +40,7 @@ The test suite covers only the scripts (20 tests total). Agent behaviour (Stages
 When you touch `scripts/*.py`, add or update tests in the same commit. Smoke-test the whole pipeline with:
 
 ```bash
-WORKDIR=$(mktemp -d ~/.cache/mac-space-clean/test-XXXXXX)
+WORKDIR=$(mktemp -d ~/.cache/mac-space-cleanup/test-XXXXXX)
 echo '{"paths":["~/Library/Caches"]}' > "$WORKDIR/paths.json"
 python3 scripts/collect_sizes.py < "$WORKDIR/paths.json" > "$WORKDIR/sizes.json"
 echo '{"confirmed_items":[]}' | python3 scripts/safe_delete.py --workdir "$WORKDIR" --dry-run

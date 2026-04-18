@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to mac-space-clean. Newest first.
+All notable changes to mac-space-cleanup. Newest first.
 
 ## v0.4.0 — 2026-04-18
 
