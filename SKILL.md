@@ -347,11 +347,18 @@ The 10 numbered sub-steps below split into four phases:
 
    - `<!-- region:hero:start -->` … `<!-- region:hero:end -->`: a `.hero-body` wrapper containing exactly two blocks — (1) a `<p class="hero-headline">` with the `freed_now` number and a unit span beside it; (2) a `<p class="hero-caption">` one-line prose summary weaving in device / os / duration, e.g. `Clean run on <strong>MacBook Pro</strong>, macOS 14.5, in 2m 14s.`. Do **not** add meta chips, risk-level chips, or a pending-in-trash chip here — the full device / os / duration / run_id breakdown lives in `runmeta`, L1-L4 risk distribution lives in the `.risk-meter` inside `runmeta`, and the pending-in-trash number has its own big callout inside `nextstep`'s CTA card. Keeping hero minimal is deliberate.
 
-     **Hero unit tense (important)**: the unit span's copy depends on whether the run was real or dry:
-     - **Real run** → Pattern A, driven by the dictionary: `<span class="unit" data-i18n="hero.unit">freed</span>`. The zh dict value is `已释放` (past completion), which reads correctly when the bytes are actually off the disk.
-     - **Dry run** → Pattern C bilingual pair, **do NOT use `data-i18n="hero.unit"`**. The `预计` number prefix (required on every dry-run number) plus `已释放` reads as a tense contradiction ("estimated … already freed"). Emit instead:
-       `<span class="unit"><span data-locale-show="en">freed</span><span data-locale-show="zh">可释放</span></span>`.
-       The EN side stays `freed` because `would be X GB freed` is idiomatic English virtual mood. ZH needs the modal-future `可释放` ("can be freed") to sit naturally beside `预计`.
+     **Hero headline shape depends on whether the run is real or dry:**
+     - **Real run** — number + Pattern A unit from the dictionary:
+       `<p class="hero-headline">56.20 GB <span class="unit" data-i18n="hero.unit">freed</span></p>`
+       (The zh dict value is `已释放` — past completion — which reads correctly because the bytes are actually off the disk.)
+     - **Dry run** — whole headline wrapped as a Pattern C bilingual pair. Both the dry-run prefix (`would be` / `预计`) and the unit get baked into each locale span, because the ZH natural word order differs from EN:
+       ```html
+       <p class="hero-headline">
+         <span data-locale-show="en">would be 56.20 GB <span class="unit">freed</span></span>
+         <span data-locale-show="zh">预计 56.20 GB <span class="unit">可释放</span></span>
+       </p>
+       ```
+       Do **not** reach for `data-i18n="hero.unit"` here; the unit text lives inline per locale. (Rationale: `已释放` under `预计` is a tense contradiction — "estimated already freed" — so the zh unit must shift to the modal-future `可释放`. EN stays `would be X GB freed`, which is idiomatic virtual mood.)
    - `<!-- region:share:start -->` … `<!-- region:share:end -->`: a **single** share button that carries **both** locale tweet targets so the page toggle can switch the composer text, not just the button label. Emit:
      ```html
      <a class="share-btn" target="_blank" rel="noopener"
@@ -388,7 +395,15 @@ The 10 numbered sub-steps below split into four phases:
 
    **Dry-run marking (mandatory)**: when the run was a `--dry-run`, the report must clearly say so or it misleads the user into thinking files were touched. Requirements, enforced by `validate_report.py --dry-run`:
    - **Banner**: insert a sticky `<div class="dry-banner" data-i18n="drybanner">DRY-RUN — no files touched</div>` at the very top of the `<main class="report">` element, right inside the open tag. The `data-i18n` key lets the locale toggle switch the banner copy at runtime.
-   - **Number prefixes**: every numeric headline in the report (hero total, category bytes, action aggregates, pending, risk-meter bytes, runmeta free-space values) must include a dry-run marker. Acceptable markers: **`would be`**, **`would-be`**, **`(simulated)`** (English) or **`预计`**, **`模拟`** (Chinese). Pick the one matching the current `LOCALE` — e.g. `would be 12.5 GB` for `en`, `预计 12.5 GB` for `zh`. Do **not** write bare numbers in dry-run mode. Because numeric headlines usually live inside Pattern B (number + suffix) or Pattern C (natural-language caption) nodes, the prefix travels with the corresponding locale variant.
+   - **Number prefixes** (every numeric headline: hero total, category bytes, action aggregates, pending, risk-meter bytes, runmeta free-space values): the prefix must be emitted as a **Pattern C bilingual pair** so the runtime locale toggle flips it together with the rest of the page. Two accepted shapes:
+     - **Prefix-wrap (default, compact)** — for most numeric spots (risk-meter bytes, runmeta values, category bytes, action aggregates):
+       ```html
+       <span data-locale-show="en">would be </span><span data-locale-show="zh">预计 </span>28.6 GB
+       ```
+       Keep the trailing space inside each span so the number doesn't butt up against the prefix.
+     - **Whole-headline wrap** — for the hero headline, where ZH and EN want different orderings (`would be 56.20 GB freed` / `预计 56.20 GB 可释放`). See § "Hero headline shape" above for the full template.
+   - Accepted marker vocabulary (either locale, substring-checked by `validate_report.py --dry-run`): **`would be`**, **`would-be`**, **`(simulated)`** (EN) / **`预计`**, **`模拟`** (ZH). `预计` and `would be` are the defaults — use the rarer ones only when rewording an awkward sentence.
+   - **Anti-pattern — do NOT emit the prefix as bare text keyed off Stage 1's `LOCALE`** (e.g. emit only `预计 56.20 GB` because this run is `zh`). That was v0.6 pre-release behaviour; after an EN toggle the page reads `预计 56.20 GB freed` — mixed-locale gibberish. The Pattern C wrap is the only correct form.
    - For real runs, neither the banner nor the prefixes are required.
 
    **Maintenance note**: if you change a `data-placeholder=...` string or add/remove a region in `assets/report-template.html`, also update `REGIONS` and `_PLACEHOLDER_MARKERS` in `scripts/validate_report.py` so the validator keeps catching unfilled regions.
