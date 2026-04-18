@@ -436,7 +436,7 @@ The 9 numbered sub-steps below split into four phases:
 
    **Dry-run template (English, canonical form)** — the past-tense "reclaimed" misleads when nothing was touched:
    ```
-   Previewed with @heyiamlin's mac-space-cleanup — it estimates I could reclaim {freed_now} on my Mac.
+   Previewed with @heyiamlin's mac-space-cleanup skill — it estimates I could reclaim {freed_now} on my Mac.
 
    Biggest wins in the preview: {top3_joined}.
 
@@ -444,9 +444,9 @@ The 9 numbered sub-steps below split into four phases:
    ```
 
    **Localization guidance:**
-   - Translate the natural-language portions of both templates into `$LOCALE`. Example zh renderings: real-run opener "用 @heyiamlin 的 mac-space-cleanup 给我的 Mac 清出了 {freed_now} 空间。"; dry-run opener "预演一下：用 @heyiamlin 的 mac-space-cleanup，预计能在我的 Mac 上清出 {freed_now} 空间。"; "Biggest wins" → "这次清理的大头"; dry-run "Biggest wins in the preview" → "这次预演的大头".
+   - Translate the natural-language portions of both templates into `$LOCALE`. Example zh renderings: real-run opener "用 @heyiamlin 的 mac-space-cleanup skill 给我的 Mac 清出了 {freed_now} 空间。"; dry-run opener "预演一下：用 @heyiamlin 的 mac-space-cleanup skill，预计能在我的 Mac 上清出 {freed_now} 空间。"; "Biggest wins" → "这次清理的大头"; dry-run "Biggest wins in the preview" → "这次预演的大头".
    - **Hashtags**: always include `#macspaceclean` and `#buildinpublic`. The third hashtag can be swapped for a locale-appropriate synonym of "mac cleanup" (EN uses `#maccleanup`; zh uses `#mac清理`; ja might use `#Mac整理`). Keep the total at three hashtags.
-   - **Brand / handles always stay unchanged**: `mac-space-cleanup`, `@heyiamlin`, `macOS`.
+   - **Brand / handles always stay unchanged**: `mac-space-cleanup`, `@heyiamlin`, `macOS`, `skill` (keep the English word across locales — matches how the rest of the brand surface positions it).
    - **Units stay unchanged**: `GB` / `MB` read identically across locales.
 
    Only substitute: `{freed_now}` (human-readable string from `freed_now_bytes`) and `{top3_joined}` (see shape note below). Same `source_label` taxonomy applies; no paths, usernames, or project names.
