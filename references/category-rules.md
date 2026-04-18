@@ -1,8 +1,8 @@
 # Category Rules
 
-Match each observed candidate to **one** of the 9 categories. Each rule block gives: path patterns / probe, default `risk_level`, default `recommended_action`, and `mode_hit_tags` (which modes should surface this category).
+Match each observed candidate to **one** of the 10 categories. Each rule block gives: path patterns / probe, default `risk_level`, default `recommended_action`, and `mode_hit_tags` (which modes should surface this category).
 
-Matching order: check rules top-to-bottom, first match wins. If none match, fall through to `orphan` (L4).
+Matching order: check rules top-to-bottom, first match wins. Note that §10 `project_artifacts` items only ever come from `scripts/scan_projects.py`, so other rules never compete for them. If no rule matches, fall through to `orphan` (L4).
 
 ---
 
@@ -139,9 +139,47 @@ Handling: `safe_delete.py` detects `category=="system_snapshots"` and dispatches
 
 ---
 
+## 10. `project_artifacts`
+
+Build outputs and virtual environments inside user project workspaces (recognised by `.git` directory at root). Surface only via `scripts/scan_projects.py` — never via free-form `find` on `~/Downloads` or similar.
+
+Two subtypes (returned by `scan_projects.py` as the `kind` field):
+
+### 10a. Deletable build / install outputs → **L1 `delete`**
+
+Subtypes: `node_modules`, `target`, `build`, `dist`, `out`, `.next`, `.nuxt`, `.svelte-kit`, `.turbo`, `.parcel-cache`, `__pycache__`, `.pytest_cache`, `.tox`, `Pods`, `vendor` (Go only).
+
+Defaults: **L1**, `delete`, `mode_hit_tags=["deep"]` (quick mode skips project artifacts to avoid clearing fresh installs).
+
+Rationale: by convention these are 100% reproducible by re-running the install/build command. Same risk class as `pkg_cache` (homebrew/npm cache), just per-project rather than global.
+
+**Vendor disambiguation**: `scan_projects.py` always returns `vendor/` if it exists, but only `vendor/` in projects with `go.mod` in `markers_found` should be classified as `project_artifacts`. For non-Go `vendor/` (e.g. Composer's vendor in PHP, or Bundler's), classify as `orphan` L4 instead — the agent must check `markers_found` before assigning the rule here.
+
+### 10b. Virtual environments → **L2 `trash`**
+
+Subtypes: `.venv`, `venv`, `env`.
+
+Defaults: **L2**, `trash`, `mode_hit_tags=["deep"]`.
+
+Rationale: virtual environments often contain wheel versions specific to one moment in time (PyPI may have yanked, dependency may pin to a no-longer-buildable version). Trash gives a recovery window. The user can `python -m venv .venv && pip install -r requirements.txt` to reconstruct, but it might fail.
+
+**Env disambiguation**: `env/` is too generic a name. The agent must check `markers_found` for at least one Python marker (`pyproject.toml`, `requirements.txt`, `setup.py`) before treating `env/` as a `project_artifacts` venv. Otherwise classify as `orphan` L4.
+
+### Source label
+
+`source_label` for both subtypes: `"Project <subtype>"` (e.g. `"Project node_modules"`, `"Project .venv"`). **Never include the project name or path in source_label** — that would leak through to report.html / share text. The agent ↔ user confirm dialog at Stage 5 may use project basenames per the `safety-policy.md` confirm-stage exception, but those basenames must not propagate to persisted artefacts.
+
+`mode_hit_tags=["deep"]` only — quick mode does NOT scan project artifacts. Reason: quick mode runs without per-item review, and a fresh `node_modules` deleted right after `npm install` is a bad UX even if technically harmless.
+
+### Match order
+
+When the agent classifies an item, the match order is: rules 1–8 → rule 10 → rule 9 (orphan fallback). In practice `project_artifacts` paths only ever come from `scan_projects.py` and other rules don't compete, so this is implicit; explicit only for the disambiguation cases above.
+
+---
+
 ## 9. `orphan` (fallback)
 
-Anything that did not match rules 1–8.
+Anything that did not match rules 1–8 or rule 10.
 
 Defaults: **L4**, `skip`, `mode_hit_tags=["deep"]`.
 
@@ -181,6 +219,7 @@ Stage 4 produces in-memory items with these fields (matches `cleanup-result.json
 | `downloads` | `"Old installers"`, `"Large archives in Downloads"` |
 | `large_media` | `"iOS backups"`, `"Large files in Movies"` |
 | `system_snapshots` | `"Time Machine local snapshots"` |
+| `project_artifacts` | `"Project node_modules"`, `"Project target"`, `"Project build"`, `"Project .venv"`, … (subtype only, never path or project basename) |
 | `orphan` | `"Unclassified large item"` |
 
 Never put a path or basename into `source_label`.

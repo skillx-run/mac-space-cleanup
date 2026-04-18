@@ -57,6 +57,18 @@ This document defines the **risk grading, default actions, confirmation bars, re
 - Before writing share text, mentally scan the string for any forbidden token; if in doubt, drop to a generic label.
 - `share-card-template.svg` accepts only the three whitelisted placeholders: `${free_reclaimed}`, `${mode_label}`, `${top_categories}` (a comma-joined list of up to 3 category labels).
 
+## Confirm-stage exception (agent ↔ user dialog only)
+
+The redaction rules above apply to **persisted artefacts** rendered to disk: `report.html`, `share-card.svg`, `share.{en,zh}.txt`. Those must use generic `source_label` / `category` only — no paths, basenames, project names, usernames.
+
+The agent ↔ user **conversation during Stage 5 confirmation** is allowed to use the basename of a project root (e.g. `foo-app`, `bar-frontend`) when the user picks `yes-but-let-me-pick` for `project_artifacts` grouping. Without this, the user has no way to choose between several Node projects' `node_modules`.
+
+Strict rules for the exception:
+
+- Only the project root's **basename** — never the absolute path, never any ancestor.
+- Only during the live confirm dialog. The moment the agent writes to a file under `$WORKDIR`, the redaction rules above apply again (so basenames in the conversation must NOT leak into `cleanup-result.json`'s `source_label`, into `report.html`, into share text).
+- The post-render `validate_report.py` and the redaction reviewer sub-agent will catch leaks regardless — they do not know about this exception, by design. That's the safety net.
+
 ## Degradation matrix
 
 | Failure (design doc §14) | Handler | Behaviour |

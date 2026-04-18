@@ -90,9 +90,34 @@ These directories are off-limits regardless of size or age. If a scan result som
 - `~/Dropbox`, `~/Google Drive`, `~/OneDrive` and any sync-client local copy
 - `~/Pictures/Photos Library.photoslibrary`
 - `~/Music/Music` (Apple Music library)
-- Any path under a user project workspace heuristic: contains `.git`, `package.json`, `Cargo.toml`, `pyproject.toml`, `Package.swift`, `Gemfile`, `go.mod` at root. **Exception**: nested `node_modules`, `target`, `build`, `.next`, `.venv` inside those projects are still off-limits for this v1 skill (no project-aware cleanup).
+- Any path under a user project workspace (root has `.git`) **except** the conventional artifact subdirectories listed in §"Project artifacts allowlist" below. Project source files, configs, and `.git` itself remain off-limits.
 - Virtual machine images: `*.vmdk`, `*.qcow2`, `*.vdi`, `~/Parallels`, `~/VirtualBox VMs`, `~/Library/Containers/com.docker.docker/Data/vms` (surface size only, record as L3 defer)
 - Database data directories: `~/Library/Application Support/Postgres*`, `~/Library/Application Support/MongoDB`, `/usr/local/var/mysql`, `/opt/homebrew/var/postgres*`
+
+## Project artifacts allowlist (v0.4+)
+
+Inside any directory recognised as a project root (has `.git`), the following conventional subdirectories ARE allowed to be cleaned. Everything else inside the project — source files, configs, `.git` itself — remains off-limits.
+
+Discovery is via `scripts/scan_projects.py`, never via free-form `find` on `~/Downloads` or similar. The agent reads `references/category-rules.md` §10 for risk grading.
+
+**Deletable build / install outputs** (default L1 delete via `category=project_artifacts`, kind=`deletable`):
+
+- `node_modules` (Node)
+- `target` (Rust / Java / Scala)
+- `build`, `dist`, `out` (generic)
+- `.next`, `.nuxt`, `.svelte-kit`, `.turbo`, `.parcel-cache` (web framework caches)
+- `__pycache__`, `.pytest_cache`, `.tox` (Python tooling caches)
+- `Pods` (CocoaPods)
+- `vendor` (Go modules vendored deps; **only when project root has `go.mod`** — agent must verify via `markers_found`)
+
+**Virtual environments** (default L2 trash via `category=project_artifacts`, kind=`venv`):
+
+- `.venv`, `venv`, `env` (Python)
+  - **Heads-up for `env`**: this name is too generic; agent must skip if project root has no Python marker (`pyproject.toml` / `requirements.txt` / `setup.py`) in `markers_found`.
+
+Project root identification: presence of a `.git` directory. Other markers (`package.json`, `Cargo.toml`, `pyproject.toml`, `go.mod`, etc.) are **not** treated as project roots in v0.4 — `.git` covers ~all real project workspaces and avoids double-counting nested submodules. Bare git checkouts without any language marker are still recognised; markers only inform per-subtype decisions.
+
+System / package-manager directories under `~/Library`, `~/.cache`, `~/.npm`, `~/.cargo`, `~/.cocoapods`, `~/.gradle`, `~/.m2`, `~/.gem`, `~/.bundle`, `~/.local`, `~/.rustup`, `~/.pnpm-store`, `~/.Trash` are pruned from project discovery (they may contain cloned repos with `.git` that are not user projects).
 
 ## Scope-probe contract
 
