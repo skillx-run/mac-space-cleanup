@@ -4,6 +4,63 @@ All notable changes to mac-space-cleanup. Newest first.
 
 ## Unreleased
 
+## v0.11.0 — 2026-04-20
+
+This release bundles two internal milestone families that accumulated on `main` since v0.10.0. CLAUDE.md's "v0.8 AI/ML coverage and orphan investigation" and "v0.9 coverage expansion" sections map to this single CHANGELOG entry — the internal narrative labels lag the released numbering by historical drift, kept for readability in the contributor doc.
+
+### Added — AI/ML foundation (CLAUDE.md "v0.8")
+
+- **Four AI/ML Tier E rows** in `references/cleanup-scope.md` + `category-rules.md` §3: HuggingFace (`hub/` + `datasets/`, two aggregate items), PyTorch hub (one aggregate), Ollama (one aggregate), LM Studio (one aggregate from whichever of `~/.cache/lm-studio` / `~/.lmstudio` exists). All four default to **L3 `defer`** except PyTorch hub (**L2 `trash`**, typical weights < 1 GB). Ollama deliberately skips the CLI probe so a leftover `~/.ollama` after the user uninstalled the `ollama` CLI still surfaces.
+- **Stage 3.5 orphan-investigation step** at the tail of the `du -d 2 ~` probe. Before each unclassified large directory is finalised with the generic `"Unclassified large directory"` label, the agent runs a read-only investigation (`ls` / `file` / `head` + marker-file existence checks, capped at 6 commands per candidate) and may refine `category` (∈ §1-§9; never §10 `project_artifacts`) and `source_label`. `risk_level=L3` and `action=defer` stay locked regardless — per `references/safety-policy.md` §"Orphan investigation" and new Operating invariant #7.
+
+### Added — Coverage expansion M1 (CLAUDE.md "v0.9" first slice)
+
+- **Five new Tier E `pkg_cache` rows** (dir-probe in Stage 2):
+  - **Conda / Mamba / Miniforge** envs across seven macOS install layouts (`~/miniconda3/envs`, `~/anaconda3/envs`, `~/opt/miniconda3/envs`, `~/opt/anaconda3/envs`, `~/miniforge3/envs`, `~/mambaforge/envs`, `~/.mamba/envs`) — per non-`base` env, **L2 `trash`**, `mode_hit_tags=["deep"]`. Scope stops at `~/...` to avoid system `/opt/miniconda3/envs`.
+  - **Playwright** (`~/Library/Caches/ms-playwright` + XDG fallback + `ms-playwright-driver`) — one aggregate, **L1 `delete`**.
+  - **Puppeteer** (`~/.cache/puppeteer`) — **L1 `delete`**.
+  - **OpenAI Whisper** (`~/.cache/whisper` + `~/.cache/openai-whisper`) — one aggregate, **L2 `trash`**. Faster-Whisper (SYSTRAN) explicitly redirected to the HuggingFace row.
+  - **Weights & Biases global cache** (`~/.wandb` + XDG `~/.cache/wandb`) — one aggregate, **L2 `trash`**. Per-project `./wandb/` dirs not swept.
+- **Creative-app source_label refinement** in `category-rules.md` §4: Adobe Media Cache / Peak Files, Final Cut Pro, Logic Pro paths get specific labels instead of the generic `"System caches"`. Risk grading unchanged (L2 `trash` via the Tier C-adjacent override); only the UI label becomes specific so the report names the actual workflow. GarageBand's instrument libraries explicitly excluded — user-initiated content, not cache.
+
+### Added — `scan_projects.py` extensions M2 (CLAUDE.md "v0.9" middle slice)
+
+- **New `kind="nested_cache"` artifact** for "keep parent, drop cache-child" pairs. Currently just `.dvc/cache` — the sibling `.dvc/config` is a new nested-path entry in `PROJECT_MARKERS`; `_detect_markers`'s existing `os.path.join` + `isfile` logic handles flat and nested paths uniformly. Default **L2 `trash`** (rebuild requires network pull from the DVC remote). Marker-gated at Stage 4 per `category-rules.md` §10d — without `.dvc/config`, fall through to `orphan` L4.
+- **`version_pins` field per project** — `_parse_version_pin_file` reads `.python-version` / `.nvmrc` tolerating multi-version pyenv chains (`3.11.4 3.10.8`), `#` comment lines, CRLF line endings, empty files, and unreadable files. `SKILL.md` Stage 3 now takes the union across all scanned projects and appends to the pyenv / nvm exclusion sets — replacing the documented-but-unimplemented v0.4 "`cd` into each project and run `pyenv local`" choreography.
+- **iOS DeviceSupport active-OS downgrade** (no script change; Stage 2 + category-rules only). Stage 2 collects active iOS versions from `xcrun devicectl list devices --json-output -` (Xcode 15+; physical paired devices) and `xcrun simctl list devices available --json` (all Xcode versions; simulator runtimes). Stage 4 normalizes both sides to `major.minor` and on equal-string match downgrades the `iOS DeviceSupport/<OS>` entry from L2 `trash` to L3 `defer`. Empty union is a first-class "no hint" state. `watchOS` / `tvOS` stay L2 (no equivalent active-OS source in v0.11).
+
+### Added — Ollama per-model dispatcher M3 (CLAUDE.md "v0.9" last slice)
+
+- **`ollama:<name>:<tag>` semantic dispatcher** in `scripts/safe_delete.py` (`_handle_ollama_delete` + four helpers: `_resolve_ollama_manifest_path`, `_collect_manifest_blobs`, `_digest_to_blob_path`, `_walk_other_manifests`). The UI name → manifest-path mapping mirrors the Ollama client's three-tier rule: first-segment `.` → literal `<host>/<rest>`; any `/` but no `.` in first segment → default registry + user namespace; plain name → default registry + `library` namespace. For each delete the dispatcher reads the target manifest's `config.digest` + `layers[].digest` set, walks every other manifest in the tree, unions their referenced digests into `still_referenced`, and removes only blobs exclusive to the target. Shared layers between e.g. `llama3:8b` and `llama3:70b` survive the delete of one sibling tag — the safety net v0.11 adds that earlier releases lacked.
+- **SKILL.md Stage 3 mode branch** for Ollama. Quick mode keeps the single-aggregate `~/.ollama/models/` L3 defer entry (`mode_hit_tags=["quick"]`); deep mode walks `manifests/<registry>/<namespace>/<name>/<tag>` and emits one `ollama:<name>:<tag>` candidate per leaf (`source_label="Ollama model"`, `mode_hit_tags=["deep"]`). Per-model entries REPLACE the aggregate in deep mode; the aggregate is the deep-mode fallback if the manifest walk fails.
+- **Operating invariant #8** in `references/safety-policy.md` locking Ollama per-model paths at L3 `defer` through Stage 5 — the history-driven UI downgrade may collapse per-item confirm into batch confirm but never bypass the confirm step itself. Symmetric to invariant #7 (orphan investigation L3 lock) and the "Risk-level boundaries are never crossed" history rule.
+
+### Changed
+
+- **HuggingFace split** — v0.8's merged L3 exception was too conservative for models: `~/.cache/huggingface/hub/**` drops to **L2 `trash`** (most snapshots under 1 GB, `from_pretrained()` will refetch), while `~/.cache/huggingface/datasets/**` stays **L3 `defer`** (a single dataset can exceed tens of GB, redownload costs hours). Split the merged exception into two independent rules so the cost/benefit asymmetry is explicit.
+- **`references/cleanup-scope.md` Tier E Ollama row** rewritten to describe the v0.11 reality (quick mode = aggregate; deep mode = per-model via dispatcher; aggregate as deep-mode fallback) instead of the stale "per-model granularity is gated on a future dispatcher" note.
+- **`references/category-rules.md` §3 Ollama exception** split into three distinct bullets (aggregate / per-model / LM Studio) so the `mode_hit_tags` differences are unambiguous.
+
+### Fixed — Defence in depth
+
+- **Adobe `Auto-Save` blacklist** added to `cleanup-scope.md` + `scripts/safe_delete.py::_BLOCKED_PATTERNS` (`/Adobe/[^/]+/Auto-Save(/|$)`). The generic `Adobe/**` sweep must never descend into `Auto-Save/` — those paths hold unsaved Premiere / After Effects / Photoshop project files, i.e. user work in progress. Creative-app source-label refinement (new in this release) was the motivating change; the blacklist is the defence-in-depth counterweight.
+
+### Back-compat
+
+- **`history.json` format unchanged** — every new `source_label` is just a new tag alongside existing ones. No schema migration.
+- **`scan_projects.py`'s JSON output** adds one new `kind` value (`"nested_cache"`); consumers that hardcode `kind=="deletable"` skip it silently — same back-compat contract as v0.10.0's `coverage` addition.
+- **`version_pins`** is a new sibling field on each project. Consumers that do `"X" in markers_found` membership checks (the existing pattern) simply never see it.
+- **`PROJECT_MARKERS`** gains `.dvc/config` — a nested-path marker. Existing projects without it keep the same `markers_found` output.
+- **`_BLOCKED_PATTERNS`** gains the Adobe `Auto-Save` regex additively; no existing pattern removed or tightened.
+
+### Tests
+
+- 100 → **123** (+23): 4 new Ollama aggregate/per-model fixtures under `test_safe_delete_ollama.py` (plus 4 v0.8 AI/ML path-not-blocked cases under `test_safe_delete.py`), 12 under `test_scan_projects.py` (4 for `nested_cache` / `.dvc/config`, 8 for `version_pins` edge cases), 2 under `test_safe_delete.py` for the Adobe `Auto-Save` blacklist, 9 in the new `test_safe_delete_ollama.py` covering blob reference counting, dry-run parity, redaction-safe error strings, and malformed / third-party / missing-root path forms.
+
+### Known limitation
+
+- The Xcode 15+ `devicectl` output-schema assumption (`result.devices[].hardwareProperties.productVersion`) has not been end-to-end-verified against a real Mac with a paired iOS device. The schema matches Apple's public CoreDevice framework docs, and the inline script has an `except Exception: sys.exit(0)` bail-out so a schema drift manifests as an empty `active_ios_versions` (i.e. fallback to the L2 default), not as a crash.
+
 ## v0.10.0 — 2026-04-19
 
 ### Added
