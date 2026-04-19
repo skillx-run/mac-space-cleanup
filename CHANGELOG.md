@@ -4,6 +4,18 @@ All notable changes to mac-space-cleanup. Newest first.
 
 ## Unreleased
 
+## v0.9.3 — 2026-04-19
+
+### Docs
+- **Tighten 4 per-item filter rules in `references/*.md` for LLM agent execution.** Per-item filters are interpreted by the agent at Stage 3, not by deterministic code, so ambiguous wording can cause silent misclassification:
+  - iOS Backup `~/Library/Application Support/MobileSync/Backup`: "older than 180 days" → "mtime older than 180 days" with explicit `find ... -mtime +180` probe.
+  - pyenv `pyenv local` collection: previously "any pin discovered via `pyenv local` in scanned projects" left *how to discover* unspecified (`pyenv local` only returns the cwd's pin); now spells out that the agent must `cd` into each project root from `paths-projects.json` and run `pyenv local`, taking the union of non-empty results.
+  - Xcode Archives exception: clarify that L2 trash for `<90d` wins on a tied match; not both rules at once.
+  - Homebrew cache: "contents older than 30 days" → "files within the directory whose mtime is older than 30 days; the directory itself is never deleted, only its files" with explicit `find` probe — avoids an over-eager agent rm'ing `$(brew --cache)` itself.
+
+### Tests
+- 93 (unchanged — pure doc clarity tweaks).
+
 ## v0.9.2 — 2026-04-19
 
 ### Added
