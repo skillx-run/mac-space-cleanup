@@ -104,20 +104,41 @@ _DOCKER_RECLAIMED_RE = re.compile(
     r"Total reclaimed space:\s+([\d.]+)\s*([KMGT]?B)",
     re.IGNORECASE,
 )
-_HUMAN_UNIT_FACTORS = {
+# Two factor tables — different vendor CLIs use different conventions:
+#   - Brew (Ruby Utils::Bytes): binary math, traditional KB/MB/GB labels.
+#       1 GB = 1024**3 bytes
+#   - Docker (Go units.HumanSize): decimal math, lowercase k allowed.
+#       1 GB = 1000**3 bytes
+# Mixing them up over-reports docker reclaim by ~7% at GB scale, ~10% at TB
+# — bad for the project's "honest reclaim accounting" contract.
+_BINARY_UNIT_FACTORS = {
     "B": 1,
     "KB": 1024,
     "MB": 1024 ** 2,
     "GB": 1024 ** 3,
     "TB": 1024 ** 4,
 }
+_DECIMAL_UNIT_FACTORS = {
+    "B": 1,
+    "KB": 1000,
+    "MB": 1000 ** 2,
+    "GB": 1000 ** 3,
+    "TB": 1000 ** 4,
+}
 
 
-def _parse_human_bytes(text: str, pattern: re.Pattern[str]) -> int | None:
+def _parse_human_bytes(
+    text: str,
+    pattern: re.Pattern[str],
+    factors: dict[str, int],
+) -> int | None:
     """Extract a (number, unit) pair via *pattern* and return bytes.
 
     *pattern* must capture (numeric, unit) as groups 1+2 where unit is one of
-    B/KB/MB/GB/TB (case-insensitive). Returns None if no match or parse fails.
+    B/KB/MB/GB/TB (case-insensitive). *factors* selects the unit base — pass
+    ``_BINARY_UNIT_FACTORS`` for brew-family output (1024-based) or
+    ``_DECIMAL_UNIT_FACTORS`` for docker-family output (1000-based).
+    Returns None if no match or parse fails.
     """
     m = pattern.search(text)
     if not m:
@@ -127,7 +148,7 @@ def _parse_human_bytes(text: str, pattern: re.Pattern[str]) -> int | None:
     except (TypeError, ValueError):
         return None
     unit = (m.group(2) or "B").upper()
-    factor = _HUMAN_UNIT_FACTORS.get(unit)
+    factor = factors.get(unit)
     if factor is None:
         return None
     return int(value * factor)
@@ -276,7 +297,7 @@ def _handle_brew_cleanup(item: dict[str, Any], dry_run: bool) -> dict[str, Any]:
         rec["error"] = f"brew cleanup -s failed: {e}"
         return _finalize(rec, t0)
 
-    freed = _parse_human_bytes(result.stdout, _BREW_FREED_RE)
+    freed = _parse_human_bytes(result.stdout, _BREW_FREED_RE, _BINARY_UNIT_FACTORS)
     if freed is not None:
         rec["size_before_bytes"] = freed
     return _finalize(rec, t0)
@@ -320,7 +341,9 @@ def _handle_docker_prune(item: dict[str, Any], dry_run: bool) -> dict[str, Any]:
         rec["error"] = f"{' '.join(cmd)} failed: {e}"
         return _finalize(rec, t0)
 
-    reclaimed = _parse_human_bytes(result.stdout, _DOCKER_RECLAIMED_RE)
+    reclaimed = _parse_human_bytes(
+        result.stdout, _DOCKER_RECLAIMED_RE, _DECIMAL_UNIT_FACTORS,
+    )
     if reclaimed is not None:
         rec["size_before_bytes"] = reclaimed
     return _finalize(rec, t0)

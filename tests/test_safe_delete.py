@@ -391,16 +391,20 @@ class TestDispatch(unittest.TestCase):
 
     def test_docker_prune_dispatch_per_subcommand(self):
         """All three docker:* semantic paths must dispatch to the right
-        prune sub-command and parse the 'Total reclaimed space: X' line."""
+        prune sub-command and parse the 'Total reclaimed space: X' line.
+
+        Docker uses Go's units.HumanSize which is base-1000 (decimal),
+        unlike brew which uses Ruby's Utils::Bytes (base-1024 binary).
+        """
         cases = [
             ("docker:build-cache", ["docker", "builder", "prune", "-f"], "456MB"),
             ("docker:dangling-images", ["docker", "image", "prune", "-f"], "1.5GB"),
-            ("docker:stopped-containers", ["docker", "container", "prune", "-f"], "78KB"),
+            ("docker:stopped-containers", ["docker", "container", "prune", "-f"], "78kB"),
         ]
         expected_bytes = {
-            "456MB": 456 * 1024 ** 2,
-            "1.5GB": int(1.5 * 1024 ** 3),
-            "78KB": 78 * 1024,
+            "456MB": 456 * 1000 ** 2,
+            "1.5GB": int(1.5 * 1000 ** 3),
+            "78kB": 78 * 1000,
         }
 
         for path, expected_cmd, reclaimed in cases:
