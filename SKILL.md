@@ -102,9 +102,11 @@ Run these in parallel and summarise the result internally (do not dump raw outpu
 sw_vers
 df -h /
 which -a docker brew pnpm npm yarn pip uv cargo go gradle xcrun trash \
-         flutter fnm pyenv rustup
+         flutter fnm pyenv rustup bun deno
 ls -d ~/.cocoapods ~/.gradle ~/.m2 ~/.nvm \
-      ~/Library/Android/sdk ~/Library/Caches/JetBrains 2>/dev/null
+      ~/Library/Android/sdk ~/Library/Caches/JetBrains \
+      ~/Library/Caches/org.swift.swiftpm \
+      ~/Library/Caches/org.carthage.CarthageKit 2>/dev/null
 ```
 
 The `which -a` line gates Tier E rows that have a CLI probe; the `ls -d` line gates rows with a directory probe (nvm has no CLI on PATH; Android SDK and JetBrains are detected by their marker dirs). Keep these two lines in sync with `references/cleanup-scope.md` Tier E — when a row is added there, extend the matching probe here.
@@ -153,11 +155,13 @@ Then collect sizes in one batched call:
 python3 scripts/collect_sizes.py < "$WORKDIR/paths.json" > "$WORKDIR/sizes.json"
 ```
 
-For semantic/tool entries (not plain paths), probe directly:
-- `docker system df` — parse for images / containers / volumes / build cache sizes.
+For semantic/tool entries (not plain paths), probe directly. Each becomes a candidate item with `path="<semantic-prefix>:<entry>"`; `safe_delete.py` recognises the prefix and dispatches to the right CLI rather than `rm` (so `size_bytes` may be `0` here — the dispatcher reports actual freed bytes back via `actions.jsonl`):
+- `docker system df` — parse for images / containers / volumes / build cache sizes. Surface as four items: `path="docker:build-cache"`, `path="docker:dangling-images"`, `path="docker:stopped-containers"` (each L1 delete via `docker container/image/builder prune -f`); **`docker:unused-volumes` is intentionally not surfaced** because volumes hold user data.
 - `xcrun simctl list devices available` then infer which CoreSimulator device dirs are orphaned.
-- `brew --cache` then `du -sh` on it.
+- `brew --cache` then `du -sh` on it. **Also surface** `path="brew:cleanup-s"` as one extra item (L1 delete; `safe_delete.py` runs `brew cleanup -s` to drop old Cellar versions and stale downloads — pinned formulae are preserved automatically by Homebrew).
 - `tmutil listlocalsnapshots /` — each snapshot becomes an item with `path="snapshot:<full-name>"`.
+
+Semantic-path size hints: for `brew:cleanup-s` you can pre-estimate via `brew cleanup -ns` (dry-run) and parse the "would remove" output; for the three `docker:*` items, parse the matching row of `docker system df` (Reclaimable column). When the hint is unavailable use `0` and the dispatcher will report the real freed bytes.
 
 Collect every observation into your in-memory candidate list. If `collect_sizes.py` reports errors for some paths, note them but continue.
 
