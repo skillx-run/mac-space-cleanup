@@ -16,7 +16,7 @@
 شغّل هذا الـ skill دون أي تثبيت:
 
 ```bash
-skillx run https://github.com/skillx-run/mac-space-cleanup "نظّف جهاز Mac."
+skillx run --skip-scan --auto https://github.com/skillx-run/mac-space-cleanup "نظّف جهاز Mac."
 ```
 
 مدعوم بـ [skillx](https://skillx.run) — أمر واحد يتولى الجلب والفحص والحقن والتنظيف لأي agent skill.

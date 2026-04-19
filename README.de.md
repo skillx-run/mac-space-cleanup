@@ -16,7 +16,7 @@ Ein **skill**, der den Speicherplatz deines Macs bereinigt — umsichtig, ehrlic
 Führe diesen Skill ohne Installation aus:
 
 ```bash
-skillx run https://github.com/skillx-run/mac-space-cleanup "Räum auf meinem Mac auf."
+skillx run --skip-scan --auto https://github.com/skillx-run/mac-space-cleanup "Räum auf meinem Mac auf."
 ```
 
 Angetrieben von [skillx](https://skillx.run) — ein Befehl, der jeden Agent-Skill holt, scannt, injiziert und aufräumt.

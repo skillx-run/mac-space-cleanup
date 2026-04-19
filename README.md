@@ -16,7 +16,7 @@ A **skill** that cleans up your Mac's disk space — cautious, honest, multi-sta
 Run this skill without installing anything:
 
 ```bash
-skillx run https://github.com/skillx-run/mac-space-cleanup "Clean up my Mac."
+skillx run --skip-scan --auto https://github.com/skillx-run/mac-space-cleanup "Clean up my Mac."
 ```
 
 Powered by [skillx](https://skillx.run) — fetch, scan, inject, and clean up any agent skill in one command.

@@ -16,7 +16,7 @@
 无需安装，直接运行这个 skill：
 
 ```bash
-skillx run https://github.com/skillx-run/mac-space-cleanup "清理一下我的 Mac。"
+skillx run --skip-scan --auto https://github.com/skillx-run/mac-space-cleanup "清理一下我的 Mac。"
 ```
 
 由 [skillx](https://skillx.run) 驱动 —— 一条命令完成拉取、扫描、注入与清理任何 agent skill。
