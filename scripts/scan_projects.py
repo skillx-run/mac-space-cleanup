@@ -26,6 +26,11 @@ stdout: {
     "errors": [{"root": str, "kind": "timeout|permission|other", "detail": str}]
   }
 }
+
+Artifact `kind` is one of:
+  - "deletable": build outputs that reinstall / rebuild reliably
+  - "venv":      Python virtual environments (may pin yanked wheels)
+  - "coverage":  test-coverage report dirs (L2 trash, marker-gated at Stage 4)
 exit:   0 ok / 1 partial errors / 2 bad input
 """
 
@@ -52,6 +57,7 @@ ERROR_OTHER = "other"
 # Artifact `kind` values surfaced per artifact entry.
 KIND_DELETABLE = "deletable"
 KIND_VENV = "venv"
+KIND_COVERAGE = "coverage"
 
 # Directories under each search root to prune from the find walk. These are
 # system / package-manager caches that may contain cloned repos with .git
@@ -89,6 +95,7 @@ PROJECT_MARKERS = (
     "Gemfile",
     "composer.json",
     "pubspec.yaml",
+    "mix.exs",
 )
 
 # Conventional artifact subdirectory names. Order matters only for output
@@ -107,6 +114,11 @@ ARTIFACT_SUBTYPES_DELETABLE = (
     "__pycache__",
     ".pytest_cache",
     ".tox",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".dart_tool",
+    ".nyc_output",
+    "_build",  # agent verifies mix.exs presence (Elixir)
     "Pods",
     "vendor",  # agent verifies go.mod presence
 )
@@ -115,6 +127,10 @@ ARTIFACT_SUBTYPES_VENV = (
     ".venv",
     "venv",
     "env",  # agent verifies Python marker presence
+)
+
+ARTIFACT_SUBTYPES_COVERAGE = (
+    "coverage",  # agent verifies package.json or Python marker at Stage 4
 )
 
 
@@ -195,6 +211,10 @@ def _enumerate_artifacts(project_root: str) -> list[dict[str, str]]:
         full = os.path.join(project_root, sub)
         if os.path.isdir(full) and not os.path.islink(full):
             artifacts.append({"path": full, "subtype": sub, "kind": KIND_VENV})
+    for sub in ARTIFACT_SUBTYPES_COVERAGE:
+        full = os.path.join(project_root, sub)
+        if os.path.isdir(full) and not os.path.islink(full):
+            artifacts.append({"path": full, "subtype": sub, "kind": KIND_COVERAGE})
     return artifacts
 
 

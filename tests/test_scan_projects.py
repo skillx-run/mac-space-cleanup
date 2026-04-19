@@ -67,6 +67,80 @@ class TestScanProjects(unittest.TestCase):
         self.assertEqual(arts["dist"], "deletable")
         self.assertEqual(arts[".venv"], "venv")
 
+    def test_finds_new_deletable_subtypes(self):
+        # v0.7 additions: .mypy_cache / .ruff_cache / .dart_tool / .nyc_output
+        # These are all L1-deletable regardless of markers (unambiguous names).
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            _mkproj(base, "py-app",
+                    marker_files=["pyproject.toml"],
+                    subdirs=[".mypy_cache", ".ruff_cache"])
+            _mkproj(base, "flutter-app",
+                    marker_files=["pubspec.yaml"],
+                    subdirs=[".dart_tool"])
+            _mkproj(base, "js-app",
+                    marker_files=["package.json"],
+                    subdirs=[".nyc_output"])
+            code, out, _ = _scan_dir(base)
+        self.assertEqual(code, 0)
+        by_root = {p["root"]: p for p in out["projects"]}
+        for proj_name, expected_sub in [
+            ("py-app", ".mypy_cache"),
+            ("py-app", ".ruff_cache"),
+            ("flutter-app", ".dart_tool"),
+            ("js-app", ".nyc_output"),
+        ]:
+            proj = next(p for root, p in by_root.items() if root.endswith("/" + proj_name))
+            subs = {a["subtype"]: a["kind"] for a in proj["artifacts"]}
+            self.assertIn(expected_sub, subs, msg=f"{expected_sub} missing in {proj_name}")
+            self.assertEqual(subs[expected_sub], "deletable")
+
+    def test_build_subtype_for_elixir_project(self):
+        # v0.7: `_build/` is now detected as deletable subtype when `mix.exs`
+        # marker is present. scan_projects emits it regardless; the agent uses
+        # markers_found to keep the _build -> project_artifacts mapping only
+        # for actual Elixir projects.
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            _mkproj(base, "phoenix-app",
+                    marker_files=["mix.exs"],
+                    subdirs=["_build"])
+            code, out, _ = _scan_dir(base)
+        self.assertEqual(code, 0)
+        p = out["projects"][0]
+        self.assertIn("mix.exs", p["markers_found"])
+        build_arts = [a for a in p["artifacts"] if a["subtype"] == "_build"]
+        self.assertEqual(len(build_arts), 1)
+        self.assertEqual(build_arts[0]["kind"], "deletable")
+
+    def test_coverage_subtype_uses_coverage_kind(self):
+        # v0.7: `coverage/` is a new kind ("coverage", not "deletable" or
+        # "venv") because the agent must gate on package.json / Python marker
+        # at Stage 4. scan_projects surfaces it unconditionally.
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            _mkproj(base, "js-tested",
+                    marker_files=["package.json"],
+                    subdirs=["coverage"])
+            # Bare git repo with no language marker — agent will downgrade
+            # to orphan L4, but scan_projects still emits the artifact so the
+            # agent has visibility.
+            _mkproj(base, "bare-repo",
+                    marker_files=[],
+                    subdirs=["coverage"])
+            code, out, _ = _scan_dir(base)
+        self.assertEqual(code, 0)
+        by_root = {p["root"]: p for p in out["projects"]}
+        for root, proj in by_root.items():
+            cov = [a for a in proj["artifacts"] if a["subtype"] == "coverage"]
+            self.assertEqual(len(cov), 1, msg=f"coverage missing in {root}")
+            self.assertEqual(cov[0]["kind"], "coverage")
+
+    def test_mix_exs_in_project_markers(self):
+        # Regression: `mix.exs` must be in PROJECT_MARKERS so Elixir projects
+        # with no other marker still surface markers_found=["mix.exs"].
+        self.assertIn("mix.exs", scan_projects.PROJECT_MARKERS)
+
     def test_skips_directory_without_git(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)
