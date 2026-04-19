@@ -44,6 +44,19 @@ This document defines **where the agent may look** (whitelist) and **where the a
 
 Only touch **caches** subtrees. Never touch profile databases, cookies, history files, chat attachments that live outside a `Cache*` subtree, or the app's `Application Support/*.db` stores.
 
+#### Tier C subset — Non-sandboxed editor caches (probe by existence, trash only)
+
+VSCode and its forks (Cursor, Windsurf) plus Zed are **not sandboxed**, so their caches live under `~/Library/Application Support/<editor>/` rather than `~/Library/Caches/`. The generic Tier C sweep does not catch them. Surface each app root if it exists and descend **only** into the precise whitelist subdirs below — these are pure caches that the editor regenerates on next launch. **Never** descend into anything else; the User-critical blacklist guards the dangerous siblings (`User/workspaceStorage`, `Backups`, `History` — see below).
+
+| App root (probe by existence) | Cleanable subdirs (positive whitelist, never glob) | Default category |
+| --- | --- | --- |
+| `~/Library/Application Support/Code` | `Cache`, `CachedData`, `CachedExtensionVSIXs`, `Crashpad`, `GPUCache`, `Code Cache`, `logs` | `app_cache` |
+| `~/Library/Application Support/Cursor` | (same six subdirs as Code) | `app_cache` |
+| `~/Library/Application Support/Windsurf` | (same six subdirs as Code) | `app_cache` |
+| `~/Library/Application Support/dev.zed.Zed` | `db/0/blob_store`, `logs` | `app_cache` |
+
+`category-rules.md` §4 routes these as L2 `trash` (Tier C semantics: re-populate on next launch but give a recovery window for an active editing session).
+
 ### Tier D · User download & archive staging
 
 | Path | Notes | Default category |
@@ -122,6 +135,8 @@ These directories are off-limits regardless of size or age. If a scan result som
 - `~/Dropbox`, `~/Google Drive`, `~/OneDrive` and any sync-client local copy
 - `~/Pictures/Photos Library.photoslibrary`
 - `~/Music/Music` (Apple Music library)
+- VSCode-family editor user data: `~/Library/Application Support/{Code,Cursor,Windsurf}/User`, `.../Backups`, `.../History` (workspaceStorage holds unsaved edits and git-stash equivalents; Backups holds unsaved files; History is the local edit history).
+- Zed editor state: `~/Library/Application Support/dev.zed.Zed/db` **except** `db/0/blob_store` (the blob_store is regenerable cache; the rest of `db/` is project state).
 - Any path under a user project workspace (root has `.git`) **except** the conventional artifact subdirectories listed in §"Project artifacts allowlist" below. Project source files, configs, and `.git` itself remain off-limits.
 - Virtual machine images: `*.vmdk`, `*.qcow2`, `*.vdi`, `~/Parallels`, `~/VirtualBox VMs`, `~/Library/Containers/com.docker.docker/Data/vms` (surface size only, record as L3 defer)
 - Database data directories: `~/Library/Application Support/Postgres*`, `~/Library/Application Support/MongoDB`, `/usr/local/var/mysql`, `/opt/homebrew/var/postgres*`

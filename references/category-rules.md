@@ -93,13 +93,15 @@ User-facing application caches (non-developer).
 - `~/Library/Containers/*/Data/Library/Caches/**`
 - `~/Library/Group Containers/*/Library/Caches/**` (one level deep; shared Apple-app caches)
 - `~/Library/Containers/*/Data/Library/Application Support/Cache*` (case-insensitive; some Electron apps stash cache outside the `Caches` tree)
+- `~/Library/Application Support/{Code,Cursor,Windsurf}/{Cache,CachedData,CachedExtensionVSIXs,Crashpad,GPUCache,Code Cache,logs}/**` (VSCode-family non-sandboxed editor caches — see cleanup-scope.md Tier C subset)
+- `~/Library/Application Support/dev.zed.Zed/{db/0/blob_store,logs}/**` (Zed editor cache; `db/` itself is project state and is in the blacklist)
 - `~/.Trash/**` (yes — trash itself is app-cache-like; `delete` empties it)
 
 Defaults: **L1**, `delete`, `mode_hit_tags=["quick","deep"]`.
 
 Exceptions:
 - If the cache subdir / container identifier contains `Mail`, `Keychain`, `iCloud`, or `CloudKit` → **L4** `skip` (surface only; never touch per `cleanup-scope.md` blacklist).
-- If the path matches a **Tier C** entry in `cleanup-scope.md` (browser or messaging-app cache — Safari/Chrome/Firefox/Brave/Edge/Arc, WeChat/Discord/Slack/Teams/Telegram/Lark/Signal), override to **L2** `trash`. Rationale: these caches re-populate on the next app launch, but a trash recovery window avoids nuking an active chat session or a signed-in browser profile.
+- If the path matches a **Tier C** entry in `cleanup-scope.md` (browser or messaging-app cache — Safari/Chrome/Firefox/Brave/Edge/Arc, WeChat/Discord/Slack/Teams/Telegram/Lark/Signal; **or the non-sandboxed editor subset — Code/Cursor/Windsurf/Zed**), override to **L2** `trash`. Rationale: these caches re-populate on the next app launch, but a trash recovery window avoids nuking an active chat session, a signed-in browser profile, or an open editor's just-warmed extension cache.
 - `~/Library/Group Containers/*` and in-Container `Application Support/Cache*` sweeps also inherit the L2 trash exception when their identifier matches a Tier C browser/messaging app (the generic sweep pattern is Tier C-adjacent by design).
 
 ---
@@ -247,7 +249,7 @@ Stage 4 produces in-memory items with these fields (matches `cleanup-result.json
 | `dev_cache` | `"Xcode DerivedData"`, `"Xcode Archives"`, `"iOS DeviceSupport"`, `"watchOS DeviceSupport"`, `"tvOS DeviceSupport"`, `"Xcode Playground cache"`, `"Go build cache"`, `"Gradle cache"`, `"Docker build cache"`, `"Docker dangling images"`, `"Docker stopped containers"`, `"JetBrains cache"`, `"Flutter SDK cache"` |
 | `sim_runtime` | `"Xcode Simulator Runtimes"`, `"Xcode Simulator Devices"` |
 | `pkg_cache` | `"Homebrew cache"`, `"Homebrew Cellar cleanup"`, `"npm cache"`, `"pnpm store"`, `"Yarn Berry cache"`, `"Bun cache"`, `"Deno cache"`, `"pip cache"`, `"uv cache"`, `"Cargo cache"`, `"Swift PM cache"`, `"Carthage cache"`, `"Android SDK image"`, `"Node version manager"`, `"Python version manager"`, `"Rust toolchain"` |
-| `app_cache` | `"System caches"`, `"Saved application state"`, `"Trash"`, `"Browser cache"`, `"Messaging cache"` |
+| `app_cache` | `"System caches"`, `"Saved application state"`, `"Trash"`, `"Browser cache"`, `"Messaging cache"`, `"Editor cache"` |
 | `logs` | `"User logs"`, `"Crash reports"`, `"Diagnostic reports"`, `"System logs"` |
 | `downloads` | `"Old installers"`, `"Large archives in Downloads"` |
 | `large_media` | `"iOS backups"`, `"Large files in Movies"` |
