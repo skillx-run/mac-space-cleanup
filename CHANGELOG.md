@@ -4,6 +4,15 @@ All notable changes to mac-space-cleanup. Newest first.
 
 ## Unreleased
 
+## v0.9.4 — 2026-04-19
+
+### Fixed
+- **Docker prune reclaim bytes are no longer over-reported by ~7%.** The shared `_parse_human_bytes` helper added in v0.9.0 was hard-coded to base-1024 (binary). Brew prints reclaim via Ruby's `Utils::Bytes` (binary, traditional `KB/MB/GB` labels) — base-1024 is correct there. Docker prints reclaim via Go's `units.HumanSize` (decimal, lowercase `kB`) — base-1024 over-counts by ~7% at GB scale, ~10% at TB. Bad fit for the project's "honest reclaim accounting" contract. Split into `_BINARY_UNIT_FACTORS` (brew) and `_DECIMAL_UNIT_FACTORS` (docker); `_parse_human_bytes` now takes a factors arg.
+- **brew / docker dispatch failures now surface stderr in `actions.jsonl`.** Previously the handlers caught `CalledProcessError` and only stringified it, giving "Command [...] returned non-zero exit status 1." — useless for diagnosis. Extract a `_format_subprocess_error` helper that pulls `.stderr` when present (CalledProcessError + TimeoutExpired) and falls back gracefully for OSError / FileNotFoundError. First stderr line is truncated to 200 chars so each `actions.jsonl` record stays single-line.
+
+### Tests
+- 93 → **95** (`test_safe_delete.py` adds: docker failure stderr propagation; OSError formatter no-attr branch; existing brew failure test extended to assert stderr surfacing and trailing-line truncation).
+
 ## v0.9.3 — 2026-04-19
 
 ### Docs

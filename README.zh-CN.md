@@ -144,7 +144,7 @@ mac-space-cleanup/
 
 ---
 
-## Limitations & non-goals (v0.9.3)
+## Limitations & non-goals (v0.9.4)
 
 - **没有撤销栈。** 恢复路径只有：原生 Trash、运行目录下的 `archive/` tar 包、迁移目标卷。
 - **不跑 cron，不做后台运行。** 每次运行都由用户显式触发。
