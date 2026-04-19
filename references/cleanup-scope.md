@@ -153,7 +153,10 @@ Discovery is via `scripts/scan_projects.py`, never via free-form `find` on `~/Do
 - `target` (Rust / Java / Scala)
 - `build`, `dist`, `out` (generic)
 - `.next`, `.nuxt`, `.svelte-kit`, `.turbo`, `.parcel-cache` (web framework caches)
-- `__pycache__`, `.pytest_cache`, `.tox` (Python tooling caches)
+- `__pycache__`, `.pytest_cache`, `.tox`, `.mypy_cache`, `.ruff_cache` (Python tooling caches)
+- `.dart_tool` (Dart / Flutter)
+- `.nyc_output` (JS / nyc coverage intermediate)
+- `_build` (Elixir / Phoenix; **only when project root has `mix.exs`** — agent must verify via `markers_found`)
 - `Pods` (CocoaPods)
 - `vendor` (Go modules vendored deps; **only when project root has `go.mod`** — agent must verify via `markers_found`)
 
@@ -162,11 +165,16 @@ Discovery is via `scripts/scan_projects.py`, never via free-form `find` on `~/Do
 - `.venv`, `venv`, `env` (Python)
   - **Heads-up for `env`**: this name is too generic; agent must skip if project root has no Python marker (`pyproject.toml` / `requirements.txt` / `setup.py`) in `markers_found`.
 
-Project root identification: presence of a `.git` directory. Other markers are **not** treated as project roots in v0.4 — `.git` covers ~all real project workspaces and avoids double-counting nested submodules. Bare git checkouts without any language marker are still recognised; markers only inform per-subtype decisions (see `category-rules.md` §10 for `vendor` / `env` carve-outs).
+**Coverage reports** (default L2 trash via `category=project_artifacts`, kind=`coverage`):
+
+- `coverage` (pytest-cov / nyc / istanbul / jest output)
+  - **Marker gate**: agent must verify `markers_found` contains `package.json` or any Python marker (`pyproject.toml` / `requirements.txt` / `setup.py`) before treating this as `project_artifacts`. Without a matching marker, classify as `orphan` L4 — the name is too generic to trust unconditionally. See `category-rules.md` §10c.
+
+Project root identification: presence of a `.git` directory. Other markers are **not** treated as project roots in v0.4 — `.git` covers ~all real project workspaces and avoids double-counting nested submodules. Bare git checkouts without any language marker are still recognised; markers only inform per-subtype decisions (see `category-rules.md` §10 for `vendor` / `env` / `_build` / `coverage` carve-outs).
 
 The full set of language markers detected at each project root (mirrored to `markers_found` in the scan output) is:
 
-`go.mod`, `package.json`, `Cargo.toml`, `pyproject.toml`, `requirements.txt`, `setup.py`, `Package.swift`, `Gemfile`, `composer.json`, `pubspec.yaml`.
+`go.mod`, `package.json`, `Cargo.toml`, `pyproject.toml`, `requirements.txt`, `setup.py`, `Package.swift`, `Gemfile`, `composer.json`, `pubspec.yaml`, `mix.exs`.
 
 > **Keep in sync** with `PROJECT_MARKERS` in `scripts/scan_projects.py` — adding a marker requires updating both this list and the script.
 

@@ -196,13 +196,15 @@ Two subtypes (returned by `scan_projects.py` as the `kind` field):
 
 ### 10a. Deletable build / install outputs → **L1 `delete`**
 
-Subtypes: `node_modules`, `target`, `build`, `dist`, `out`, `.next`, `.nuxt`, `.svelte-kit`, `.turbo`, `.parcel-cache`, `__pycache__`, `.pytest_cache`, `.tox`, `Pods`, `vendor` (Go only).
+Subtypes: `node_modules`, `target`, `build`, `dist`, `out`, `.next`, `.nuxt`, `.svelte-kit`, `.turbo`, `.parcel-cache`, `__pycache__`, `.pytest_cache`, `.tox`, `.mypy_cache`, `.ruff_cache`, `.dart_tool`, `.nyc_output`, `_build` (Elixir only), `Pods`, `vendor` (Go only).
 
 Defaults: **L1**, `delete`, `mode_hit_tags=["deep"]` (quick mode skips project artifacts to avoid clearing fresh installs).
 
 Rationale: by convention these are 100% reproducible by re-running the install/build command. Same risk class as `pkg_cache` (homebrew/npm cache), just per-project rather than global.
 
 **Vendor disambiguation**: `scan_projects.py` always returns `vendor/` if it exists, but only `vendor/` in projects with `go.mod` in `markers_found` should be classified as `project_artifacts`. For non-Go `vendor/` (e.g. Composer's vendor in PHP, or Bundler's), classify as `orphan` L4 instead — the agent must check `markers_found` before assigning the rule here.
+
+**`_build` disambiguation**: `_build/` belongs to Elixir / Phoenix — the agent must verify `markers_found` contains `mix.exs` before classifying as `project_artifacts`. Without the marker, classify as `orphan` L4. `scan_projects.py::PROJECT_MARKERS` includes `mix.exs` specifically so this check works; keep the two in sync.
 
 ### 10b. Virtual environments → **L2 `trash`**
 
@@ -213,6 +215,16 @@ Defaults: **L2**, `trash`, `mode_hit_tags=["deep"]`.
 Rationale: virtual environments often contain wheel versions specific to one moment in time (PyPI may have yanked, dependency may pin to a no-longer-buildable version). Trash gives a recovery window. The user can `python -m venv .venv && pip install -r requirements.txt` to reconstruct, but it might fail.
 
 **Env disambiguation**: `env/` is too generic a name. The agent must check `markers_found` for at least one Python marker (`pyproject.toml`, `requirements.txt`, `setup.py`) before treating `env/` as a `project_artifacts` venv. Otherwise classify as `orphan` L4.
+
+### 10c. Coverage reports → **L2 `trash`**
+
+Subtype: `coverage` (returned by `scan_projects.py` with `kind="coverage"`).
+
+Defaults: **L2**, `trash`, `mode_hit_tags=["deep"]`.
+
+Rationale: pytest-cov, nyc, istanbul, jest and similar test-coverage tools all default to writing their HTML / XML reports to a top-level `coverage/` directory. Reports are fully regenerable by re-running the test suite, but the name `coverage/` is generic enough that a session-level trash window is the right safety net — it protects the minority of users who manually curate a directory named `coverage` for unrelated purposes.
+
+**Marker gate**: the agent must verify `markers_found` contains `package.json` or any Python marker (`pyproject.toml`, `requirements.txt`, `setup.py`) before treating `coverage/` as `project_artifacts`. Without a matching marker, classify as `orphan` L4. This is analogous to the `env/` and `_build/` carve-outs above — `scan_projects.py` surfaces the directory unconditionally, classification-time disambiguation happens here.
 
 ### Source label
 
@@ -268,7 +280,7 @@ Stage 4 produces in-memory items with these fields (matches `cleanup-result.json
 | `downloads` | `"Old installers"`, `"Large archives in Downloads"` |
 | `large_media` | `"iOS backups"`, `"Large files in Movies"` |
 | `system_snapshots` | `"Time Machine local snapshots"` |
-| `project_artifacts` | `"Project node_modules"`, `"Project target"`, `"Project build"`, `"Project .venv"`, … (subtype only, never path or project basename) |
+| `project_artifacts` | `"Project node_modules"`, `"Project target"`, `"Project build"`, `"Project .venv"`, `"Project coverage"`, … (subtype only, never path or project basename) |
 | `orphan` | `"Unclassified large item"` |
 
 Never put a path or basename into `source_label`.
