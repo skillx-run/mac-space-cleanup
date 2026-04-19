@@ -77,7 +77,15 @@ Right-to-left scripts (`ar`, `he`, `fa`, `ur`): Stage 6 step 3.5 sets `<html dir
 
 **Dry-run detection.** Decide `DRY_RUN` from the triggering message and persist it next to `locale.txt` — Stage 5 and multiple Stage 6 branches read this flag, so it must be a single source of truth, not re-derived from conversation history each time:
 
-- `DRY_RUN=true` if the triggering message contains any of: `--dry-run`, `dry run`, `dry-run`, `预演`, `模拟`, `演练` (case-insensitive).
+- `DRY_RUN=true` if the triggering message contains any of the following (case-insensitive). The list covers the 8 locales this skill produces reports for — non-English users can trigger a preview in their native language without forcing the ASCII `--dry-run` literal:
+  - English: `--dry-run`, `dry run`, `dry-run`
+  - Simplified Chinese: `预演`, `模拟`, `演练`
+  - Traditional Chinese: `預演`, `模擬`, `演練`
+  - Japanese: `ドライラン`, `予行演習`
+  - Spanish: `simulacro`, `prueba en seco`
+  - French: `essai à blanc`, `à blanc`
+  - Arabic: `تجربة جافة`
+  - German: `Probelauf`, `Trockenlauf`
 - Otherwise `DRY_RUN=false`.
 
 ```bash
