@@ -676,6 +676,13 @@ class TestDispatch(unittest.TestCase):
         silently stops reclaiming anything."""
         is_blocked = safe_delete._is_blocked
         for p in (
+            # Root tool-cache dirs themselves (Stage 3 may target these
+            # directly when whole-dir clearing is the action). A regex
+            # that captures the subdir depth but not the root would pass
+            # the existing assertions and silently skip the root.
+            "/Users/me/.gem",
+            "/Users/me/.composer",
+            "/Users/me/.pub-cache",
             # RubyGems / Bundler
             "/Users/me/.gem/ruby/3.2.0/cache/foo-1.0.0.gem",
             "/Users/me/.gem/specs/rubygems.org/specs.4.8",
