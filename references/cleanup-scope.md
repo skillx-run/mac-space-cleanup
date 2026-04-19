@@ -13,6 +13,7 @@ This document defines **where the agent may look** (whitelist) and **where the a
 | `~/Library/Logs` | User-facing logs. | `logs` |
 | `/private/var/log` | System logs (read-only probe; do not clean unless L1 rule matches). | `logs` |
 | `~/Library/Application Support/CrashReporter` | Crash dumps. | `logs` |
+| `~/Library/DiagnosticReports` | Per-user diagnostic reports (.ips / .crash / .diag). | `logs` |
 | `~/Library/Saved Application State` | Per-app saved UI state (often large, safe to trash). | `app_cache` |
 
 ### Tier B · Time Machine local snapshots
@@ -69,11 +70,14 @@ Skip the row silently if the probe fails.
 | `xcrun simctl` | `~/Library/Developer/Xcode/iOS DeviceSupport` (entries older than matching Xcode-supported OS — surface all, let user pick) | `dev_cache` |
 | `xcrun simctl` | `~/Library/Developer/Xcode/watchOS DeviceSupport` | `dev_cache` |
 | `xcrun simctl` | `~/Library/Developer/Xcode/tvOS DeviceSupport` | `dev_cache` |
+| `xcrun simctl` | `~/Library/Developer/XCPGDevices`, `~/Library/Developer/XCPGPlaygrounds` (Playground devices and snapshots — used once and rarely revisited) | `dev_cache` |
 | `docker` | `docker system df` output (images / containers / volumes / build cache) | `dev_cache` |
 | `brew` | `brew --cache` directory | `pkg_cache` |
 | `npm` | `npm config get cache` directory | `pkg_cache` |
 | `pnpm` | `pnpm store path` directory | `pkg_cache` |
-| `yarn` | `~/Library/Caches/Yarn` | `pkg_cache` |
+| `yarn` | `~/Library/Caches/Yarn`, `~/.yarn/berry/cache` (Yarn Berry PnP global cache, only present when `enableGlobalCache: true`) | `pkg_cache` |
+| `bun` (CLI probe) | `~/.bun/install/cache`, `~/Library/Caches/com.oven.bun` | `pkg_cache` |
+| `deno` (CLI probe) | `~/Library/Caches/deno` (i.e. `$DENO_DIR` default) | `pkg_cache` |
 | `pip` | `pip cache dir` output | `pkg_cache` |
 | `uv` | `uv cache dir` output | `pkg_cache` |
 | `cargo` | `~/.cargo/registry/cache`, `~/.cargo/registry/src` | `pkg_cache` |
@@ -81,6 +85,8 @@ Skip the row silently if the probe fails.
 | `gradle` | `~/.gradle/caches` | `pkg_cache` |
 | `mvn` / `~/.m2` present | `~/.m2/repository` (surface size only, do not auto-clean) | `pkg_cache` |
 | CocoaPods (`~/.cocoapods` present, dir probe) | `~/.cocoapods/repos`, `~/Library/Caches/CocoaPods` | `pkg_cache` |
+| Swift Package Manager (`~/Library/Caches/org.swift.swiftpm` present, dir probe) | `~/Library/Caches/org.swift.swiftpm`, `~/Library/org.swift.swiftpm/repositories` | `pkg_cache` |
+| Carthage (`~/Library/Caches/org.carthage.CarthageKit` present, dir probe) | `~/Library/Caches/org.carthage.CarthageKit` | `pkg_cache` |
 | Android SDK (`~/Library/Android/sdk` present, dir probe) | `~/Library/Android/sdk/system-images` (surface **entries older than 180 days**; current API-level images are large but in active use), `~/Library/Android/sdk/.temp`, `~/Library/Android/sdk/emulator/skins` | `pkg_cache` |
 | `flutter` (CLI probe) | `~/.flutter`, `~/Library/Caches/Flutter`, `~/Library/Caches/com.google.FlutterSdk` | `pkg_cache` |
 | `nvm` (`~/.nvm` present, dir probe — NVM is a shell function, no CLI on PATH) | `~/.nvm/versions/node/*` **except** the version matching `~/.nvm/alias/default` and any version used in the last 90 days (mtime on the version dir). Surface as individual items, one per non-default/stale version. | `pkg_cache` |

@@ -20,6 +20,7 @@ Developer build caches. Fully regenerable by rebuilding.
 - `~/Library/Caches/JetBrains/**` (per-IDE: IntelliJIdea, PyCharm, WebStorm, GoLand, RubyMine, CLion, DataGrip, AndroidStudio, RustRover — each subdir is one item)
 - `~/Library/Logs/JetBrains/**`
 - `~/.flutter/**`, `~/Library/Caches/Flutter/**`, `~/Library/Caches/com.google.FlutterSdk/**`
+- `~/Library/Developer/XCPGDevices/**`, `~/Library/Developer/XCPGPlaygrounds/**` (Xcode Playground per-device snapshots)
 - Docker build cache reported by `docker builder du` (semantic path `docker:build-cache`)
 - Docker dangling images from `docker images -f dangling=true` (semantic path `docker:dangling-images`)
 
@@ -53,11 +54,16 @@ Language / package manager caches.
 - `$(npm config get cache)/**`
 - `$(pnpm store path)` contents
 - `~/Library/Caches/Yarn/**`
+- `~/.yarn/berry/cache/**` (Yarn Berry global PnP cache, only present when `enableGlobalCache: true`)
+- `~/.bun/install/cache/**`, `~/Library/Caches/com.oven.bun/**`
+- `~/Library/Caches/deno/**`
 - `$(pip cache dir)/**`
 - `$(uv cache dir)/**`
 - `~/.cargo/registry/cache/**`, `~/.cargo/registry/src/**`
 - `~/.cocoapods/repos/**` older than 180 days
 - `~/Library/Caches/CocoaPods/**`
+- `~/Library/Caches/org.swift.swiftpm/**`, `~/Library/org.swift.swiftpm/repositories/**` (SwiftPM clones every transitive dep as a git working copy)
+- `~/Library/Caches/org.carthage.CarthageKit/**`
 - `~/Library/Android/sdk/system-images/*` where the entry's mtime is older than 180 days (each API-level/arch subdir is one item; active development keeps the dir fresh)
 - `~/Library/Android/sdk/.temp/**`, `~/Library/Android/sdk/emulator/skins/**`
 - `~/.nvm/versions/node/*` excluding the `~/.nvm/alias/default` target and any version dir touched in the last 90 days (one item per kept-out version)
@@ -101,6 +107,7 @@ Logs and crash reports.
 
 - `~/Library/Logs/**`
 - `~/Library/Application Support/CrashReporter/**`
+- `~/Library/DiagnosticReports/**` (per-user crash / hang / spin reports; `.ips`, `.crash`, `.diag`)
 - `/private/var/log/**` older than 30 days (L4 if file is currently open by a system process — check `lsof`; otherwise L1)
 
 Defaults: **L1**, `delete`, `mode_hit_tags=["quick","deep"]`.
@@ -234,11 +241,11 @@ Stage 4 produces in-memory items with these fields (matches `cleanup-result.json
 
 | Category | Typical source_label values |
 | --- | --- |
-| `dev_cache` | `"Xcode DerivedData"`, `"Xcode Archives"`, `"iOS DeviceSupport"`, `"watchOS DeviceSupport"`, `"tvOS DeviceSupport"`, `"Go build cache"`, `"Gradle cache"`, `"Docker build cache"`, `"JetBrains cache"`, `"Flutter SDK cache"` |
+| `dev_cache` | `"Xcode DerivedData"`, `"Xcode Archives"`, `"iOS DeviceSupport"`, `"watchOS DeviceSupport"`, `"tvOS DeviceSupport"`, `"Xcode Playground cache"`, `"Go build cache"`, `"Gradle cache"`, `"Docker build cache"`, `"JetBrains cache"`, `"Flutter SDK cache"` |
 | `sim_runtime` | `"Xcode Simulator Runtimes"`, `"Xcode Simulator Devices"` |
-| `pkg_cache` | `"Homebrew cache"`, `"npm cache"`, `"pnpm store"`, `"pip cache"`, `"uv cache"`, `"Cargo cache"`, `"Android SDK image"`, `"Node version manager"`, `"Python version manager"`, `"Rust toolchain"` |
+| `pkg_cache` | `"Homebrew cache"`, `"npm cache"`, `"pnpm store"`, `"Yarn Berry cache"`, `"Bun cache"`, `"Deno cache"`, `"pip cache"`, `"uv cache"`, `"Cargo cache"`, `"Swift PM cache"`, `"Carthage cache"`, `"Android SDK image"`, `"Node version manager"`, `"Python version manager"`, `"Rust toolchain"` |
 | `app_cache` | `"System caches"`, `"Saved application state"`, `"Trash"`, `"Browser cache"`, `"Messaging cache"` |
-| `logs` | `"User logs"`, `"Crash reports"`, `"System logs"` |
+| `logs` | `"User logs"`, `"Crash reports"`, `"Diagnostic reports"`, `"System logs"` |
 | `downloads` | `"Old installers"`, `"Large archives in Downloads"` |
 | `large_media` | `"iOS backups"`, `"Large files in Movies"` |
 | `system_snapshots` | `"Time Machine local snapshots"` |
