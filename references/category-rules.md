@@ -151,7 +151,7 @@ Large user media or backups that should be considered but never auto-cleaned.
 
 - `~/Library/Application Support/MobileSync/Backup/*` older than 180 days (iOS device backups)
 - Any file > 2GB in `~/Movies`, `~/Music`, `~/Pictures` **outside** the Photos / Music libraries — surface only
-- Generic `du`-detected dirs > 10GB that don't match other rules, under `~/`
+- Generic `du`-detected dirs > 2GB that don't match other rules, under `~/`. **Probe via `du -d 2 ~/`** (depth-limited so deep filesystem trees don't blow past the 30s per-path budget); post-filter the output to entries ≥ 2 GiB and **cap the surfaced list at the top 30 by size** so the deferred section stays scannable.
 
 Defaults: **L3**, `defer`, `mode_hit_tags=["deep"]`.
 
