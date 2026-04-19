@@ -19,6 +19,12 @@ Run this skill without installing anything:
 skillx run --skip-scan --auto https://github.com/skillx-run/mac-space-cleanup "Clean up my Mac."
 ```
 
+Want to preview first? Add `--dry-run` to the trigger. The skill goes through all seven stages but `safe_delete.py` writes nothing to the filesystem (only the workdir's `actions.jsonl`).
+
+```bash
+skillx run --skip-scan --auto https://github.com/skillx-run/mac-space-cleanup "Clean up my Mac with --dry-run, preview only."
+```
+
 Powered by [skillx](https://skillx.run) — fetch, scan, inject, and clean up any agent skill in one command.
 <!-- skillx:end:setup-skillx -->
 
@@ -74,7 +80,7 @@ In your agent conversation, say something like:
 
 To preview without touching the filesystem, add `--dry-run` to your message:
 
-> "深度清理一下我的 Mac，但请用 --dry-run 模式不真的删任何文件"
+> "Clean up my Mac with --dry-run, preview only."
 
 The report will visibly say `DRY-RUN — no files touched` at the top (localized into whatever language you triggered in) and prefix every number with the target-language equivalent of `would be`.
 

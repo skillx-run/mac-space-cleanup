@@ -19,6 +19,12 @@ Führe diesen Skill ohne Installation aus:
 skillx run --skip-scan --auto https://github.com/skillx-run/mac-space-cleanup "Räum auf meinem Mac auf."
 ```
 
+Erst eine Vorschau? Füge `Probelauf` zur Nachricht hinzu. Das Skill durchläuft alle sieben Stufen, aber `safe_delete.py` schreibt nichts ins Dateisystem (nur das `actions.jsonl` im workdir).
+
+```bash
+skillx run --skip-scan --auto https://github.com/skillx-run/mac-space-cleanup "Räum auf meinem Mac auf, aber als Probelauf, ohne wirklich etwas zu löschen."
+```
+
 Angetrieben von [skillx](https://skillx.run) — ein Befehl, der jeden Agent-Skill holt, scannt, injiziert und aufräumt.
 <!-- skillx:end:setup-skillx -->
 
@@ -72,9 +78,9 @@ Sag in deiner Agent-Konversation etwas wie:
 | „tiefe Bereinigung", „analysiere den Speicherplatz", „finde die großen Brocken" | Modus `deep` (vollständiges Audit, fragt pro Element bei riskanten Dingen, ~2–5 min) |
 | „räume meinen Mac auf", „mein Mac ist voll" (mehrdeutig) | Der Skill fragt nach, welchen Modus du willst, mit Zeitschätzungen |
 
-Für eine Vorschau ohne Dateisystem-Eingriffe hängst du `--dry-run` an deine Nachricht an:
+Für eine Vorschau ohne Dateisystem-Eingriffe hängst du das Schlüsselwort `Probelauf` an deine Nachricht an:
 
-> „mach eine tiefe Bereinigung meines Macs, aber im --dry-run-Modus, ohne etwas wirklich zu löschen"
+> "Räum auf meinem Mac auf, aber als Probelauf, ohne wirklich etwas zu löschen."
 
 Der Report zeigt oben sichtbar `DRY-RUN — no files touched` (in die Auslösesprache übersetzt) und stellt jeder Zahl das zielsprachliche Äquivalent von „würden freigegeben" voran.
 

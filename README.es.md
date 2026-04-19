@@ -19,6 +19,12 @@ Ejecuta este skill sin instalar nada:
 skillx run --skip-scan --auto https://github.com/skillx-run/mac-space-cleanup "Libera espacio en mi Mac."
 ```
 
+¿Quieres previsualizar primero? Añade `simulacro` al mensaje. El skill recorre las siete etapas pero `safe_delete.py` no escribe nada en el sistema de archivos (solo el `actions.jsonl` del workdir).
+
+```bash
+skillx run --skip-scan --auto https://github.com/skillx-run/mac-space-cleanup "Libera espacio en mi Mac, pero en modo simulacro, sin borrar nada de verdad."
+```
+
 Con tecnología de [skillx](https://skillx.run) — descarga, escanea, inyecta y limpia cualquier agent skill con un solo comando.
 <!-- skillx:end:setup-skillx -->
 
@@ -72,9 +78,9 @@ En tu conversación con el agente, di algo como:
 | «limpieza profunda», «analiza el espacio», «busca los pesos pesados» | modo `deep` (auditoría completa, pregunta ítem por ítem lo arriesgado, ~2–5 min) |
 | «limpia mi Mac», «mi Mac está lleno» (ambiguo) | El skill te pregunta cuál eliges, con estimaciones de tiempo |
 
-Para previsualizar sin tocar el sistema de archivos, añade `--dry-run` a tu mensaje:
+Para previsualizar sin tocar el sistema de archivos, añade la palabra clave `simulacro` a tu mensaje:
 
-> «haz una limpieza profunda de mi Mac pero con el modo --dry-run, sin borrar nada de verdad»
+> «Libera espacio en mi Mac, pero en modo simulacro, sin borrar nada de verdad.»
 
 El informe indicará visiblemente `DRY-RUN — no files touched` en la parte superior (localizado al idioma con el que lo activaste) y antepondrá a cada número el equivalente en tu idioma de «se liberarían».
 
