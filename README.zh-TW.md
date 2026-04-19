@@ -8,6 +8,22 @@
 
 ---
 
+<!-- skillx:begin:setup-skillx -->
+## 用 skillx 一鍵試用
+
+[![Run with skillx](https://img.shields.io/badge/Run%20with-skillx-F97316)](https://skillx.run)
+
+無需安裝，直接執行這個 skill：
+
+```bash
+skillx run https://github.com/skillx-run/mac-space-cleanup "清理一下我的 Mac。"
+```
+
+由 [skillx](https://skillx.run) 驅動 —— 一條指令完成拉取、掃描、注入與清理任何 agent skill。
+<!-- skillx:end:setup-skillx -->
+
+---
+
 ## Demo
 
 報告會根據你觸發 skill 時所使用的語言自動**在地化**——每次執行單一語系，無執行時切換。用英文觸發即輸出英文報告；用中文觸發即輸出中文報告；用日文、西班牙文、法文等觸發，就是那種語言。下圖為首屏印象（左英、右中，來自兩次獨立執行），下方附整頁截圖連結。

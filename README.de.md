@@ -8,6 +8,22 @@ Ein **skill**, der den Speicherplatz deines Macs bereinigt — umsichtig, ehrlic
 
 ---
 
+<!-- skillx:begin:setup-skillx -->
+## Mit skillx ausprobieren
+
+[![Run with skillx](https://img.shields.io/badge/Run%20with-skillx-F97316)](https://skillx.run)
+
+Führe diesen Skill ohne Installation aus:
+
+```bash
+skillx run https://github.com/skillx-run/mac-space-cleanup "Räum auf meinem Mac auf."
+```
+
+Angetrieben von [skillx](https://skillx.run) — ein Befehl, der jeden Agent-Skill holt, scannt, injiziert und aufräumt.
+<!-- skillx:end:setup-skillx -->
+
+---
+
 ## Demo
 
 Der Report wird in die Sprache **lokalisiert**, mit der du den Skill ausgelöst hast — eine Sprache pro Lauf, kein Umschalter zur Laufzeit. Englisch ausgelöst → englischer Report; Chinesisch → chinesischer Report; Japanisch, Spanisch, Französisch usw. → in dieser Sprache. Unten: erster Eindruck (EN links, ZH rechts, beide aus getrennten Läufen), darunter Links zu den Ganzseiten-Aufnahmen. Aktuell stellen wir nur englische und chinesische Screenshots als Beispiel bereit; der Skill selbst erzeugt den vollständigen Report in **der Sprache dieser Seite** (Deutsch), wenn du ihn so auslöst.

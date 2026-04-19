@@ -8,6 +8,22 @@ A **skill** that cleans up your Mac's disk space — cautious, honest, multi-sta
 
 ---
 
+<!-- skillx:begin:setup-skillx -->
+## Try it with skillx
+
+[![Run with skillx](https://img.shields.io/badge/Run%20with-skillx-F97316)](https://skillx.run)
+
+Run this skill without installing anything:
+
+```bash
+skillx run https://github.com/skillx-run/mac-space-cleanup "Clean up my Mac."
+```
+
+Powered by [skillx](https://skillx.run) — fetch, scan, inject, and clean up any agent skill in one command.
+<!-- skillx:end:setup-skillx -->
+
+---
+
 ## Demo
 
 The report is **localized** to whichever language you triggered the skill with — one locale per run, no runtime toggle. Trigger in English → English report; in Chinese → Chinese report; in Japanese, Spanish, French, etc. → that language. Below: first-screen impression (EN left, ZH right, both from separate runs), followed by links to the full-page captures.
