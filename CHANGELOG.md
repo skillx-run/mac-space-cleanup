@@ -4,6 +4,18 @@ All notable changes to mac-space-cleanup. Newest first.
 
 ## Unreleased
 
+## v0.9.2 — 2026-04-19
+
+### Added
+- **§6a clear-cut installers gains four cross-platform extensions** in `category-rules.md`: `.appimage` (Linux), `.deb` (Debian), `.rpm` (RPM), `.msi` (Windows). Same 30-day threshold + L1 delete as the existing macOS-native `.dmg` / `.pkg` / `.xip` / `.iso` — these are unusable on macOS and almost always one-off downloads the user forgot about.
+- **New §6c "Pulled-out applications in Downloads"** surfaces `~/Downloads/*.app` bundles older than 90 days with size > 100MB as **L3 defer** (deep mode only). The agent can't reliably distinguish a freshly extracted DMG awaiting drag-to-Applications from a forgotten extraction or a portable app run in place, so it surfaces in deferred and the user picks. Quick mode skips entirely so a fresh extraction never appears.
+
+### Changed
+- **`cleanup-scope.md` Tier D `~/Downloads` row** rewritten to enumerate the v0.9.2 extension set and the new `.app` rule for parity with `category-rules.md`.
+
+### Tests
+- 93 (no change). The new rules are pure pattern additions; no new dispatch path or behavior change.
+
 ## v0.9.1 — 2026-04-19
 
 ### Added
