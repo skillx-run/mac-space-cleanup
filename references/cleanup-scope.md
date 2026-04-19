@@ -61,7 +61,7 @@ VSCode and its forks (Cursor, Windsurf) plus Zed are **not sandboxed**, so their
 
 | Path | Notes | Default category |
 | --- | --- | --- |
-| `~/Downloads` | Scan for large `.dmg / .pkg / .xip / .zip / .tar.gz / .iso` older than 30 days. | `downloads` |
+| `~/Downloads` | Scan for installers older than 30 days (`.dmg / .pkg / .xip / .iso / .appimage / .deb / .rpm / .msi`), generic archives older than 90 days (`.zip / .tar.gz / .tgz / .tar.bz2 / .7z / .rar`, size > 100MB), and pulled-out `.app` bundles older than 90 days (size > 100MB, deep mode only — surface as L3 defer because the user may still want to install). | `downloads` |
 | `~/Desktop` | Scan **only** for macOS-auto-named screen artefacts older than 30 days: `Screenshot *.png`, `Screen Shot *.png`, `Screen Recording *.mov`. Do NOT glob for other files — users curate the Desktop. | `downloads` |
 | `~/Library/Application Support/MobileSync/Backup` | iOS device backups. Only surface entries older than 180 days. | `large_media` |
 

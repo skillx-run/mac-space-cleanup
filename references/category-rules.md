@@ -131,6 +131,10 @@ The extension carries unambiguous semantic meaning (Apple/macOS distribution for
 - `~/Downloads/*.pkg` older than 30 days
 - `~/Downloads/*.xip` older than 30 days
 - `~/Downloads/*.iso` older than 30 days
+- `~/Downloads/*.appimage` older than 30 days (Linux app installer accidentally landed on macOS)
+- `~/Downloads/*.deb` older than 30 days (Debian package; not usable on macOS)
+- `~/Downloads/*.rpm` older than 30 days (RPM package; not usable on macOS)
+- `~/Downloads/*.msi` older than 30 days (Windows installer; not usable on macOS)
 
 Defaults: **L1**, `delete`, `mode_hit_tags=["quick","deep"]`.
 
@@ -145,6 +149,16 @@ The extension does not tell us whether it is a source-code snapshot, a backup, a
 Defaults: **L2**, `trash`, `mode_hit_tags=["quick","deep"]`.
 
 Agent heuristic: if a filename contains `Xcode_`, `Xcode-`, or matches `*_[0-9]+.[0-9]+*.xip` and size > 5GB → add `reason="old Xcode installer"`. (These already match 6a `.xip` rule and so default to L1 delete — heuristic just enriches the reason string.)
+
+### 6c. Pulled-out applications in Downloads → **L3 `defer`**
+
+`*.app` bundles in `~/Downloads` are usually one of: (a) freshly extracted from a `.dmg` and not yet dragged into `/Applications`, (b) extracted long ago and forgotten, (c) a portable app the user runs in place. (a) and (c) must not be touched; (b) is the cleanup target. The agent can't reliably distinguish them, so surface as defer and let the user decide.
+
+- `~/Downloads/*.app` (directory bundle) older than 90 days **and** size > 100MB
+
+Defaults: **L3**, `defer`, `mode_hit_tags=["deep"]`.
+
+Rationale: 90 days + 100MB filter rules out small portable utilities the user may still run; the user picks per-item via the deferred section. `quick` mode skips entirely so a fresh DMG extraction never even appears.
 
 ---
 
