@@ -175,7 +175,7 @@ Large user media or backups that should be considered but never auto-cleaned.
 
 - `~/Library/Application Support/MobileSync/Backup/*` older than 180 days (iOS device backups)
 - Any file > 2GB in `~/Movies`, `~/Music`, `~/Pictures` **outside** the Photos / Music libraries — surface only
-- Generic `du`-detected dirs > 2GB that don't match other rules, under `~/`. **Probe via `du -d 2 ~/`** (depth-limited so deep filesystem trees don't blow past the 30s per-path budget); post-filter the output to entries ≥ 2 GiB and **cap the surfaced list at the top 30 by size** so the deferred section stays scannable.
+- Generic `du`-detected dirs > 2GB that don't match other rules, under `~/`. **Probe via `timeout 45 du -k -d 2 ~`** (executed at the tail of Stage 3.5 per `SKILL.md`; `-k` forces 1 KB block size so the ≥ 2 GiB threshold is comparable; `timeout 45` caps the walk); post-filter to entries ≥ 2 GiB and **cap the surfaced list at the top 30 by size** so the deferred section stays scannable. Agent must normalise paths (expand `~`, `realpath`) before deduplicating against the existing Stage 3 / Stage 3.5 candidate set. `source_label` is the generic `"Unclassified large directory"` — no path fragment, basename, or container identifier enters it.
 
 Defaults: **L3**, `defer`, `mode_hit_tags=["deep"]`.
 
@@ -285,7 +285,7 @@ Stage 4 produces in-memory items with these fields (matches `cleanup-result.json
 | `app_cache` | `"System caches"`, `"Saved application state"`, `"Trash"`, `"Browser cache"`, `"Messaging cache"`, `"Editor cache"` |
 | `logs` | `"User logs"`, `"Crash reports"`, `"Diagnostic reports"`, `"System logs"` |
 | `downloads` | `"Old installers"`, `"Large archives in Downloads"` |
-| `large_media` | `"iOS backups"`, `"Large files in Movies"` |
+| `large_media` | `"iOS backups"`, `"Large files in Movies"`, `"Unclassified large directory"` |
 | `system_snapshots` | `"Time Machine local snapshots"` |
 | `project_artifacts` | `"Project node_modules"`, `"Project target"`, `"Project build"`, `"Project .venv"`, `"Project coverage"`, … (subtype only, never path or project basename) |
 | `orphan` | `"Unclassified large item"` |

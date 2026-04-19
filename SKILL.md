@@ -201,9 +201,30 @@ python3 scripts/collect_sizes.py < "$WORKDIR/paths-projects.json" \
 
 Two separate paths/sizes JSON files (rather than appending to the Stage 3 `paths.json` and re-running) keeps the audit trail clean: `sizes.json` stays a snapshot of system-wide candidates, `sizes-projects.json` is the project-artifacts snapshot. Combine them in memory when building the candidate list for Stage 4.
 
-**Disambiguation rules at Stage 4** are authoritative in `references/category-rules.md` §10 — read it for the per-subtype L1/L2 grading and the `vendor` (Go-only) / `env` (Python-marker-only) carve-outs that depend on `markers_found`. `source_label` is always `"Project " + subtype` (e.g. `"Project node_modules"`); never include the project root path or basename here — those appear only in the live confirm dialog at Stage 5 per `safety-policy.md` confirm-stage exception.
+**Disambiguation rules at Stage 4** are authoritative in `references/category-rules.md` §10 — read it for the per-subtype L1/L2 grading and the `vendor` (Go-only) / `env` (Python-marker-only) / `_build` (Elixir-only) / `coverage` (JS-or-Python-marker-only) carve-outs that depend on `markers_found`. `source_label` is always `"Project " + subtype` (e.g. `"Project node_modules"`, `"Project coverage"`); never include the project root path or basename here — those appear only in the live confirm dialog at Stage 5 per `safety-policy.md` confirm-stage exception.
 
 If `scan_projects.py` exit is 1 (partial errors), check `stats.errors` and surface a one-line summary to the user (e.g. "Skipped 3 directories due to permission denials"). Continue with the projects that were scanned successfully.
+
+**Large-directory surfacing (deep mode, tail of Stage 3.5).** `category-rules.md` §7 `large_media` includes a `du -d 2 ~` probe for any orphan directory ≥ 2 GiB that other rules miss. Run it after `scan_projects.py` so items that `scan_projects` already grouped as `project_artifacts` aren't double-surfaced:
+
+```bash
+# macOS BSD `du` defaults to 512-byte blocks; `-k` forces 1 KB so the
+# awk threshold reads as "≥ 2 GiB in KB". `timeout 45` caps the scan
+# so a multi-TB $HOME doesn't block the pipeline.
+timeout 45 du -k -d 2 ~ 2>/dev/null \
+  | awk '$1 >= 2*1024*1024 { print }' \
+  | sort -rn \
+  | head -30 \
+  > "$WORKDIR/large-dirs.txt"
+```
+
+Then fold the output into the candidate list:
+
+1. Normalise every path before comparison — expand `~` to `$HOME` and take `realpath` on both the large-dirs output and your existing candidate set (Stage 3 + Stage 3.5). Without normalisation `~/Library/Caches` and `/Users/alice/Library/Caches` compare unequal and the entry gets surfaced twice.
+2. Drop any path that is already in the candidate set, or that matches a blacklist entry from `cleanup-scope.md` (the `safe_delete.py::_BLOCKED_PATTERNS` backstop catches what the agent misses, but filter here so the user doesn't see noise).
+3. Remaining entries become `category=large_media`, `risk_level=L3`, `recommended_action=defer`, `source_label="Unclassified large directory"`. Surface-only — they appear in the report's Observations / deferred section for the user's manual review; Stage 5 never auto-acts on them.
+
+Redaction note: `Unclassified large directory` is a deliberately generic `source_label` — no path fragment, basename, or container name enters it. Because L3 `defer` contributes zero `freed_now_bytes`, this label cannot surface in `share.txt`'s top-3 either; Stage 6 step 6's existing "skip orphan, take next concrete label" guard covers it naturally.
 
 ### Stage 4 · Classify & grade
 
