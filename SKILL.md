@@ -112,7 +112,9 @@ ls -d ~/.cocoapods ~/.gradle ~/.m2 ~/.nvm \
       ~/Library/Caches/pypoetry \
       ~/.ccache ~/Library/Caches/ccache \
       ~/Library/Caches/Mozilla.sccache ~/.cache/sccache \
-      ~/.pub-cache 2>/dev/null
+      ~/.pub-cache \
+      ~/.cache/huggingface ~/.cache/torch \
+      ~/.ollama ~/.cache/lm-studio ~/.lmstudio 2>/dev/null
 ```
 
 The `which -a` line gates Tier E rows that have a CLI probe; the `ls -d` line gates rows with a directory probe (nvm has no CLI on PATH; Android SDK and JetBrains are detected by their marker dirs). Keep these two lines in sync with `references/cleanup-scope.md` Tier E — when a row is added there, extend the matching probe here.
@@ -222,9 +224,28 @@ Then fold the output into the candidate list:
 
 1. Normalise every path before comparison — expand `~` to `$HOME` and take `realpath` on both the large-dirs output and your existing candidate set (Stage 3 + Stage 3.5). Without normalisation `~/Library/Caches` and `/Users/alice/Library/Caches` compare unequal and the entry gets surfaced twice.
 2. Drop any path that is already in the candidate set, or that matches a blacklist entry from `cleanup-scope.md` (the `safe_delete.py::_BLOCKED_PATTERNS` backstop catches what the agent misses, but filter here so the user doesn't see noise).
-3. Remaining entries become `category=large_media`, `risk_level=L3`, `recommended_action=defer`, `source_label="Unclassified large directory"`. Surface-only — they appear in the report's Observations / deferred section for the user's manual review; Stage 5 never auto-acts on them.
+3. Remaining entries become `category=large_media`, `risk_level=L3`, `recommended_action=defer`, `source_label="Unclassified large directory"` *as the default*. Step 4 may refine `category` and `source_label` before this default is finalised.
+4. **Orphan investigation pass** — for each remaining entry from step 3, run a brief read-only investigation per `references/safety-policy.md` §"Orphan investigation" before finalising the labels. Use at most 6 commands per candidate from this set:
+   - `ls -lah <path>` (top-level contents, 1 call)
+   - `file <path>/<file>` (at most 3 representative files)
+   - `head -c 200 <file>` (at most 2 README / config files)
+   - Existence checks for marker files: `.gguf`, `.safetensors`, `pytorch_model.bin`, `model_index.json`, `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `mix.exs`, `Pipfile`, `.iso`, `.dmg`, large `.mp4` / `.mov`.
 
-Redaction note: `Unclassified large directory` is a deliberately generic `source_label` — no path fragment, basename, or container name enters it. Because L3 `defer` contributes zero `freed_now_bytes`, this label cannot surface in `share.txt`'s top-3 either; Stage 6 step 6's existing "skip orphan, take next concrete label" guard covers it naturally.
+   Based on the findings, **refine** `category` (must be ∈ §1-§9 of `category-rules.md`; **never §10 `project_artifacts`** — that category is reserved for items returned by `scan_projects.py`) and `source_label` (use a canonical label from the §3-end source_label table, or coin a new one following the convention "tool/product name + category descriptor" such as `"ML model cache"`, `"Diffusion model cache"`, `"Conda env cache"`, `"AI training dataset"`). Set `reason` to one short sentence describing the evidence (e.g. `"found .gguf files indicating local LLM model cache"`).
+
+   **Hard locks — `risk_level` stays L3 and `recommended_action` stays `defer`**, regardless of what the refined category's defaults would otherwise be. Even if the agent confidently identifies the directory as a Homebrew cache (canonical L1 `delete`) or a HuggingFace cache (canonical L3 `defer`), the du-probe-pathway item stays L3 / defer. The fact that the directory was discovered by a fallback probe rather than a whitelisted path is the signal that it is non-canonical and not eligible for the canonical risk treatment. See `safety-policy.md` §"Orphan investigation" and Operating invariant #7 for the full rationale.
+
+   When the investigation cannot pin a more specific category (no marker matched, README missing or unhelpful), keep step 3's defaults — `category=large_media`, `source_label="Unclassified large directory"`.
+
+   Quick heuristic table (not exhaustive — apply judgement):
+   - `.gguf` / `.safetensors` / `pytorch_model.bin` → `pkg_cache`, `source_label="ML model cache"`
+   - `model_index.json` (Diffusers) → `pkg_cache`, `source_label="Diffusion model cache"`
+   - `.iso` / `.dmg` / many `.mp4` / `.mov` → keep `large_media`, `source_label="Media archive"`
+   - `package.json` without a `.git` sibling → `app_cache`, `source_label="Orphan Node project"` (NOT `project_artifacts` — that requires `.git` and goes through `scan_projects.py`)
+   - `pyproject.toml` / `requirements.txt` without a `.git` sibling → `app_cache`, `source_label="Orphan Python project"`
+   - README explicitly names a tool → use that tool's name in `source_label` (e.g. README mentions Plex → `"Plex transcode cache"`)
+
+Redaction note: `Unclassified large directory` is a deliberately generic `source_label` — no path fragment, basename, or container name enters it. The same redaction rule applies to any newly coined label produced by step 4: tool / product / category descriptors only, never paths or basenames. Because L3 `defer` contributes zero `freed_now_bytes`, none of these labels can surface in `share.txt`'s top-3 either; Stage 6 step 6's existing "skip orphan, take next concrete label" guard covers it naturally.
 
 ### Stage 4 · Classify & grade
 
