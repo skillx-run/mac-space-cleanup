@@ -4,6 +4,22 @@ All notable changes to mac-space-cleanup. Newest first.
 
 ## Unreleased
 
+## v0.10.0 — 2026-04-19
+
+### Added
+- **Seven new Tier E developer-tool rows** in `references/cleanup-scope.md` and `references/category-rules.md` §3 — RubyGems, Bundler, Composer, Poetry, ccache, sccache, Dart pub. Each row lists every candidate cache path (Composer / ccache / sccache ship two defaults on macOS) so Stage 2 probes the one the user's tool actually writes to. All L1 `pkg_cache` with generic tool-name `source_label`s so redaction holds. `SKILL.md` Stage 2 `which -a` and `ls -d` probe lines extended to match.
+- **Five new `scan_projects.py` deletable subtypes** — `.mypy_cache`, `.ruff_cache`, `.dart_tool`, `.nyc_output`, `_build` — wired into `references/category-rules.md` §10a. `_build` is gated by a new `mix.exs` marker in `PROJECT_MARKERS` so it only surfaces in Elixir projects. The previous "unambiguous dotfile names don't need a marker" rule carries `.mypy_cache` / `.ruff_cache` / `.dart_tool` / `.nyc_output`.
+- **New `coverage` artifact kind** in `scan_projects.py` + `references/category-rules.md` §10c. Default L2 `trash` (session recovery window) and marker-gated at Stage 4: the agent treats `coverage/` as `project_artifacts` only when `markers_found` contains `package.json` or any Python marker; otherwise `orphan` L4. Parallel carve-out to the existing `env` / `vendor` / `_build` disambiguation.
+- **Stage 3.5 now runs the large-directory probe** that `references/category-rules.md` §7 has documented since v0.4 but never actually executed. `timeout 45 du -k -d 2 ~` post-filtered to ≥ 2 GiB, top 30 by size; agent normalises paths before deduping against existing Stage 3 / Stage 3.5 candidates. Classifies as `large_media` L3 `defer` with the generic `source_label="Unclassified large directory"`. Surface-only — never auto-acts; always goes through Stage 5 per-item review.
+
+### Back-compat
+- `aggregate_history.py`'s `history.json` format is unchanged; the new `source_label`s are just new tags alongside existing ones.
+- `scan_projects.py`'s JSON output adds one new `kind` value (`"coverage"`). Consumers that hardcode `kind=="deletable"` skip it silently — that's the back-compat contract.
+- `PROJECT_MARKERS` gains `mix.exs`; existing projects without it keep the same `markers_found` output.
+
+### Tests
+- 95 → **100** (`test_scan_projects.py` adds five cases: new deletable subtypes, `_build` + `mix.exs` gating, `coverage` kind, `mix.exs` membership in `PROJECT_MARKERS`; `test_safe_delete.py` adds a v0.7 Tier E cache-path regression asserting `_BLOCKED_PATTERNS` does not accidentally catch `~/.gem`, `~/.composer`, `~/.pub-cache`, etc.).
+
 ## v0.9.4 — 2026-04-19
 
 ### Fixed
