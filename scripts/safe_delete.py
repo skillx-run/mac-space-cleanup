@@ -127,6 +127,22 @@ _DECIMAL_UNIT_FACTORS = {
 }
 
 
+def _format_subprocess_error(prefix: str, e: Exception) -> str:
+    """Build a one-line error message that includes stderr if available.
+
+    CalledProcessError and TimeoutExpired both carry an .stderr attribute
+    when the subprocess was launched with capture_output=True; OSError
+    (e.g. ENOENT for a missing binary) does not. We surface the first
+    stderr line truncated to 200 chars so actions.jsonl stays single-line.
+    """
+    stderr = getattr(e, "stderr", None)
+    if stderr:
+        first_line = stderr.strip().splitlines()
+        if first_line:
+            return f"{prefix}: {e} (stderr: {first_line[0][:200]})"
+    return f"{prefix}: {e}"
+
+
 def _parse_human_bytes(
     text: str,
     pattern: re.Pattern[str],
@@ -294,7 +310,7 @@ def _handle_brew_cleanup(item: dict[str, Any], dry_run: bool) -> dict[str, Any]:
         )
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as e:
         rec["status"] = STATUS_FAILED
-        rec["error"] = f"brew cleanup -s failed: {e}"
+        rec["error"] = _format_subprocess_error("brew cleanup -s failed", e)
         return _finalize(rec, t0)
 
     freed = _parse_human_bytes(result.stdout, _BREW_FREED_RE, _BINARY_UNIT_FACTORS)
@@ -338,7 +354,7 @@ def _handle_docker_prune(item: dict[str, Any], dry_run: bool) -> dict[str, Any]:
         )
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as e:
         rec["status"] = STATUS_FAILED
-        rec["error"] = f"{' '.join(cmd)} failed: {e}"
+        rec["error"] = _format_subprocess_error(f"{' '.join(cmd)} failed", e)
         return _finalize(rec, t0)
 
     reclaimed = _parse_human_bytes(

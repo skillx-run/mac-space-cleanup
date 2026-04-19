@@ -362,14 +362,18 @@ class TestDispatch(unittest.TestCase):
             self.assertEqual(rec["size_before_bytes"], int(1.2 * 1024 ** 3))
             self.assertEqual(out["freed_now_bytes"], int(1.2 * 1024 ** 3))
 
-    def test_brew_cleanup_failure_propagates(self):
+    def test_brew_cleanup_failure_propagates_with_stderr(self):
+        """Failed brew dispatch must surface both the standard prefix and
+        the first stderr line so users can diagnose without reading actions
+        .jsonl raw or re-running brew manually."""
         with tempfile.TemporaryDirectory() as td:
             work = Path(td) / "work"
 
             def fake_run(cmd, **kw):
                 if cmd[:2] == ["brew", "cleanup"]:
                     raise subprocess.CalledProcessError(
-                        returncode=1, cmd=cmd, stderr="brew not found"
+                        returncode=1, cmd=cmd,
+                        stderr="Error: Permission denied @ unlink_internal\nNext line",
                     )
                 raise AssertionError(f"unexpected cmd: {cmd}")
 
@@ -387,7 +391,53 @@ class TestDispatch(unittest.TestCase):
             rec = out["records"][0]
             self.assertEqual(rec["status"], "failed")
             self.assertIn("brew cleanup -s failed", rec["error"])
+            # Surface stderr so the user can act on it; only the first line
+            # so actions.jsonl stays single-line per record.
+            self.assertIn("Permission denied", rec["error"])
+            self.assertNotIn("Next line", rec["error"])
             self.assertEqual(out["freed_now_bytes"], 0)
+
+    def test_docker_prune_failure_propagates_with_stderr(self):
+        """Same stderr-surfacing contract for docker prune dispatch — most
+        failures here ('Cannot connect to the Docker daemon', 'permission
+        denied while trying to connect to socket') only matter once stderr
+        is visible."""
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td) / "work"
+
+            def fake_run(cmd, **kw):
+                if cmd[0] == "docker":
+                    raise subprocess.CalledProcessError(
+                        returncode=1, cmd=cmd,
+                        stderr="Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?",
+                    )
+                raise AssertionError(f"unexpected cmd: {cmd}")
+
+            with mock.patch.object(safe_delete.subprocess, "run", side_effect=fake_run):
+                payload = {
+                    "confirmed_items": [
+                        {"id": "d_fail", "path": "docker:build-cache",
+                         "action": "delete", "size_bytes": 0,
+                         "category": "dev_cache", "risk_level": "L1", "reason": "t"}
+                    ]
+                }
+                code, out, _ = _run_with_payload(payload, work)
+
+            self.assertEqual(code, 1)
+            rec = out["records"][0]
+            self.assertEqual(rec["status"], "failed")
+            self.assertIn("docker builder prune -f failed", rec["error"])
+            self.assertIn("Cannot connect to the Docker daemon", rec["error"])
+
+    def test_subprocess_error_formatter_handles_oserror_without_stderr(self):
+        """OSError (e.g. ENOENT for missing binary) has no .stderr attr;
+        formatter must not crash and must still produce a useful message."""
+        msg = safe_delete._format_subprocess_error(
+            "brew cleanup -s failed",
+            FileNotFoundError(2, "No such file or directory", "brew"),
+        )
+        self.assertIn("brew cleanup -s failed", msg)
+        self.assertNotIn("stderr", msg)
 
     def test_docker_prune_dispatch_per_subcommand(self):
         """All three docker:* semantic paths must dispatch to the right
