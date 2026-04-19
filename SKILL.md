@@ -126,11 +126,47 @@ ls -d ~/.cocoapods ~/.gradle ~/.m2 ~/.nvm \
 
 The `which -a` line gates Tier E rows that have a CLI probe; the `ls -d` line gates rows with a directory probe (nvm has no CLI on PATH; Android SDK and JetBrains are detected by their marker dirs). Keep these two lines in sync with `references/cleanup-scope.md` Tier E — when a row is added there, extend the matching probe here.
 
+**Active iOS OS discovery (v0.9+).** When `xcrun` is on PATH, collect the iOS versions currently in active use — physically paired devices (via `devicectl`, Xcode 15+) and available simulators (via `simctl`, all Xcode versions). The union becomes `environment_profile.active_ios_versions` (list of `"17.4"`-style strings) and downgrades the matching `iOS DeviceSupport/<OS-version>` entries from L2 `trash` to L3 `defer` at Stage 4 — the user is almost certainly debugging against those OSes.
+
+```bash
+# Physical devices (Xcode 15+). `devicectl` returns JSON; older Xcode lacks it.
+xcrun devicectl list devices --json-output - 2>/dev/null \
+  | python3 -c 'import json,sys
+try:
+    d=json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+for dev in d.get("result",{}).get("devices",[]):
+    v=dev.get("hardwareProperties",{}).get("productVersion") or ""
+    # reduce "17.4.1" -> "17.4" to match DeviceSupport subdir naming
+    parts=v.split(".")
+    if len(parts)>=2: print(".".join(parts[:2]))' \
+  > "$WORKDIR/active_ios_versions.txt"
+
+# Available simulators (all Xcode versions).
+xcrun simctl list devices available --json 2>/dev/null \
+  | python3 -c 'import json,sys,re
+try:
+    d=json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+for key in d.get("devices",{}).keys():
+    # key looks like "com.apple.CoreSimulator.SimRuntime.iOS-17-4"
+    m=re.search(r"iOS-(\d+)-(\d+)", key)
+    if m: print(f"{m.group(1)}.{m.group(2)}")' \
+  >> "$WORKDIR/active_ios_versions.txt"
+
+sort -u "$WORKDIR/active_ios_versions.txt" -o "$WORKDIR/active_ios_versions.txt"
+```
+
+Empty / missing file → `active_ios_versions=[]`; treat as "no active-OS hint available" and keep the default L2 `trash` grading for every DeviceSupport entry. Do not treat the empty case as an error — most Macs without Xcode paired devices will have an empty simctl intersection on older runtimes, and that's fine.
+
 From the output, remember:
 - macOS version.
 - Filesystem free space before cleanup (`free_before`). Capture as bytes for later diff.
 - Which enhancement tools are installed (CLI or directory marker). Skip rows in `references/cleanup-scope.md` Tier E for which neither probe fired.
 - **Whether `trash` CLI is installed** (`which trash`). Record as `trash_cli=true|false` in your environment_profile.
+- **Active iOS versions** (read `$WORKDIR/active_ios_versions.txt`; may be empty). Used by Stage 4 to downgrade `iOS DeviceSupport` entries that match a currently-in-use OS from L2 `trash` to L3 `defer`.
 
 Read `references/cleanup-scope.md` once — this is your map of **where to look** and **where never to touch**.
 

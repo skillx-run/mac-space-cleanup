@@ -30,7 +30,7 @@ Defaults: **L1**, `delete`, `mode_hit_tags=["quick","deep"]`.
 Exceptions (all override defaults — exception always wins on a tied match):
 - Xcode Archives younger than 90 days → `dev_cache` L2 `trash` (might still be needed for App Store upload). The default L1 delete only applies to Archives mtime ≥ 90 days; never both at once for the same item.
 - iOS / watchOS / tvOS `DeviceSupport` entries default to **L2 `trash`** (not delete) because each per-OS subdir is 5–10 GB and rebuilding the symbol cache requires plugging in a device of that OS again — re-pull takes 10+ minutes the next time the user debugs against that OS. Trash gives a same-session recovery window. (DerivedData stays L1 `delete` — fully regenerable from a single project rebuild.)
-- iOS DeviceSupport for the OS version currently installed on a paired device (not knowable without `xcrun devicectl list` — agent should skip this check; surface per-OS so user can uncheck active ones in deep mode).
+- **iOS DeviceSupport active-OS downgrade** (v0.9+): if the entry's OS-version prefix (e.g. `17.4` in a subdir named `17.4.1 (21E236)`) matches a string in `environment_profile.active_ios_versions` (populated by Stage 2 from `xcrun devicectl list` + `xcrun simctl list devices available`), override to **L3 `defer`** — the user is almost certainly debugging against that OS and a re-pull-triggered 10+ minute stall is the kind of surprise Stage 5 defer is designed to prevent. `active_ios_versions` being empty (no Xcode 15+ `devicectl`, no paired devices, no available simulators) simply leaves every entry at the L2 default; the downgrade is additive, never a required step. `watchOS` / `tvOS` DeviceSupport have no equivalent active-OS source in v0.9 and always stay L2.
 
 ---
 

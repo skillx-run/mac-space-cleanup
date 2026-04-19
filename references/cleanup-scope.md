@@ -80,7 +80,7 @@ Skip the row silently if the probe fails.
 | `xcrun simctl` | `~/Library/Developer/Xcode/Archives` | `dev_cache` |
 | `xcrun simctl` | `~/Library/Developer/CoreSimulator/Devices` | `sim_runtime` |
 | `xcrun simctl` | `xcrun simctl delete unavailable` (semantic entry) | `sim_runtime` |
-| `xcrun simctl` | `~/Library/Developer/Xcode/iOS DeviceSupport` (entries older than matching Xcode-supported OS — surface all, let user pick) | `dev_cache` |
+| `xcrun simctl` | `~/Library/Developer/Xcode/iOS DeviceSupport` (per-OS subdirs; Stage 2's `active_ios_versions` probe — combining `xcrun devicectl list` for physical devices + `xcrun simctl list devices available` for simulators — downgrades any matching OS to L3 defer, per `category-rules.md` §1) | `dev_cache` |
 | `xcrun simctl` | `~/Library/Developer/Xcode/watchOS DeviceSupport` | `dev_cache` |
 | `xcrun simctl` | `~/Library/Developer/Xcode/tvOS DeviceSupport` | `dev_cache` |
 | `xcrun simctl` | `~/Library/Developer/XCPGDevices`, `~/Library/Developer/XCPGPlaygrounds` (Playground devices and snapshots — used once and rarely revisited) | `dev_cache` |
