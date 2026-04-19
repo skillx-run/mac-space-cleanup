@@ -102,11 +102,17 @@ Run these in parallel and summarise the result internally (do not dump raw outpu
 sw_vers
 df -h /
 which -a docker brew pnpm npm yarn pip uv cargo go gradle xcrun trash \
-         flutter fnm pyenv rustup bun deno
+         flutter fnm pyenv rustup bun deno \
+         gem bundle composer poetry ccache sccache dart
 ls -d ~/.cocoapods ~/.gradle ~/.m2 ~/.nvm \
       ~/Library/Android/sdk ~/Library/Caches/JetBrains \
       ~/Library/Caches/org.swift.swiftpm \
-      ~/Library/Caches/org.carthage.CarthageKit 2>/dev/null
+      ~/Library/Caches/org.carthage.CarthageKit \
+      ~/.gem ~/.bundle ~/.composer ~/Library/Caches/composer \
+      ~/Library/Caches/pypoetry \
+      ~/.ccache ~/Library/Caches/ccache \
+      ~/Library/Caches/Mozilla.sccache ~/.cache/sccache \
+      ~/.pub-cache 2>/dev/null
 ```
 
 The `which -a` line gates Tier E rows that have a CLI probe; the `ls -d` line gates rows with a directory probe (nvm has no CLI on PATH; Android SDK and JetBrains are detected by their marker dirs). Keep these two lines in sync with `references/cleanup-scope.md` Tier E — when a row is added there, extend the matching probe here.
