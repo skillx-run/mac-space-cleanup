@@ -326,6 +326,96 @@ class TestDispatch(unittest.TestCase):
             self.assertEqual(rec["status"], "failed")
             self.assertIn("simctl failed", rec["error"])
 
+    def test_brew_cleanup_invokes_brew_and_parses_freed_bytes(self):
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td) / "work"
+            calls: list[list[str]] = []
+            brew_stdout = (
+                "Removing: /opt/homebrew/Cellar/foo/1.0... (123 files, 5.4MB)\n"
+                "Removing: /opt/homebrew/Cellar/bar/2.0... (45 files, 1.2GB)\n"
+                "==> This operation has freed approximately 1.2GB of disk space.\n"
+            )
+
+            def fake_run(cmd, **kw):
+                calls.append(cmd)
+                if cmd[:2] == ["brew", "cleanup"]:
+                    return mock.Mock(returncode=0, stdout=brew_stdout, stderr="")
+                raise AssertionError(f"unexpected cmd: {cmd}")
+
+            with mock.patch.object(safe_delete.subprocess, "run", side_effect=fake_run):
+                payload = {
+                    "confirmed_items": [
+                        {"id": "brew_clean", "path": "brew:cleanup-s",
+                         "action": "delete", "size_bytes": 0,
+                         "category": "pkg_cache", "risk_level": "L1",
+                         "reason": "trim Cellar old versions"}
+                    ]
+                }
+                code, out, _ = _run_with_payload(payload, work)
+
+            self.assertEqual(code, 0)
+            self.assertEqual(len(calls), 1)
+            self.assertEqual(calls[0], ["brew", "cleanup", "-s"])
+            rec = out["records"][0]
+            self.assertEqual(rec["status"], "success")
+            # 1.2 GB = 1.2 * 1024^3 = 1288490188
+            self.assertEqual(rec["size_before_bytes"], int(1.2 * 1024 ** 3))
+            self.assertEqual(out["freed_now_bytes"], int(1.2 * 1024 ** 3))
+
+    def test_brew_cleanup_failure_propagates(self):
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td) / "work"
+
+            def fake_run(cmd, **kw):
+                if cmd[:2] == ["brew", "cleanup"]:
+                    raise subprocess.CalledProcessError(
+                        returncode=1, cmd=cmd, stderr="brew not found"
+                    )
+                raise AssertionError(f"unexpected cmd: {cmd}")
+
+            with mock.patch.object(safe_delete.subprocess, "run", side_effect=fake_run):
+                payload = {
+                    "confirmed_items": [
+                        {"id": "brew_fail", "path": "brew:cleanup-s",
+                         "action": "delete", "size_bytes": 0,
+                         "category": "pkg_cache", "risk_level": "L1", "reason": "t"}
+                    ]
+                }
+                code, out, _ = _run_with_payload(payload, work)
+
+            self.assertEqual(code, 1)
+            rec = out["records"][0]
+            self.assertEqual(rec["status"], "failed")
+            self.assertIn("brew cleanup -s failed", rec["error"])
+            self.assertEqual(out["freed_now_bytes"], 0)
+
+    def test_brew_cleanup_dry_run_keeps_input_estimate(self):
+        """Dry-run skips brew invocation and credits the input size estimate
+        so the dry-run summary reflects the upper-bound reclaim."""
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td) / "work"
+
+            def fake_run(cmd, **kw):
+                raise AssertionError(f"dry-run must not invoke: {cmd}")
+
+            with mock.patch.object(safe_delete.subprocess, "run", side_effect=fake_run):
+                payload = {
+                    "confirmed_items": [
+                        {"id": "brew_dry", "path": "brew:cleanup-s",
+                         "action": "delete",
+                         "size_bytes": 5 * 1024 ** 3,  # 5 GB pre-estimate
+                         "category": "pkg_cache", "risk_level": "L1", "reason": "t"}
+                    ]
+                }
+                code, out, _ = _run_with_payload(payload, work, dry_run=True)
+
+            self.assertEqual(code, 0)
+            rec = out["records"][0]
+            self.assertEqual(rec["status"], "success")
+            self.assertTrue(rec["dry_run"])
+            self.assertEqual(rec["size_before_bytes"], 5 * 1024 ** 3)
+            self.assertEqual(out["freed_now_bytes"], 5 * 1024 ** 3)
+
     def test_migrate_success_full(self):
         with tempfile.TemporaryDirectory() as td:
             work = Path(td) / "work"

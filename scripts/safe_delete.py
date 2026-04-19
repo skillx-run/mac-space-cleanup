@@ -78,6 +78,45 @@ CATEGORY_SIM_RUNTIME = "sim_runtime"
 _SNAPSHOT_DATE_RE = re.compile(r"(\d{4}-\d{2}-\d{2}-\d{6})")
 _SIMCTL_UDID_RE = re.compile(r"/CoreSimulator/Devices/([0-9A-Fa-f-]{36})(?:/|$)")
 
+# Semantic paths whose dispatch is delegated to a vendor CLI rather than rm.
+# These bypass the blocklist + idempotency check (path is synthetic, not a
+# real fs target).
+BREW_CLEANUP_PATH = "brew:cleanup-s"
+
+# `brew cleanup -s` ends with: "==> This operation has freed approximately
+# 1.2GB of disk space." Capture number + unit suffix.
+_BREW_FREED_RE = re.compile(
+    r"freed approximately\s+([\d.]+)\s*([KMGT]?B)",
+    re.IGNORECASE,
+)
+_HUMAN_UNIT_FACTORS = {
+    "B": 1,
+    "KB": 1024,
+    "MB": 1024 ** 2,
+    "GB": 1024 ** 3,
+    "TB": 1024 ** 4,
+}
+
+
+def _parse_human_bytes(text: str, pattern: re.Pattern[str]) -> int | None:
+    """Extract a (number, unit) pair via *pattern* and return bytes.
+
+    *pattern* must capture (numeric, unit) as groups 1+2 where unit is one of
+    B/KB/MB/GB/TB (case-insensitive). Returns None if no match or parse fails.
+    """
+    m = pattern.search(text)
+    if not m:
+        return None
+    try:
+        value = float(m.group(1))
+    except (TypeError, ValueError):
+        return None
+    unit = (m.group(2) or "B").upper()
+    factor = _HUMAN_UNIT_FACTORS.get(unit)
+    if factor is None:
+        return None
+    return int(value * factor)
+
 # Last-line-of-defence regex blocklist. Even if confirmed.json wrongly
 # requests a delete/trash on these paths (agent misjudgement, malformed
 # input, etc.), dispatch() refuses to act. Patterns are intentionally
@@ -185,6 +224,40 @@ def _handle_snapshot_delete(item: dict[str, Any], dry_run: bool) -> dict[str, An
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as e:
         rec["status"] = STATUS_FAILED
         rec["error"] = f"tmutil failed: {e}"
+    return _finalize(rec, t0)
+
+
+def _handle_brew_cleanup(item: dict[str, Any], dry_run: bool) -> dict[str, Any]:
+    """`brew cleanup -s` to drop old Cellar versions and stale downloads.
+
+    Pinned formulae are preserved automatically by Homebrew, so this is the
+    safe path for trimming Cellar — manual rm under Cellar would corrupt the
+    Homebrew install state.
+
+    Recognised path: "brew:cleanup-s" (synthetic, no fs target). On success
+    we override ``size_before_bytes`` with the bytes parsed from brew's
+    "freed approximately X" tail line so freed_now_bytes reflects the real
+    reclaim instead of whatever pre-estimate the agent supplied.
+    """
+    rec = _base_record(item, ACTION_DELETE)
+    t0 = time.monotonic()
+
+    if dry_run:
+        return _finalize(rec, t0, dry_run=True)
+
+    try:
+        result = subprocess.run(
+            ["brew", "cleanup", "-s"],
+            check=True, capture_output=True, text=True, timeout=600,
+        )
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as e:
+        rec["status"] = STATUS_FAILED
+        rec["error"] = f"brew cleanup -s failed: {e}"
+        return _finalize(rec, t0)
+
+    freed = _parse_human_bytes(result.stdout, _BREW_FREED_RE)
+    if freed is not None:
+        rec["size_before_bytes"] = freed
     return _finalize(rec, t0)
 
 
@@ -398,10 +471,11 @@ def dispatch(
         return rec
 
     category = item.get("category")
+    path = item.get("path") or ""
     is_snapshot = category == CATEGORY_SYSTEM_SNAPSHOTS
     is_sim_runtime = category == CATEGORY_SIM_RUNTIME
-    is_specialised = is_snapshot or is_sim_runtime
-    path = item.get("path") or ""
+    is_brew_cleanup = path == BREW_CLEANUP_PATH
+    is_specialised = is_snapshot or is_sim_runtime or is_brew_cleanup
 
     # Hard backstop: refuse fs-touching actions on high-value paths even if
     # confirmed.json explicitly requests them. Specialised categories use
@@ -427,6 +501,8 @@ def dispatch(
         return rec
 
     if action == ACTION_DELETE:
+        if is_brew_cleanup:
+            return _handle_brew_cleanup(item, dry_run)
         if is_snapshot:
             return _handle_snapshot_delete(item, dry_run)
         if is_sim_runtime:
