@@ -144,7 +144,7 @@ mac-space-cleanup/
 
 ---
 
-## Limitations & non-goals (v0.7)
+## Limitations & non-goals (v0.8)
 
 - **undo スタックなし。** 復旧経路は、ネイティブ Trash、作業ディレクトリの `archive/` tar、migrate 先ボリュームのみ。
 - **cron なし / バックグラウンド実行なし。** すべてユーザが明示的にトリガー。

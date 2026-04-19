@@ -4,6 +4,8 @@ All notable changes to mac-space-cleanup. Newest first.
 
 ## Unreleased
 
+## v0.8.0 — 2026-04-19
+
 ### Changed
 - **Workflow bumps from six to seven stages.** The `open "$WORKDIR/report.html"` call and the `share.txt` self-check are pulled out of Stage 6 into a new standalone **Stage 7 · Open the report**. Stage 6 now ends on a pure summary paragraph (old step 10 → new step 9, with the embedded self-check block removed), and Stage 7 runs: (1) `share.txt` self-check gate, (2) `open`. Intent: let the summary (workdir path, `file://` URL, freed / pending numbers) land in the terminal *before* the browser window takes focus; give the share-text self-check its own slot as a gate instead of burying it mid-summary; make "don't skip the open" a harder-to-miss instruction with its own stage header. All 7 translated READMEs mirror the stage-count bump.
 

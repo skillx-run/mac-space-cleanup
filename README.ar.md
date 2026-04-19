@@ -144,7 +144,7 @@ mac-space-cleanup/
 
 ---
 
-## Limitations & non-goals (v0.7)
+## Limitations & non-goals (v0.8)
 
 - **لا مكدِّس للتراجع undo.** مسارات الاسترداد هي: سلة المهملات الأصلية، وملفات tar داخل `archive/` في workdir، ومُجلَّد الوجهة في migrate.
 - **لا cron ولا تشغيل في الخلفية.** كلُّ تشغيلة يُطلِقها المستخدم صراحةً.

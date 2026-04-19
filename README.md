@@ -144,7 +144,7 @@ mac-space-cleanup/
 
 ---
 
-## Limitations & non-goals (v0.7)
+## Limitations & non-goals (v0.8)
 
 - **No undo stack.** Recovery paths are the native Trash, the workdir's `archive/` tars, and the migrate target volume.
 - **No cron / no background runs.** Every run is user-triggered.

@@ -144,7 +144,7 @@ mac-space-cleanup/
 
 ---
 
-## Limitations & non-goals (v0.7)
+## Limitations & non-goals (v0.8)
 
 - **沒有復原堆疊。** 復原路徑只有：原生 Trash、執行目錄下的 `archive/` tar 檔、遷移目標卷宗。
 - **不跑 cron，不做背景執行。** 每次執行都由使用者明確觸發。
