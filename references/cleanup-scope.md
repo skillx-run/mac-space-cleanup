@@ -107,6 +107,13 @@ Skip the row silently if the probe fails.
 | `pyenv` (CLI probe) | `~/.pyenv/versions/*` **except** (a) the global default from `pyenv version --bare` (run once, no cwd needed) and (b) any per-project pin from `pyenv local` — to collect (b) the agent must `cd` into each project root from `paths-projects.json` and run `pyenv local 2>/dev/null`; collect the union of every non-empty result. Surface per-version. | `pkg_cache` |
 | `rustup` (CLI probe) | `~/.rustup/toolchains/*` **except** the default from `rustup default` and any pinned via `rustup override list`. Surface per-toolchain. | `pkg_cache` |
 | JetBrains (`~/Library/Caches/JetBrains` present, dir probe) | `~/Library/Caches/JetBrains/*` (per-IDE cache: IntelliJIdea, PyCharm, WebStorm, GoLand, RubyMine, CLion, DataGrip, AndroidStudio, RustRover), `~/Library/Logs/JetBrains/*` | `dev_cache` |
+| `gem` (CLI probe) or `~/.gem` present (dir probe) | `~/.gem/ruby/*/cache/`, `~/.gem/specs/` | `pkg_cache` |
+| `bundle` (CLI probe) or `~/.bundle` present (dir probe) | `~/.bundle/cache/` (modern Bundler 2 nests `compact_index/` here; whole dir can be cleared) | `pkg_cache` |
+| `composer` (CLI probe) or `~/.composer` / `~/Library/Caches/composer` present (dir probe) | `~/.composer/cache/` (Composer 1 / non-XDG), `~/Library/Caches/composer/` (Composer 2 XDG default on macOS) — probe both, include any that exist | `pkg_cache` |
+| `poetry` (CLI probe) or `~/Library/Caches/pypoetry` present (dir probe) | `~/Library/Caches/pypoetry/` | `pkg_cache` |
+| `ccache` (CLI probe) or `~/.ccache` / `~/Library/Caches/ccache` present (dir probe) | `~/.ccache/` (legacy default), `~/Library/Caches/ccache/` (XDG-style default used by newer ccache) — probe both | `pkg_cache` |
+| `sccache` (CLI probe) or `~/Library/Caches/Mozilla.sccache` / `~/.cache/sccache` present (dir probe) | `~/Library/Caches/Mozilla.sccache/` (macOS default), `~/.cache/sccache/` (XDG fallback) — probe both | `pkg_cache` |
+| `dart` (CLI probe) or `~/.pub-cache` present (dir probe) | `~/.pub-cache/hosted/`, `~/.pub-cache/git/` (Flutter's own `~/.flutter` cache is covered by the `flutter` row above; this is the standalone Dart pub cache) | `pkg_cache` |
 
 ## Blacklist — never touch
 
@@ -178,7 +185,7 @@ The full set of language markers detected at each project root (mirrored to `mar
 
 > **Keep in sync** with `PROJECT_MARKERS` in `scripts/scan_projects.py` — adding a marker requires updating both this list and the script.
 
-System / package-manager directories under `~/Library`, `~/.cache`, `~/.npm`, `~/.cargo`, `~/.cocoapods`, `~/.gradle`, `~/.m2`, `~/.gem`, `~/.bundle`, `~/.local`, `~/.rustup`, `~/.pnpm-store`, `~/.Trash` are pruned from project discovery (they may contain cloned repos with `.git` that are not user projects).
+System / package-manager directories under `~/Library`, `~/.cache`, `~/.npm`, `~/.cargo`, `~/.cocoapods`, `~/.gradle`, `~/.m2`, `~/.gem`, `~/.bundle`, `~/.composer`, `~/.pub-cache`, `~/.local`, `~/.rustup`, `~/.pnpm-store`, `~/.Trash` are pruned from project discovery (they may contain cloned repos with `.git` that are not user projects).
 
 ## Scope-probe contract
 

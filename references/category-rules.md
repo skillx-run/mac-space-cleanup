@@ -74,6 +74,13 @@ Language / package manager caches.
 - `~/Library/Caches/fnm_multishells/**` (shell-session caches, always disposable)
 - `~/.pyenv/versions/*` excluding `pyenv version --bare` and any pin discovered via `pyenv local` in scanned projects
 - `~/.rustup/toolchains/*` excluding the `rustup default` toolchain and any `rustup override list` pin
+- `~/.gem/ruby/*/cache/**`, `~/.gem/specs/**` (RubyGems download cache and spec mirror; `gem install` and `gem sources --update` regenerate)
+- `~/.bundle/cache/**` (Bundler 2 download cache; whole dir cleared safely — `bundle install` re-downloads)
+- `~/.composer/cache/**` (Composer 1 / non-XDG location) **and** `~/Library/Caches/composer/**` (Composer 2 macOS XDG default) — probe both, include any that exist
+- `~/Library/Caches/pypoetry/**` (Poetry download + wheels cache)
+- `~/.ccache/**` (legacy default) **and** `~/Library/Caches/ccache/**` (newer XDG-style default) — probe both
+- `~/Library/Caches/Mozilla.sccache/**` (macOS default) **and** `~/.cache/sccache/**` (XDG fallback) — probe both
+- `~/.pub-cache/hosted/**`, `~/.pub-cache/git/**` (standalone Dart pub cache; `.pub-cache/git/` contains cloned git dependencies)
 
 Defaults: **L1**, `delete`, `mode_hit_tags=["quick","deep"]`.
 
@@ -274,7 +281,7 @@ Stage 4 produces in-memory items with these fields (matches `cleanup-result.json
 | --- | --- |
 | `dev_cache` | `"Xcode DerivedData"`, `"Xcode Archives"`, `"iOS DeviceSupport"`, `"watchOS DeviceSupport"`, `"tvOS DeviceSupport"`, `"Xcode Playground cache"`, `"Go build cache"`, `"Gradle cache"`, `"Docker build cache"`, `"Docker dangling images"`, `"Docker stopped containers"`, `"JetBrains cache"`, `"Flutter SDK cache"` |
 | `sim_runtime` | `"Xcode Simulator Runtimes"`, `"Xcode Simulator Devices"` |
-| `pkg_cache` | `"Homebrew cache"`, `"Homebrew Cellar cleanup"`, `"npm cache"`, `"pnpm store"`, `"Yarn Berry cache"`, `"Bun cache"`, `"Deno cache"`, `"pip cache"`, `"uv cache"`, `"Cargo cache"`, `"Swift PM cache"`, `"Carthage cache"`, `"Android SDK image"`, `"Node version manager"`, `"Python version manager"`, `"Rust toolchain"` |
+| `pkg_cache` | `"Homebrew cache"`, `"Homebrew Cellar cleanup"`, `"npm cache"`, `"pnpm store"`, `"Yarn Berry cache"`, `"Bun cache"`, `"Deno cache"`, `"pip cache"`, `"uv cache"`, `"Cargo cache"`, `"Swift PM cache"`, `"Carthage cache"`, `"Android SDK image"`, `"Node version manager"`, `"Python version manager"`, `"Rust toolchain"`, `"RubyGems cache"`, `"Bundler cache"`, `"Composer cache"`, `"Poetry cache"`, `"ccache"`, `"sccache"`, `"Dart pub cache"` |
 | `app_cache` | `"System caches"`, `"Saved application state"`, `"Trash"`, `"Browser cache"`, `"Messaging cache"`, `"Editor cache"` |
 | `logs` | `"User logs"`, `"Crash reports"`, `"Diagnostic reports"`, `"System logs"` |
 | `downloads` | `"Old installers"`, `"Large archives in Downloads"` |

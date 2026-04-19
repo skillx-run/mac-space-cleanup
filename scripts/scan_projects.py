@@ -75,6 +75,8 @@ PRUNE_RELATIVE = [
     ".m2",
     ".gem",
     ".bundle",
+    ".composer",
+    ".pub-cache",  # Dart pub — `.pub-cache/git/` is full of cloned deps with .git
     ".local",
     ".Trash",
 ]
