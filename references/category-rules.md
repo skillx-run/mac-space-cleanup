@@ -81,6 +81,10 @@ Language / package manager caches.
 - `~/.ccache/**` (legacy default) **and** `~/Library/Caches/ccache/**` (newer XDG-style default) — probe both
 - `~/Library/Caches/Mozilla.sccache/**` (macOS default) **and** `~/.cache/sccache/**` (XDG fallback) — probe both
 - `~/.pub-cache/hosted/**`, `~/.pub-cache/git/**` (standalone Dart pub cache; `.pub-cache/git/` contains cloned git dependencies)
+- `~/.cache/huggingface/hub/**`, `~/.cache/huggingface/datasets/**` (HuggingFace model snapshots and dataset downloads — each subdir is one aggregate item; the smaller `transformers/` / `accelerate/` / `evaluate/` subdirs are not separately surfaced in v0.8)
+- `~/.cache/torch/hub/**` (PyTorch hub pretrained weights downloaded via `torch.hub.load`; one aggregate item)
+- `~/.ollama/models/**` (Ollama local LLM store; one aggregate item — v0.8 does not enumerate per-model because the underlying storage is content-addressed in `blobs/` and naive `rm` on a `manifests/` entry would orphan shared blobs)
+- `~/.cache/lm-studio/models/**`, `~/.lmstudio/models/**` (LM Studio local model store — one aggregate item from whichever path exists; same per-model rationale as Ollama)
 
 Defaults: **L1**, `delete`, `mode_hit_tags=["quick","deep"]`.
 
@@ -88,6 +92,9 @@ Exceptions:
 - `~/.m2/repository/**` — surface size but set **L3** `defer` (Maven has no clean CLI, manual users prefer to keep).
 - Node/Python/Rust per-version entries above default to **L2** `trash` (not delete) because reinstalling a specific point-release can fail — PyPI yanks, ABI drift, private registries. `mode_hit_tags=["deep"]` — quick mode skips these to avoid surprise removal of a runtime in active use.
 - Android `system-images` entries default to **L2** `trash` for the same re-download-friction reason: the SDK Manager GUI can restore them, but it is a multi-click flow.
+- `~/.cache/huggingface/{hub,datasets}/**` — set **L3** `defer` (single model snapshot can reach tens of GB; 70B-class LLM redownload runs into hours and consumes substantial bandwidth — same rationale as the `~/.m2/repository` carve-out, applied to ML model artifacts).
+- `~/.cache/torch/hub/**` — set **L2** `trash` (typical pretrained weight is < 1 GB; trash gives a recovery window in case `torch.hub.load` fails to refetch on next run).
+- `~/.ollama/models/**`, `~/.cache/lm-studio/models/**`, `~/.lmstudio/models/**` — set **L3** `defer` (multi-GB local LLMs the user pulled deliberately; v0.8 surfaces each tool as one aggregate item because per-model `rm` is unsafe without a `ollama:<model>` semantic dispatcher in `safe_delete.py`).
 
 ---
 
@@ -175,7 +182,9 @@ Large user media or backups that should be considered but never auto-cleaned.
 
 - `~/Library/Application Support/MobileSync/Backup/*` older than 180 days (iOS device backups)
 - Any file > 2GB in `~/Movies`, `~/Music`, `~/Pictures` **outside** the Photos / Music libraries — surface only
-- Generic `du`-detected dirs > 2GB that don't match other rules, under `~/`. **Probe via `timeout 45 du -k -d 2 ~`** (executed at the tail of Stage 3.5 per `SKILL.md`; `-k` forces 1 KB block size so the ≥ 2 GiB threshold is comparable; `timeout 45` caps the walk); post-filter to entries ≥ 2 GiB and **cap the surfaced list at the top 30 by size** so the deferred section stays scannable. Agent must normalise paths (expand `~`, `realpath`) before deduplicating against the existing Stage 3 / Stage 3.5 candidate set. `source_label` is the generic `"Unclassified large directory"` — no path fragment, basename, or container identifier enters it.
+- Generic `du`-detected dirs > 2GB that don't match other rules, under `~/`. **Probe via `timeout 45 du -k -d 2 ~`** (executed at the tail of Stage 3.5 per `SKILL.md`; `-k` forces 1 KB block size so the ≥ 2 GiB threshold is comparable; `timeout 45` caps the walk); post-filter to entries ≥ 2 GiB and **cap the surfaced list at the top 30 by size** so the deferred section stays scannable. Agent must normalise paths (expand `~`, `realpath`) before deduplicating against the existing Stage 3 / Stage 3.5 candidate set. `source_label` defaults to the generic `"Unclassified large directory"` — no path fragment, basename, or container identifier enters it.
+
+**Investigation step (Stage 3.5 tail).** Before each du-probe candidate is finalised with the generic `source_label="Unclassified large directory"`, the agent runs the orphan-investigation procedure in `safety-policy.md` §"Orphan investigation" — read-only `ls`/`file`/`head` probes plus marker-file checks that may refine `category` (∈ §1-§9 — **never §10 `project_artifacts`**, which is reserved for `scripts/scan_projects.py` per the §10 intro) and `source_label` to a more specific value (e.g. `"ML model cache"`, `"Diffusion model cache"`, `"Media archive"`). The refined item still has `risk_level=L3` and `action=defer` regardless of the refined category's defaults — these locks are the safety guarantee that lets the investigation proceed at all. The agent may coin new `source_label` values following the convention "tool/product name + category descriptor" as long as they pass redaction (no path / basename / username); `validate_report.py` and the redaction reviewer remain the backstop.
 
 Defaults: **L3**, `defer`, `mode_hit_tags=["deep"]`.
 
@@ -253,6 +262,8 @@ Defaults: **L4**, `skip`, `mode_hit_tags=["deep"]`.
 
 Reason field should be `"no matching rule"`. Surface in the deferred region for manual review.
 
+**Note**: items surfaced by the Stage 3.5 `du -d 2 ~` probe are routed to `large_media` (per §7), not to `orphan`, and they go through the orphan-investigation procedure in `safety-policy.md` §"Orphan investigation" before being finalised. `orphan` here is the residual bucket for items Stage 4 cannot match against §1-§8 or §10 by any path-rule or marker — investigation does not apply to this bucket.
+
 ---
 
 ## Output contract per item
@@ -281,7 +292,7 @@ Stage 4 produces in-memory items with these fields (matches `cleanup-result.json
 | --- | --- |
 | `dev_cache` | `"Xcode DerivedData"`, `"Xcode Archives"`, `"iOS DeviceSupport"`, `"watchOS DeviceSupport"`, `"tvOS DeviceSupport"`, `"Xcode Playground cache"`, `"Go build cache"`, `"Gradle cache"`, `"Docker build cache"`, `"Docker dangling images"`, `"Docker stopped containers"`, `"JetBrains cache"`, `"Flutter SDK cache"` |
 | `sim_runtime` | `"Xcode Simulator Runtimes"`, `"Xcode Simulator Devices"` |
-| `pkg_cache` | `"Homebrew cache"`, `"Homebrew Cellar cleanup"`, `"npm cache"`, `"pnpm store"`, `"Yarn Berry cache"`, `"Bun cache"`, `"Deno cache"`, `"pip cache"`, `"uv cache"`, `"Cargo cache"`, `"Swift PM cache"`, `"Carthage cache"`, `"Android SDK image"`, `"Node version manager"`, `"Python version manager"`, `"Rust toolchain"`, `"RubyGems cache"`, `"Bundler cache"`, `"Composer cache"`, `"Poetry cache"`, `"ccache"`, `"sccache"`, `"Dart pub cache"` |
+| `pkg_cache` | `"Homebrew cache"`, `"Homebrew Cellar cleanup"`, `"npm cache"`, `"pnpm store"`, `"Yarn Berry cache"`, `"Bun cache"`, `"Deno cache"`, `"pip cache"`, `"uv cache"`, `"Cargo cache"`, `"Swift PM cache"`, `"Carthage cache"`, `"Android SDK image"`, `"Node version manager"`, `"Python version manager"`, `"Rust toolchain"`, `"RubyGems cache"`, `"Bundler cache"`, `"Composer cache"`, `"Poetry cache"`, `"ccache"`, `"sccache"`, `"Dart pub cache"`, `"HuggingFace model cache"`, `"HuggingFace dataset cache"`, `"PyTorch hub cache"`, `"Ollama model cache"`, `"LM Studio model cache"` |
 | `app_cache` | `"System caches"`, `"Saved application state"`, `"Trash"`, `"Browser cache"`, `"Messaging cache"`, `"Editor cache"` |
 | `logs` | `"User logs"`, `"Crash reports"`, `"Diagnostic reports"`, `"System logs"` |
 | `downloads` | `"Old installers"`, `"Large archives in Downloads"` |
