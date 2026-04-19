@@ -88,6 +88,8 @@ Language / package manager caches.
 - `~/miniconda3/envs/*`, `~/anaconda3/envs/*`, `~/opt/miniconda3/envs/*`, `~/opt/anaconda3/envs/*`, `~/.mamba/envs/*` (per-env subdirs under whichever Conda / Mamba install layout the user has; **`base` env is excluded** because removing it is equivalent to uninstalling conda / mamba. Scope deliberately limited to `~/...` — system-managed `/opt/miniconda3/envs` is not scanned.)
 - `~/Library/Caches/ms-playwright/**`, `~/.cache/ms-playwright/**`, `~/Library/Caches/ms-playwright-driver/**` (Playwright browser binaries and driver cache — `npx playwright install` fully regenerates)
 - `~/.cache/puppeteer/**` (Puppeteer bundled browser binaries; re-downloaded on next install or programmatic launch)
+- `~/.cache/whisper/**`, `~/.cache/openai-whisper/**` (OpenAI Whisper model cache — one aggregate item; `whisper.load_model()` re-downloads on next invocation. **Faster-Whisper (SYSTRAN) uses the HuggingFace hub** and is covered by the HuggingFace rule above, not duplicated here.)
+- `~/.wandb/**` (Weights & Biases global run cache — local artefacts for experiment tracking)
 
 Defaults: **L1**, `delete`, `mode_hit_tags=["quick","deep"]`.
 
@@ -99,6 +101,8 @@ Exceptions:
 - `~/.cache/torch/hub/**` — set **L2** `trash` (typical pretrained weight is < 1 GB; trash gives a recovery window in case `torch.hub.load` fails to refetch on next run).
 - `~/.ollama/models/**`, `~/.cache/lm-studio/models/**`, `~/.lmstudio/models/**` — set **L3** `defer` (multi-GB local LLMs the user pulled deliberately; v0.8 surfaces each tool as one aggregate item because per-model `rm` is unsafe without a `ollama:<model>` semantic dispatcher in `safe_delete.py`).
 - Conda / Mamba env entries (one item per non-`base` subdir of the detected `envs/`) — set **L2** `trash`, `mode_hit_tags=["deep"]`. Reason: a user env can carry pip packages from a yanked version, editable installs pointing at local projects, or a channel-specific build that is inconvenient to reproduce — `trash` gives a same-session recovery window, and `deep` gates prevent a quick-mode run from sweeping an environment still in active shell use.
+- `~/.cache/whisper/**`, `~/.cache/openai-whisper/**` — set **L2** `trash` (per-model weights of 100–500 MB; `whisper.load_model()` will refetch, trash keeps a recovery window for a failed refetch or offline dev session).
+- `~/.wandb/**` — set **L2** `trash` (contains local run artefacts that sync to the W&B cloud; trash gives a window to re-sync anything missed).
 
 ---
 
@@ -296,7 +300,7 @@ Stage 4 produces in-memory items with these fields (matches `cleanup-result.json
 | --- | --- |
 | `dev_cache` | `"Xcode DerivedData"`, `"Xcode Archives"`, `"iOS DeviceSupport"`, `"watchOS DeviceSupport"`, `"tvOS DeviceSupport"`, `"Xcode Playground cache"`, `"Go build cache"`, `"Gradle cache"`, `"Docker build cache"`, `"Docker dangling images"`, `"Docker stopped containers"`, `"JetBrains cache"`, `"Flutter SDK cache"` |
 | `sim_runtime` | `"Xcode Simulator Runtimes"`, `"Xcode Simulator Devices"` |
-| `pkg_cache` | `"Homebrew cache"`, `"Homebrew Cellar cleanup"`, `"npm cache"`, `"pnpm store"`, `"Yarn Berry cache"`, `"Bun cache"`, `"Deno cache"`, `"pip cache"`, `"uv cache"`, `"Cargo cache"`, `"Swift PM cache"`, `"Carthage cache"`, `"Android SDK image"`, `"Node version manager"`, `"Python version manager"`, `"Rust toolchain"`, `"RubyGems cache"`, `"Bundler cache"`, `"Composer cache"`, `"Poetry cache"`, `"ccache"`, `"sccache"`, `"Dart pub cache"`, `"HuggingFace model cache"`, `"HuggingFace dataset cache"`, `"PyTorch hub cache"`, `"Ollama model cache"`, `"LM Studio model cache"`, `"Conda environment"`, `"Playwright browsers"`, `"Puppeteer browsers"` |
+| `pkg_cache` | `"Homebrew cache"`, `"Homebrew Cellar cleanup"`, `"npm cache"`, `"pnpm store"`, `"Yarn Berry cache"`, `"Bun cache"`, `"Deno cache"`, `"pip cache"`, `"uv cache"`, `"Cargo cache"`, `"Swift PM cache"`, `"Carthage cache"`, `"Android SDK image"`, `"Node version manager"`, `"Python version manager"`, `"Rust toolchain"`, `"RubyGems cache"`, `"Bundler cache"`, `"Composer cache"`, `"Poetry cache"`, `"ccache"`, `"sccache"`, `"Dart pub cache"`, `"HuggingFace model cache"`, `"HuggingFace dataset cache"`, `"PyTorch hub cache"`, `"Ollama model cache"`, `"LM Studio model cache"`, `"Conda environment"`, `"Playwright browsers"`, `"Puppeteer browsers"`, `"Whisper model cache"`, `"Weights & Biases cache"` |
 | `app_cache` | `"System caches"`, `"Saved application state"`, `"Trash"`, `"Browser cache"`, `"Messaging cache"`, `"Editor cache"` |
 | `logs` | `"User logs"`, `"Crash reports"`, `"Diagnostic reports"`, `"System logs"` |
 | `downloads` | `"Old installers"`, `"Large archives in Downloads"` |

@@ -118,7 +118,8 @@ ls -d ~/.cocoapods ~/.gradle ~/.m2 ~/.nvm \
       ~/miniconda3/envs ~/anaconda3/envs \
       ~/opt/miniconda3/envs ~/opt/anaconda3/envs ~/.mamba/envs \
       ~/Library/Caches/ms-playwright ~/.cache/ms-playwright \
-      ~/Library/Caches/ms-playwright-driver ~/.cache/puppeteer 2>/dev/null
+      ~/Library/Caches/ms-playwright-driver ~/.cache/puppeteer \
+      ~/.cache/whisper ~/.cache/openai-whisper ~/.wandb 2>/dev/null
 ```
 
 The `which -a` line gates Tier E rows that have a CLI probe; the `ls -d` line gates rows with a directory probe (nvm has no CLI on PATH; Android SDK and JetBrains are detected by their marker dirs). Keep these two lines in sync with `references/cleanup-scope.md` Tier E — when a row is added there, extend the matching probe here.
