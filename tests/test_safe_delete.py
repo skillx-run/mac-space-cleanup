@@ -668,6 +668,39 @@ class TestDispatch(unittest.TestCase):
         self.assertTrue(is_blocked("/Users/me/Pictures/Photos Library.photoslibrary/originals"))
         self.assertTrue(is_blocked("/Users/me/Documents/.env"))
 
+    def test_v07_tier_e_cache_paths_not_blocked(self):
+        """Regression: the v0.7 Tier E expansion adds several Ruby / PHP /
+        Python / build-tool / Dart cache paths. They must not accidentally
+        match _BLOCKED_PATTERNS; if a future edit tightens the regex in a
+        way that pulls these in, this test flags it before the expansion
+        silently stops reclaiming anything."""
+        is_blocked = safe_delete._is_blocked
+        for p in (
+            # RubyGems / Bundler
+            "/Users/me/.gem/ruby/3.2.0/cache/foo-1.0.0.gem",
+            "/Users/me/.gem/specs/rubygems.org/specs.4.8",
+            "/Users/me/.bundle/cache/compact_index/rubygems.org.443",
+            # Composer (both default locations)
+            "/Users/me/.composer/cache/files/vendor/pkg/abc.tar.gz",
+            "/Users/me/Library/Caches/composer/files/vendor/pkg/abc.zip",
+            # Poetry
+            "/Users/me/Library/Caches/pypoetry/artifacts/ab/cd/ef/foo-1.0-py3-none-any.whl",
+            # ccache (both default locations)
+            "/Users/me/.ccache/a/b/stats",
+            "/Users/me/Library/Caches/ccache/a/b/stats",
+            # sccache (both default locations)
+            "/Users/me/Library/Caches/Mozilla.sccache/a/b/object",
+            "/Users/me/.cache/sccache/a/b/object",
+            # Dart pub
+            "/Users/me/.pub-cache/hosted/pub.dev/http-1.2.0",
+            "/Users/me/.pub-cache/git/pkg-abcdef/lib/foo.dart",
+        ):
+            with self.subTest(path=p):
+                self.assertFalse(
+                    is_blocked(p),
+                    msg=f"v0.7 cache path must not be blocked: {p}",
+                )
+
     def test_blocked_pattern_refuses_vscode_family_user_data(self):
         """Even if confirmed.json mistakenly lists VSCode/Cursor/Windsurf
         User / Backups / History (which hold unsaved edits, git-stash
