@@ -762,6 +762,74 @@ class TestDispatch(unittest.TestCase):
             self.assertTrue(target.exists(), "blocklist must protect disk state")
             self.assertTrue((target / "state.vscdb").exists())
 
+    def test_blocked_pattern_refuses_adobe_auto_save(self):
+        """Adobe creative-app Auto-Save dirs hold unsaved Premiere / After
+        Effects / Photoshop project files — user work in progress, not cache.
+        Even if the generic Adobe/Common/Media Cache sweep or a misclassified
+        app_cache entry routes into Auto-Save, dispatch must refuse. The
+        legitimate Media Cache / Peak Files paths (sibling to Auto-Save under
+        Adobe/) must NOT be blocked or the creative-app labels refinement
+        (v0.9) would silently stop reclaiming anything."""
+        is_blocked = safe_delete._is_blocked
+        # Positive: every Adobe product's Auto-Save dir is caught, at any
+        # nesting depth under it.
+        for product in (
+            "Premiere Pro", "After Effects", "Photoshop", "Audition",
+            "Prelude", "Media Encoder",
+        ):
+            with self.subTest(product=product, depth="root"):
+                self.assertTrue(is_blocked(
+                    f"/Users/me/Library/Application Support/Adobe/{product}/Auto-Save"
+                ))
+            with self.subTest(product=product, depth="nested"):
+                self.assertTrue(is_blocked(
+                    f"/Users/me/Library/Application Support/Adobe/{product}/Auto-Save/2026-04-19/project.prproj"
+                ))
+        # Negative: legitimate Adobe cache paths must NOT be blocked; the
+        # creative-app source-label refinement (v0.9) relies on these being
+        # reachable.
+        for p in (
+            "/Users/me/Library/Application Support/Adobe/Common/Media Cache Files/abc.cfa",
+            "/Users/me/Library/Application Support/Adobe/Common/Media Cache/PekCache",
+            "/Users/me/Library/Application Support/Adobe/Common/Peak Files/xyz.pek",
+            "/Users/me/Library/Application Support/Adobe/Premiere Pro/Profile-user/Cache",
+        ):
+            with self.subTest(path=p):
+                self.assertFalse(
+                    is_blocked(p),
+                    msg=f"legitimate Adobe cache path must not be blocked: {p}",
+                )
+
+    def test_blocked_pattern_refuses_delete_on_adobe_auto_save_via_dispatch(self):
+        """End-to-end: a misrouted delete against an Adobe Auto-Save dir must
+        come back as failed with the standard blocklist error and must NOT
+        delete anything from disk."""
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td) / "work"
+            target = (
+                Path(td)
+                / "Library/Application Support/Adobe/Premiere Pro/Auto-Save"
+            )
+            target.mkdir(parents=True)
+            project = target / "MyFilm-auto-20260419-113000.prproj"
+            project.write_bytes(b"x" * 4096)
+
+            payload = {
+                "confirmed_items": [
+                    {"id": "adobe1", "path": str(target), "action": "delete",
+                     "size_bytes": 4096, "category": "app_cache",
+                     "risk_level": "L1", "reason": "agent misjudged"}
+                ]
+            }
+            code, out, _ = _run_with_payload(payload, work)
+
+            self.assertEqual(code, 1)
+            rec = out["records"][0]
+            self.assertEqual(rec["status"], "failed")
+            self.assertIn("blocked by safety pattern", rec["error"])
+            self.assertTrue(target.exists(), "blocklist must protect unsaved Adobe project files")
+            self.assertTrue(project.exists())
+
     def test_migrate_dest_not_writable_fails_without_rsync(self):
         with tempfile.TemporaryDirectory() as td:
             work = Path(td) / "work"

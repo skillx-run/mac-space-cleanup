@@ -193,6 +193,11 @@ _BLOCKED_PATTERNS = (
     # subdirs (Cache, CachedData, ...) — this regex backs that contract up at
     # runtime against agent misjudgement / malformed confirmed.json.
     re.compile(r"/Application Support/(Code|Cursor|Windsurf)/(User|Backups|History)(/|$)"),
+    # Adobe creative-app Auto-Save dirs: unsaved Premiere / After Effects /
+    # Photoshop project files — user work in progress, NOT cache. The generic
+    # Adobe/Common/Media Cache sweep is fine, but Auto-Save/** must never be
+    # touched even if classification mistakenly routes it into app_cache.
+    re.compile(r"/Adobe/[^/]+/Auto-Save(/|$)"),
 )
 
 

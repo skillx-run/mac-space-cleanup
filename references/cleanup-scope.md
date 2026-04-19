@@ -128,7 +128,7 @@ Skip the row silently if the probe fails.
 
 These directories are off-limits regardless of size or age. If a scan result somehow points into one of these, classify as L4 and record-only.
 
-> **Cross-reference**: a subset of these (`.git`, `.ssh`, `.gnupg`, `Library/Keychains`, `Library/Mail`, `Library/Messages`, `Library/Mobile Documents`, `Photos Library`, `Music/Music`, `.env*`, SSH key files, **VSCode-family `User`/`Backups`/`History`**) is also enforced **at runtime** by `scripts/safe_delete.py`'s `_BLOCKED_PATTERNS` regex set. The agent reads this document; the script enforces a hard backstop. Keep them in sync — when adding/removing entries from one, update the other.
+> **Cross-reference**: a subset of these (`.git`, `.ssh`, `.gnupg`, `Library/Keychains`, `Library/Mail`, `Library/Messages`, `Library/Mobile Documents`, `Photos Library`, `Music/Music`, `.env*`, SSH key files, **VSCode-family `User`/`Backups`/`History`**, **Adobe `Auto-Save` folders**) is also enforced **at runtime** by `scripts/safe_delete.py`'s `_BLOCKED_PATTERNS` regex set. The agent reads this document; the script enforces a hard backstop. Keep them in sync — when adding/removing entries from one, update the other.
 
 ### Hard forbid (SIP or system-critical)
 
@@ -152,6 +152,7 @@ These directories are off-limits regardless of size or age. If a scan result som
 - `~/Pictures/Photos Library.photoslibrary`
 - `~/Music/Music` (Apple Music library)
 - VSCode-family editor user data: `~/Library/Application Support/{Code,Cursor,Windsurf}/User`, `.../Backups`, `.../History` (workspaceStorage holds unsaved edits and git-stash equivalents; Backups holds unsaved files; History is the local edit history).
+- Adobe creative-app `Auto-Save` folders: `~/Library/Application Support/Adobe/*/Auto-Save/**` (unsaved Premiere / After Effects / Photoshop project files — they are **user work in progress**, not cache. The generic `~/Library/Application Support/Adobe/Common/Media Cache*` sweep is fine, but any path matching `Adobe/*/Auto-Save` must be classified L4 `skip`. `scripts/safe_delete.py::_BLOCKED_PATTERNS` enforces this at runtime as a second line of defence.)
 - Zed editor state: `~/Library/Application Support/dev.zed.Zed/db` **except** `db/0/blob_store` (the blob_store is regenerable cache; the rest of `db/` is project state).
 - Any path under a user project workspace (root has `.git`) **except** the conventional artifact subdirectories listed in §"Project artifacts allowlist" below. Project source files, configs, and `.git` itself remain off-limits.
 - Virtual machine images: `*.vmdk`, `*.qcow2`, `*.vdi`, `~/Parallels`, `~/VirtualBox VMs`, `~/Library/Containers/com.docker.docker/Data/vms` (surface size only, record as L3 defer)
