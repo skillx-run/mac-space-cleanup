@@ -241,8 +241,8 @@ Then fold the output into the candidate list:
    - `.gguf` / `.safetensors` / `pytorch_model.bin` → `pkg_cache`, `source_label="ML model cache"`
    - `model_index.json` (Diffusers) → `pkg_cache`, `source_label="Diffusion model cache"`
    - `.iso` / `.dmg` / many `.mp4` / `.mov` → keep `large_media`, `source_label="Media archive"`
-   - `package.json` without a `.git` sibling → `app_cache`, `source_label="Orphan Node project"` (NOT `project_artifacts` — that requires `.git` and goes through `scan_projects.py`)
-   - `pyproject.toml` / `requirements.txt` without a `.git` sibling → `app_cache`, `source_label="Orphan Python project"`
+   - `package.json` without a `.git` sibling → `orphan`, `source_label="Orphan Node project"` (NOT `project_artifacts` — that requires `.git` and goes through `scan_projects.py`; NOT `app_cache` either — that bucket is for user-app caches like Safari / IM clients per §4, not for abandoned project workspaces. Mirrors the §10 convention where a non-Go `vendor/` falls back to `orphan` rather than being forced into a category that doesn't fit.)
+   - `pyproject.toml` / `requirements.txt` without a `.git` sibling → `orphan`, `source_label="Orphan Python project"` (same rationale)
    - README explicitly names a tool → use that tool's name in `source_label` (e.g. README mentions Plex → `"Plex transcode cache"`)
 
 Redaction note: `Unclassified large directory` is a deliberately generic `source_label` — no path fragment, basename, or container name enters it. The same redaction rule applies to any newly coined label produced by step 4: tool / product / category descriptors only, never paths or basenames. Because L3 `defer` contributes zero `freed_now_bytes`, none of these labels can surface in `share.txt`'s top-3 either; Stage 6 step 6's existing "skip orphan, take next concrete label" guard covers it naturally.

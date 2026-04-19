@@ -262,7 +262,7 @@ Defaults: **L4**, `skip`, `mode_hit_tags=["deep"]`.
 
 Reason field should be `"no matching rule"`. Surface in the deferred region for manual review.
 
-**Note**: items surfaced by the Stage 3.5 `du -d 2 ~` probe are routed to `large_media` (per §7), not to `orphan`, and they go through the orphan-investigation procedure in `safety-policy.md` §"Orphan investigation" before being finalised. `orphan` here is the residual bucket for items Stage 4 cannot match against §1-§8 or §10 by any path-rule or marker — investigation does not apply to this bucket.
+**Note**: items surfaced by the Stage 3.5 `du -d 2 ~` probe **default** to `large_media` (per §7) and go through the orphan-investigation procedure in `safety-policy.md` §"Orphan investigation" before being finalised. Investigation may refine the category to any of §1-§9 — including back to `orphan` with a more descriptive `source_label` (e.g. `"Orphan Node project"`) when no canonical category fits. The residual `orphan` bucket — items Stage 4 itself cannot match against §1-§8 or §10 by any path-rule or marker, and that **don't** come through the du-probe pathway — is not investigated; investigation is scoped to du-probe candidates only.
 
 ---
 
