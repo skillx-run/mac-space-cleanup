@@ -92,6 +92,18 @@ _DOCKER_PRUNE_COMMANDS: dict[str, list[str]] = {
     "stopped-containers": ["docker", "container", "prune", "-f"],
 }
 
+# Ollama per-model delete (v0.9+). Path form: ``ollama:<name>:<tag>`` — e.g.
+# ``ollama:llama3:70b`` or ``ollama:hf.co/bartowski/xxx:Q4``. The dispatcher
+# reads the target manifest, scans every other manifest to compute the set of
+# blobs still referenced elsewhere, and deletes only the blobs exclusive to
+# the target (plus the target manifest itself). This is the safety net that
+# v0.8 lacked: a naive ``rm`` on a manifest would orphan content-addressed
+# blobs that another model still points at.
+OLLAMA_PATH_PREFIX = "ollama:"
+OLLAMA_MODELS_DIR = Path.home() / ".ollama" / "models"
+OLLAMA_DEFAULT_REGISTRY = "registry.ollama.ai"
+OLLAMA_DEFAULT_NAMESPACE = "library"
+
 # `brew cleanup -s` ends with: "==> This operation has freed approximately
 # 1.2GB of disk space." Capture number + unit suffix.
 _BREW_FREED_RE = re.compile(
@@ -370,6 +382,178 @@ def _handle_docker_prune(item: dict[str, Any], dry_run: bool) -> dict[str, Any]:
     return _finalize(rec, t0)
 
 
+def _resolve_ollama_manifest_path(name_tag: str) -> Path | None:
+    """Map a UI name+tag (``<name>:<tag>``) to an on-disk manifest path.
+
+    Registry resolution mirrors the Ollama client:
+
+      - First segment contains a ``.`` → treat as registry host; the whole
+        name is a literal relative path (``hf.co/bartowski/xxx`` →
+        ``hf.co/bartowski/xxx``).
+      - Any ``/`` present but no ``.`` in the first segment → default
+        registry, user-provided namespace (``user/custom`` →
+        ``registry.ollama.ai/user/custom``).
+      - No ``/`` at all → default registry + ``library`` namespace
+        (``llama3`` → ``registry.ollama.ai/library/llama3``).
+
+    The final manifest path appends the tag as a file component. Returns
+    ``None`` when the input is malformed (missing tag, empty name, empty
+    tag) so the caller can surface a clean failure.
+    """
+    if ":" not in name_tag:
+        return None
+    name, _, tag = name_tag.rpartition(":")
+    if not name or not tag:
+        return None
+
+    parts = name.split("/")
+    if len(parts) >= 2 and "." in parts[0]:
+        rel = name
+    elif "/" in name:
+        rel = f"{OLLAMA_DEFAULT_REGISTRY}/{name}"
+    else:
+        rel = f"{OLLAMA_DEFAULT_REGISTRY}/{OLLAMA_DEFAULT_NAMESPACE}/{name}"
+    return OLLAMA_MODELS_DIR / "manifests" / rel / tag
+
+
+def _collect_manifest_blobs(manifest_path: Path) -> set[str] | None:
+    """Return the set of blob sha256 digests a manifest references, or None.
+
+    Collects ``config.digest`` and every ``layers[].digest`` entry. Returns
+    ``None`` when the manifest is missing, unreadable, or not valid JSON —
+    used by the caller to distinguish "empty manifest" from "broken
+    manifest". Unexpected schema shapes (missing config, layers not a list,
+    entries lacking ``digest``) are tolerated; only the digests that parse
+    cleanly are surfaced.
+    """
+    try:
+        with manifest_path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError, ValueError, UnicodeDecodeError):
+        return None
+    if not isinstance(data, dict):
+        return None
+
+    digests: set[str] = set()
+    cfg = data.get("config")
+    if isinstance(cfg, dict):
+        dig = cfg.get("digest")
+        if isinstance(dig, str):
+            digests.add(dig)
+    layers = data.get("layers")
+    if isinstance(layers, list):
+        for layer in layers:
+            if isinstance(layer, dict):
+                dig = layer.get("digest")
+                if isinstance(dig, str):
+                    digests.add(dig)
+    return digests
+
+
+def _digest_to_blob_path(digest: str) -> Path | None:
+    """Convert a manifest digest ``sha256:abc...`` to the on-disk blob path.
+
+    Ollama stores blobs as ``sha256-<hash>`` files (hyphen, not colon) under
+    ``~/.ollama/models/blobs/``. Only the first ``:`` is replaced so an
+    unexpected digest format with extra colons still produces a single
+    canonical path.
+    """
+    if ":" not in digest:
+        return None
+    return OLLAMA_MODELS_DIR / "blobs" / digest.replace(":", "-", 1)
+
+
+def _walk_other_manifests(exclude: Path) -> list[Path]:
+    """Return every manifest file under ~/.ollama/models/manifests/ except `exclude`.
+
+    Traversal is read-only and does not descend into symlinked directories;
+    Ollama's own writes stay inside the manifests tree, so this is enough to
+    build a complete "still-referenced blob" set.
+    """
+    manifests_root = OLLAMA_MODELS_DIR / "manifests"
+    if not manifests_root.exists():
+        return []
+    result: list[Path] = []
+    for entry in manifests_root.rglob("*"):
+        if entry.is_file() and entry.resolve() != exclude.resolve():
+            result.append(entry)
+    return result
+
+
+def _handle_ollama_delete(item: dict[str, Any], dry_run: bool) -> dict[str, Any]:
+    """Delete one Ollama model's manifest and its exclusive blobs.
+
+    Reference counting: a blob digest referenced by ANY other manifest is
+    kept on disk; only blobs exclusive to the target are removed. The
+    dispatcher overrides ``size_before_bytes`` with the sum of exclusive
+    blob sizes so ``freed_now_bytes`` reflects real on-disk reclaim instead
+    of whatever estimate the agent supplied at Stage 3.
+
+    Failure modes (each maps to a short error string with no raw path):
+      - Malformed ``ollama:<...>`` path (empty name or tag)
+      - Manifest missing or unreadable (corrupted JSON, permissions)
+    """
+    rec = _base_record(item, ACTION_DELETE)
+    t0 = time.monotonic()
+
+    raw = item.get("path") or ""
+    suffix = raw[len(OLLAMA_PATH_PREFIX):] if raw.startswith(OLLAMA_PATH_PREFIX) else ""
+    manifest_path = _resolve_ollama_manifest_path(suffix)
+    if manifest_path is None:
+        rec["status"] = STATUS_FAILED
+        rec["error"] = "invalid ollama path form (expected ollama:<name>:<tag>)"
+        return _finalize(rec, t0)
+
+    target_blobs = _collect_manifest_blobs(manifest_path)
+    if target_blobs is None:
+        rec["status"] = STATUS_FAILED
+        rec["error"] = "ollama manifest missing or unreadable"
+        return _finalize(rec, t0)
+
+    still_referenced: set[str] = set()
+    for other in _walk_other_manifests(manifest_path):
+        other_blobs = _collect_manifest_blobs(other)
+        if other_blobs:
+            still_referenced |= other_blobs
+
+    exclusive = target_blobs - still_referenced
+
+    freed = 0
+    blob_paths: list[Path] = []
+    for digest in exclusive:
+        blob_path = _digest_to_blob_path(digest)
+        if blob_path is None or not blob_path.exists():
+            continue
+        try:
+            freed += blob_path.stat().st_size
+            blob_paths.append(blob_path)
+        except OSError:
+            continue
+
+    rec["size_before_bytes"] = freed
+
+    if dry_run:
+        return _finalize(rec, t0, dry_run=True)
+
+    try:
+        manifest_path.unlink()
+    except OSError as e:
+        rec["status"] = STATUS_FAILED
+        rec["error"] = f"ollama manifest unlink failed: {type(e).__name__}"
+        return _finalize(rec, t0)
+
+    # Blob deletes are best-effort: a leftover orphan blob is less damaging
+    # than aborting mid-delete and leaving an inconsistent state (manifest
+    # gone but blobs still referenced by a record that no longer exists).
+    for blob_path in blob_paths:
+        try:
+            blob_path.unlink()
+        except OSError:
+            pass
+
+    return _finalize(rec, t0)
+
+
 def _handle_simctl_delete(item: dict[str, Any], dry_run: bool) -> dict[str, Any]:
     """xcrun simctl delete <UDID> | unavailable.
 
@@ -585,8 +769,10 @@ def dispatch(
     is_sim_runtime = category == CATEGORY_SIM_RUNTIME
     is_brew_cleanup = path == BREW_CLEANUP_PATH
     is_docker_prune = path.startswith(DOCKER_PATH_PREFIX)
+    is_ollama_delete = path.startswith(OLLAMA_PATH_PREFIX)
     is_specialised = (
-        is_snapshot or is_sim_runtime or is_brew_cleanup or is_docker_prune
+        is_snapshot or is_sim_runtime or is_brew_cleanup
+        or is_docker_prune or is_ollama_delete
     )
 
     # Hard backstop: refuse fs-touching actions on high-value paths even if
@@ -617,6 +803,8 @@ def dispatch(
             return _handle_brew_cleanup(item, dry_run)
         if is_docker_prune:
             return _handle_docker_prune(item, dry_run)
+        if is_ollama_delete:
+            return _handle_ollama_delete(item, dry_run)
         if is_snapshot:
             return _handle_snapshot_delete(item, dry_run)
         if is_sim_runtime:
