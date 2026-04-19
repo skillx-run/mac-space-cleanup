@@ -94,6 +94,16 @@ The repo keeps 7 translated READMEs alongside the English `README.md` at the pro
 
 Translation drift is the top documentation bug risk in this repo. Reviewers of any substantive `README.md` change must open all 7 translations side-by-side and confirm: structural isomorphism (section count, code-fence count), trigger-phrase table localized to the target language, commands / paths / proper nouns unchanged.
 
+## v0.7 coverage expansion
+
+v0.7 widens Tier E and project-artifact coverage on polyglot developer Macs without changing the L1-L4 risk model, the redaction rules, or the blacklist:
+
+- **Tier E gains seven rows** (all L1 `pkg_cache`, probed via CLI or dir-marker in Stage 2): RubyGems, Bundler, Composer, Poetry, ccache, sccache, Dart pub. Each row lists all candidate paths (Composer, ccache, sccache each ship two defaults on macOS) so whichever location the user's tool writes to is detected.
+- **`scan_projects.py` learns five new deletable subtypes** — `.mypy_cache`, `.ruff_cache`, `.dart_tool`, `.nyc_output`, `_build` — plus a new `coverage` kind. `_build/` is gated by a new `mix.exs` marker (Elixir); `coverage/` is gated at Stage 4 by the presence of `package.json` or any Python marker. Both are parallel carve-outs to the existing `vendor` / `env` disambiguation.
+- **Stage 3.5 runs the `du -d 2 ~` large-directory probe** that `category-rules.md` §7 has documented since v0.4 but never executed. Output becomes `large_media` L3 `defer` with the generic `source_label="Unclassified large directory"`.
+
+Cross-run history (`history.json`) stays format-compatible: new source_labels are just new tags. `scan_projects.py`'s JSON output adds one new `kind` value (`"coverage"`); consumers that hardcode `kind=="deletable"` skip it silently, which is the back-compat contract.
+
 ## Known non-goals (v0.1)
 
 See `plan` history and `SKILL.md`. Summary: no undo stack, no cron, no cloud sync, no SIP-region touches, no application uninstall. Recovery paths are the native trash / archive tars / migrate target volumes.
