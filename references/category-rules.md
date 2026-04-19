@@ -85,11 +85,11 @@ Language / package manager caches.
 - `~/.cache/torch/hub/**` (PyTorch hub pretrained weights downloaded via `torch.hub.load`; one aggregate item)
 - `~/.ollama/models/**` (Ollama local LLM store; one aggregate item — v0.8 does not enumerate per-model because the underlying storage is content-addressed in `blobs/` and naive `rm` on a `manifests/` entry would orphan shared blobs)
 - `~/.cache/lm-studio/models/**`, `~/.lmstudio/models/**` (LM Studio local model store — one aggregate item from whichever path exists; same per-model rationale as Ollama)
-- `~/miniconda3/envs/*`, `~/anaconda3/envs/*`, `~/opt/miniconda3/envs/*`, `~/opt/anaconda3/envs/*`, `~/.mamba/envs/*` (per-env subdirs under whichever Conda / Mamba install layout the user has; **`base` env is excluded** because removing it is equivalent to uninstalling conda / mamba. Scope deliberately limited to `~/...` — system-managed `/opt/miniconda3/envs` is not scanned.)
+- `~/miniconda3/envs/*`, `~/anaconda3/envs/*`, `~/opt/miniconda3/envs/*`, `~/opt/anaconda3/envs/*`, `~/miniforge3/envs/*`, `~/mambaforge/envs/*`, `~/.mamba/envs/*` (per-env subdirs under whichever Conda / Mamba / Miniforge install layout the user has — covers the five common macOS install layouts including miniforge / mambaforge on Apple Silicon; **`base` env is excluded** because removing it is equivalent to uninstalling the distribution. Scope deliberately limited to `~/...` — system-managed `/opt/miniconda3/envs` is not scanned.)
 - `~/Library/Caches/ms-playwright/**`, `~/.cache/ms-playwright/**`, `~/Library/Caches/ms-playwright-driver/**` (Playwright browser binaries and driver cache — `npx playwright install` fully regenerates)
 - `~/.cache/puppeteer/**` (Puppeteer bundled browser binaries; re-downloaded on next install or programmatic launch)
 - `~/.cache/whisper/**`, `~/.cache/openai-whisper/**` (OpenAI Whisper model cache — one aggregate item; `whisper.load_model()` re-downloads on next invocation. **Faster-Whisper (SYSTRAN) uses the HuggingFace hub** and is covered by the HuggingFace rule above, not duplicated here.)
-- `~/.wandb/**` (Weights & Biases global run cache — local artefacts for experiment tracking)
+- `~/.wandb/**`, `~/.cache/wandb/**` (Weights & Biases global run / artefact cache — older SDKs wrote to `~/.wandb/`, newer SDKs use the XDG-style `~/.cache/wandb/`; probe both, include whichever exists. Per-project `./wandb/` dirs live inside repo trees and are not swept.)
 
 Defaults: **L1**, `delete`, `mode_hit_tags=["quick","deep"]`.
 
@@ -103,7 +103,7 @@ Exceptions:
 - `~/.ollama/models/**`, `~/.cache/lm-studio/models/**`, `~/.lmstudio/models/**` — set **L3** `defer` (multi-GB local LLMs the user pulled deliberately; v0.8 surfaces each tool as one aggregate item because per-model `rm` is unsafe without a `ollama:<model>` semantic dispatcher in `safe_delete.py`).
 - Conda / Mamba env entries (one item per non-`base` subdir of the detected `envs/`) — set **L2** `trash`, `mode_hit_tags=["deep"]`. Reason: a user env can carry pip packages from a yanked version, editable installs pointing at local projects, or a channel-specific build that is inconvenient to reproduce — `trash` gives a same-session recovery window, and `deep` gates prevent a quick-mode run from sweeping an environment still in active shell use.
 - `~/.cache/whisper/**`, `~/.cache/openai-whisper/**` — set **L2** `trash` (per-model weights of 100–500 MB; `whisper.load_model()` will refetch, trash keeps a recovery window for a failed refetch or offline dev session).
-- `~/.wandb/**` — set **L2** `trash` (contains local run artefacts that sync to the W&B cloud; trash gives a window to re-sync anything missed).
+- `~/.wandb/**`, `~/.cache/wandb/**` — set **L2** `trash` (contains local run artefacts that sync to the W&B cloud; trash gives a window to re-sync anything missed).
 
 ---
 
@@ -138,11 +138,12 @@ Before falling back to the generic `"System caches"` / `"Editor cache"` labels, 
 | `~/Library/Application Support/Adobe/Common/Peak Files` | `"Adobe Media Cache"` |
 | `~/Library/Caches/com.apple.FinalCut*` | `"Final Cut Pro cache"` |
 | `~/Library/Caches/com.apple.logic*` | `"Logic Pro cache"` |
-| `~/Library/Application Support/GarageBand/**/sample*` | `"GarageBand sample cache"` |
+
+GarageBand's downloadable instrument libraries (`~/Library/Application Support/GarageBand/InstrumentLibraries/` et al.) are **deliberately excluded** from the refinement table: they are user-initiated content downloads rather than regenerable cache, and reclaiming requires the user to reopen GarageBand → Sound Library → Download All Available Sounds (a multi-GB redownload). Surface them via the default `app_cache` rule only if the user explicitly targets that tree.
 
 **Adobe Auto-Save carve-out** (critical): the generic `~/Library/Application Support/Adobe/**` sweep MUST NOT descend into `~/Library/Application Support/Adobe/*/Auto-Save/**` — those are unsaved project files, not cache, and deleting them destroys hours of user work. This is enforced in both `cleanup-scope.md` blacklist and `scripts/safe_delete.py::_BLOCKED_PATTERNS`. If the agent ever sees an `Auto-Save` path classified into `app_cache`, something went wrong in path enumeration — fall through to L4 and flag for review.
 
-`source_label` table additions (canonical; Stage 6 translates on the fly): `"Adobe Media Cache"`, `"Final Cut Pro cache"`, `"Logic Pro cache"`, `"GarageBand sample cache"`.
+`source_label` table additions (canonical; Stage 6 translates on the fly): `"Adobe Media Cache"`, `"Final Cut Pro cache"`, `"Logic Pro cache"`.
 
 ---
 
@@ -319,7 +320,7 @@ Stage 4 produces in-memory items with these fields (matches `cleanup-result.json
 | `dev_cache` | `"Xcode DerivedData"`, `"Xcode Archives"`, `"iOS DeviceSupport"`, `"watchOS DeviceSupport"`, `"tvOS DeviceSupport"`, `"Xcode Playground cache"`, `"Go build cache"`, `"Gradle cache"`, `"Docker build cache"`, `"Docker dangling images"`, `"Docker stopped containers"`, `"JetBrains cache"`, `"Flutter SDK cache"` |
 | `sim_runtime` | `"Xcode Simulator Runtimes"`, `"Xcode Simulator Devices"` |
 | `pkg_cache` | `"Homebrew cache"`, `"Homebrew Cellar cleanup"`, `"npm cache"`, `"pnpm store"`, `"Yarn Berry cache"`, `"Bun cache"`, `"Deno cache"`, `"pip cache"`, `"uv cache"`, `"Cargo cache"`, `"Swift PM cache"`, `"Carthage cache"`, `"Android SDK image"`, `"Node version manager"`, `"Python version manager"`, `"Rust toolchain"`, `"RubyGems cache"`, `"Bundler cache"`, `"Composer cache"`, `"Poetry cache"`, `"ccache"`, `"sccache"`, `"Dart pub cache"`, `"HuggingFace model cache"`, `"HuggingFace dataset cache"`, `"PyTorch hub cache"`, `"Ollama model cache"`, `"LM Studio model cache"`, `"Conda environment"`, `"Playwright browsers"`, `"Puppeteer browsers"`, `"Whisper model cache"`, `"Weights & Biases cache"` |
-| `app_cache` | `"System caches"`, `"Saved application state"`, `"Trash"`, `"Browser cache"`, `"Messaging cache"`, `"Editor cache"`, `"Adobe Media Cache"`, `"Final Cut Pro cache"`, `"Logic Pro cache"`, `"GarageBand sample cache"` |
+| `app_cache` | `"System caches"`, `"Saved application state"`, `"Trash"`, `"Browser cache"`, `"Messaging cache"`, `"Editor cache"`, `"Adobe Media Cache"`, `"Final Cut Pro cache"`, `"Logic Pro cache"` |
 | `logs` | `"User logs"`, `"Crash reports"`, `"Diagnostic reports"`, `"System logs"` |
 | `downloads` | `"Old installers"`, `"Large archives in Downloads"` |
 | `large_media` | `"iOS backups"`, `"Large files in Movies"`, `"Unclassified large directory"` |

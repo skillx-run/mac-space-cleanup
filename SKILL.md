@@ -116,10 +116,12 @@ ls -d ~/.cocoapods ~/.gradle ~/.m2 ~/.nvm \
       ~/.cache/huggingface ~/.cache/torch \
       ~/.ollama ~/.cache/lm-studio ~/.lmstudio \
       ~/miniconda3/envs ~/anaconda3/envs \
-      ~/opt/miniconda3/envs ~/opt/anaconda3/envs ~/.mamba/envs \
+      ~/opt/miniconda3/envs ~/opt/anaconda3/envs \
+      ~/miniforge3/envs ~/mambaforge/envs ~/.mamba/envs \
       ~/Library/Caches/ms-playwright ~/.cache/ms-playwright \
       ~/Library/Caches/ms-playwright-driver ~/.cache/puppeteer \
-      ~/.cache/whisper ~/.cache/openai-whisper ~/.wandb 2>/dev/null
+      ~/.cache/whisper ~/.cache/openai-whisper \
+      ~/.wandb ~/.cache/wandb 2>/dev/null
 ```
 
 The `which -a` line gates Tier E rows that have a CLI probe; the `ls -d` line gates rows with a directory probe (nvm has no CLI on PATH; Android SDK and JetBrains are detected by their marker dirs). Keep these two lines in sync with `references/cleanup-scope.md` Tier E — when a row is added there, extend the matching probe here.
@@ -265,7 +267,7 @@ For each candidate, consult `references/category-rules.md` and `references/safet
 
 If a directory's purpose is unclear, investigate before classifying: `ls -lah`, `file`, `head -c 200`. Do not guess. Unclassifiable items become `category=orphan, risk_level=L4, action=skip`.
 
-**Refine `app_cache` source_label for creative apps** (v0.9+): after assigning `category=app_cache`, consult `references/category-rules.md` §4's "Source label refinement for creative apps" table before falling back to the generic `"System caches"` / `"Editor cache"` labels. Adobe Media Cache, Final Cut Pro, Logic Pro, and GarageBand paths have specific labels that make the report name the actual workflow. Never descend into any `Adobe/*/Auto-Save/**` path — those are user work, not cache, and are blocked in both the blacklist and `safe_delete.py`.
+**Refine `app_cache` source_label for creative apps** (v0.9+): after assigning `category=app_cache`, consult `references/category-rules.md` §4's "Source label refinement for creative apps" table before falling back to the generic `"System caches"` / `"Editor cache"` labels. Adobe Media Cache, Final Cut Pro, and Logic Pro paths have specific labels that make the report name the actual workflow. Never descend into any `Adobe/*/Auto-Save/**` path — those are user work, not cache, and are blocked in both the blacklist and `safe_delete.py`.
 
 **Guard against reflexive orphan fallback.** `orphan` is a last-resort bucket, not a "don't know, move on" shortcut. Before assigning it, do a deliberate second pass against the three rule blocks most commonly skipped:
 
