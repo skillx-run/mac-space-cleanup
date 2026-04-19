@@ -126,6 +126,23 @@ Exceptions:
 - If the cache subdir / container identifier contains `Mail`, `Keychain`, `iCloud`, or `CloudKit` → **L4** `skip` (surface only; never touch per `cleanup-scope.md` blacklist).
 - If the path matches a **Tier C** entry in `cleanup-scope.md` (browser or messaging-app cache — Safari/Chrome/Firefox/Brave/Edge/Arc, WeChat/Discord/Slack/Teams/Telegram/Lark/Signal; **or the non-sandboxed editor subset — Code/Cursor/Windsurf/Zed**), override to **L2** `trash`. Rationale: these caches re-populate on the next app launch, but a trash recovery window avoids nuking an active chat session, a signed-in browser profile, or an open editor's just-warmed extension cache.
 - `~/Library/Group Containers/*` and in-Container `Application Support/Cache*` sweeps also inherit the L2 trash exception when their identifier matches a Tier C browser/messaging app (the generic sweep pattern is Tier C-adjacent by design).
+- **Creative-app caches always override to L2 `trash`** regardless of which generic sweep surfaced them — the media-cache tree can be tens of GB and the app rebuilds it on the next project open, but a session-level trash window guards against a mid-edit sweep. Reuse the Tier C L2 semantics for these.
+
+### Source label refinement for creative apps
+
+Before falling back to the generic `"System caches"` / `"Editor cache"` labels, the agent matches the candidate path against this refinement table and — if any pattern fires — uses the more specific `source_label`. Risk grading is unchanged (L2 `trash` from the Tier C-adjacent override above); only the UI label differs so the report names the actual workflow.
+
+| Path pattern (case-insensitive) | Refined `source_label` |
+| --- | --- |
+| `~/Library/Application Support/Adobe/Common/Media Cache*` | `"Adobe Media Cache"` |
+| `~/Library/Application Support/Adobe/Common/Peak Files` | `"Adobe Media Cache"` |
+| `~/Library/Caches/com.apple.FinalCut*` | `"Final Cut Pro cache"` |
+| `~/Library/Caches/com.apple.logic*` | `"Logic Pro cache"` |
+| `~/Library/Application Support/GarageBand/**/sample*` | `"GarageBand sample cache"` |
+
+**Adobe Auto-Save carve-out** (critical): the generic `~/Library/Application Support/Adobe/**` sweep MUST NOT descend into `~/Library/Application Support/Adobe/*/Auto-Save/**` — those are unsaved project files, not cache, and deleting them destroys hours of user work. This is enforced in both `cleanup-scope.md` blacklist and `scripts/safe_delete.py::_BLOCKED_PATTERNS`. If the agent ever sees an `Auto-Save` path classified into `app_cache`, something went wrong in path enumeration — fall through to L4 and flag for review.
+
+`source_label` table additions (canonical; Stage 6 translates on the fly): `"Adobe Media Cache"`, `"Final Cut Pro cache"`, `"Logic Pro cache"`, `"GarageBand sample cache"`.
 
 ---
 
@@ -302,7 +319,7 @@ Stage 4 produces in-memory items with these fields (matches `cleanup-result.json
 | `dev_cache` | `"Xcode DerivedData"`, `"Xcode Archives"`, `"iOS DeviceSupport"`, `"watchOS DeviceSupport"`, `"tvOS DeviceSupport"`, `"Xcode Playground cache"`, `"Go build cache"`, `"Gradle cache"`, `"Docker build cache"`, `"Docker dangling images"`, `"Docker stopped containers"`, `"JetBrains cache"`, `"Flutter SDK cache"` |
 | `sim_runtime` | `"Xcode Simulator Runtimes"`, `"Xcode Simulator Devices"` |
 | `pkg_cache` | `"Homebrew cache"`, `"Homebrew Cellar cleanup"`, `"npm cache"`, `"pnpm store"`, `"Yarn Berry cache"`, `"Bun cache"`, `"Deno cache"`, `"pip cache"`, `"uv cache"`, `"Cargo cache"`, `"Swift PM cache"`, `"Carthage cache"`, `"Android SDK image"`, `"Node version manager"`, `"Python version manager"`, `"Rust toolchain"`, `"RubyGems cache"`, `"Bundler cache"`, `"Composer cache"`, `"Poetry cache"`, `"ccache"`, `"sccache"`, `"Dart pub cache"`, `"HuggingFace model cache"`, `"HuggingFace dataset cache"`, `"PyTorch hub cache"`, `"Ollama model cache"`, `"LM Studio model cache"`, `"Conda environment"`, `"Playwright browsers"`, `"Puppeteer browsers"`, `"Whisper model cache"`, `"Weights & Biases cache"` |
-| `app_cache` | `"System caches"`, `"Saved application state"`, `"Trash"`, `"Browser cache"`, `"Messaging cache"`, `"Editor cache"` |
+| `app_cache` | `"System caches"`, `"Saved application state"`, `"Trash"`, `"Browser cache"`, `"Messaging cache"`, `"Editor cache"`, `"Adobe Media Cache"`, `"Final Cut Pro cache"`, `"Logic Pro cache"`, `"GarageBand sample cache"` |
 | `logs` | `"User logs"`, `"Crash reports"`, `"Diagnostic reports"`, `"System logs"` |
 | `downloads` | `"Old installers"`, `"Large archives in Downloads"` |
 | `large_media` | `"iOS backups"`, `"Large files in Movies"`, `"Unclassified large directory"` |

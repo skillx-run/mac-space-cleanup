@@ -265,6 +265,8 @@ For each candidate, consult `references/category-rules.md` and `references/safet
 
 If a directory's purpose is unclear, investigate before classifying: `ls -lah`, `file`, `head -c 200`. Do not guess. Unclassifiable items become `category=orphan, risk_level=L4, action=skip`.
 
+**Refine `app_cache` source_label for creative apps** (v0.9+): after assigning `category=app_cache`, consult `references/category-rules.md` §4's "Source label refinement for creative apps" table before falling back to the generic `"System caches"` / `"Editor cache"` labels. Adobe Media Cache, Final Cut Pro, Logic Pro, and GarageBand paths have specific labels that make the report name the actual workflow. Never descend into any `Adobe/*/Auto-Save/**` path — those are user work, not cache, and are blocked in both the blacklist and `safe_delete.py`.
+
 **Guard against reflexive orphan fallback.** `orphan` is a last-resort bucket, not a "don't know, move on" shortcut. Before assigning it, do a deliberate second pass against the three rule blocks most commonly skipped:
 
 - Does the candidate sit inside a project root returned by `scripts/scan_projects.py` (Stage 3.5)? Check `references/category-rules.md` §10 (`project_artifacts`) — `node_modules`, `target`, `build`, `dist`, `.next`, `.nuxt`, `__pycache__`, `Pods`, `.venv`, `venv` are **project_artifacts**, not orphan. Only `vendor/` in a non-Go project and `env/` in a non-Python project are legitimate orphans, and the rules doc spells that out explicitly.
