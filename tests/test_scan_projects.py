@@ -207,6 +207,116 @@ class TestScanProjects(unittest.TestCase):
         nc = [a for a in p["artifacts"] if a["kind"] == "nested_cache"]
         self.assertEqual(nc, [])
 
+    # ------------------------------------------------------------------
+    # version_pins (v0.9+) — each project carries a dict of language -> list
+    # of pinned versions, read from .python-version / .nvmrc at the root.
+    # The agent unions these across all projects to exclude them from the
+    # global ~/.pyenv/versions/* and ~/.nvm/versions/node/* sweeps.
+    # ------------------------------------------------------------------
+
+    def _mkproj_with_pins(self, base: Path, name: str, pin_files: dict[str, str]) -> Path:
+        proj = _mkproj(base, name)
+        for fname, contents in pin_files.items():
+            (proj / fname).write_text(contents)
+        return proj
+
+    def test_version_pins_absent_emits_empty_dict(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            _mkproj(base, "no-pins")
+            code, out, _ = _scan_dir(base)
+        self.assertEqual(code, 0)
+        p = out["projects"][0]
+        self.assertIn("version_pins", p)
+        self.assertEqual(p["version_pins"], {})
+
+    def test_version_pins_python_single_version(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            self._mkproj_with_pins(base, "py",
+                                   {".python-version": "3.11.4\n"})
+            code, out, _ = _scan_dir(base)
+        self.assertEqual(code, 0)
+        self.assertEqual(out["projects"][0]["version_pins"],
+                         {"python": ["3.11.4"]})
+
+    def test_version_pins_python_multi_version_pyenv_chain(self):
+        # `pyenv local 3.11.4 3.10.8` writes both on one line, and pyenv
+        # treats the list as a fallback chain. Both versions are pinned.
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            self._mkproj_with_pins(base, "chain",
+                                   {".python-version": "3.11.4 3.10.8\n"})
+            code, out, _ = _scan_dir(base)
+        self.assertEqual(code, 0)
+        self.assertEqual(out["projects"][0]["version_pins"],
+                         {"python": ["3.11.4", "3.10.8"]})
+
+    def test_version_pins_nvmrc(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            self._mkproj_with_pins(base, "js",
+                                   {".nvmrc": "18\n"})
+            code, out, _ = _scan_dir(base)
+        self.assertEqual(code, 0)
+        self.assertEqual(out["projects"][0]["version_pins"],
+                         {"node": ["18"]})
+
+    def test_version_pins_both_python_and_node(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            self._mkproj_with_pins(base, "polyglot",
+                                   {".python-version": "3.12.1",
+                                    ".nvmrc": "20.10.0"})
+            code, out, _ = _scan_dir(base)
+        self.assertEqual(code, 0)
+        pins = out["projects"][0]["version_pins"]
+        self.assertEqual(pins, {"python": ["3.12.1"], "node": ["20.10.0"]})
+
+    def test_version_pins_empty_and_whitespace_only_files_omit_key(self):
+        # An empty or whitespace-only pin file contributes no versions;
+        # the lang key is omitted entirely so downstream consumers don't
+        # see `{"python": []}` that they'd have to special-case.
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            self._mkproj_with_pins(base, "empty",
+                                   {".python-version": "",
+                                    ".nvmrc": "   \n\t\n"})
+            code, out, _ = _scan_dir(base)
+        self.assertEqual(code, 0)
+        self.assertEqual(out["projects"][0]["version_pins"], {})
+
+    def test_version_pins_skips_comment_lines_and_handles_crlf(self):
+        # Pyenv allows comment lines starting with '#'. CRLF line endings
+        # (e.g. from a Windows collaborator) must not leak into the tokens.
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            self._mkproj_with_pins(base, "commented",
+                                   {".python-version":
+                                    "# pinned for Apple Silicon compat\r\n"
+                                    "3.11.4\r\n"
+                                    "# fallback\r\n"
+                                    "3.10.8\r\n"})
+            code, out, _ = _scan_dir(base)
+        self.assertEqual(code, 0)
+        self.assertEqual(out["projects"][0]["version_pins"],
+                         {"python": ["3.11.4", "3.10.8"]})
+
+    def test_version_pins_missing_files_do_not_crash(self):
+        # If .python-version / .nvmrc are absent the key is simply omitted;
+        # projects without pin files coexist fine with projects that have them.
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            _mkproj(base, "no-pins")
+            self._mkproj_with_pins(base, "has-pins",
+                                   {".python-version": "3.11.4"})
+            code, out, _ = _scan_dir(base)
+        self.assertEqual(code, 0)
+        by_root = {p["root"].rsplit("/", 1)[1]: p for p in out["projects"]}
+        self.assertEqual(by_root["no-pins"]["version_pins"], {})
+        self.assertEqual(by_root["has-pins"]["version_pins"],
+                         {"python": ["3.11.4"]})
+
     def test_skips_directory_without_git(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)

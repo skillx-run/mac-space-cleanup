@@ -199,7 +199,9 @@ echo '{"roots": ["~"], "max_depth": 6}' \
   | python3 scripts/scan_projects.py > "$WORKDIR/projects.json"
 ```
 
-`projects.json` shape (see `scripts/scan_projects.py` docstring): each project carries `root`, `markers_found` (e.g. `["go.mod", "package.json"]`), and an `artifacts[]` list with `path / subtype / kind`.
+`projects.json` shape (see `scripts/scan_projects.py` docstring): each project carries `root`, `markers_found` (e.g. `["go.mod", "package.json"]`), `version_pins` (e.g. `{"python": ["3.11.4"], "node": ["18"]}` — may be `{}` if no pin files exist), and an `artifacts[]` list with `path / subtype / kind`.
+
+**Version-pin union for Tier E per-version sweeps (v0.9+).** Before classifying `~/.pyenv/versions/*` or `~/.nvm/versions/node/*` candidates, collect the union of `project.version_pins.python` across all scanned projects and append it to the pyenv exclusion set (alongside `pyenv version --bare` — the global default). Same for `version_pins.node` and nvm. This replaces the older "agent must `cd` into each project and run `pyenv local`" choreography with a single-pass scan. Leave the existing CLI-based fallback ("if version_pins is `{}`, still run `pyenv version --bare`") in place for projects that lack pin files but still pin via shell-level `PYENV_VERSION`.
 
 **Get sizes for each artifact** by writing a separate `$WORKDIR/paths-projects.json` (one entry per artifact path) and running `collect_sizes.py` again:
 

@@ -15,10 +15,15 @@ collect_sizes.py before grading.
 stdin:  {"roots": ["~", ...], "max_depth": 6}    # both keys optional
 stdout: {
   "projects": [
-    {"root": "...", "markers_found": [...], "artifacts": [
-      {"path": "...", "subtype": "node_modules", "kind": "deletable"},
-      ...
-    ]}, ...
+    {
+      "root": "...",
+      "markers_found": [...],
+      "version_pins": {"python": ["3.11.4"], "node": ["18"]},  # may be {}
+      "artifacts": [
+        {"path": "...", "subtype": "node_modules", "kind": "deletable"},
+        ...
+      ]
+    }, ...
   ],
   "stats": {
     "projects_found": int,
@@ -221,6 +226,66 @@ def _detect_markers(project_root: str) -> list[str]:
     return found
 
 
+# Files at the project root that pin a language runtime version. The values
+# are plumbed into `version_pins` so the agent at SKILL.md Stage 3 can
+# exclude those versions from the global `~/.pyenv/versions/*` /
+# `~/.nvm/versions/node/*` sweep — deleting a pinned runtime breaks the
+# affected project.
+_VERSION_PIN_FILES: tuple[tuple[str, str], ...] = (
+    (".python-version", "python"),
+    (".nvmrc", "node"),
+)
+
+
+def _parse_version_pin_file(path: str) -> list[str]:
+    """Read one pin-file and return the ordered list of non-empty version tokens.
+
+    Handles (per `pyenv local --help` and `.nvmrc` convention):
+      - File missing  -> []
+      - Unreadable    -> []   (silently ignore; worst case is the agent falls
+                               back to the existing runtime-query path)
+      - Comment lines -> stripped (`#` prefix after leading whitespace)
+      - Multiple tokens per line (`pyenv local 3.11.4 3.10.8`) -> each a hit
+      - CRLF / trailing whitespace -> normalised
+      - Empty / whitespace-only file -> []
+    """
+    try:
+        with open(path, "rb") as f:
+            raw = f.read()
+    except (OSError, ValueError):
+        return []
+    try:
+        text = raw.decode("utf-8", errors="replace")
+    except UnicodeDecodeError:
+        return []
+
+    versions: list[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        for token in stripped.split():
+            if token and not token.startswith("#"):
+                versions.append(token)
+    return versions
+
+
+def _detect_version_pins(project_root: str) -> dict[str, list[str]]:
+    """Return `{lang: [versions]}` for every pin-file that exists & has values.
+
+    Missing or empty pin files are omitted from the result so downstream
+    consumers can iterate keys without special-casing. Duplicate versions
+    within a single file are preserved in input order (the file's authoring
+    matters — `pyenv local 3.11 3.10` gives a fallback chain).
+    """
+    pins: dict[str, list[str]] = {}
+    for filename, lang in _VERSION_PIN_FILES:
+        versions = _parse_version_pin_file(os.path.join(project_root, filename))
+        if versions:
+            pins[lang] = versions
+    return pins
+
+
 def _enumerate_artifacts(project_root: str) -> list[dict[str, str]]:
     """Return artifact dicts for every conventional subdir that exists."""
     artifacts: list[dict[str, str]] = []
@@ -282,11 +347,13 @@ def scan(roots: list[str], max_depth: int) -> dict[str, Any]:
     for git_dir in accepted_git_dirs:
         proj_root = os.path.dirname(git_dir)
         markers = _detect_markers(proj_root)
+        pins = _detect_version_pins(proj_root)
         arts = _enumerate_artifacts(proj_root)
         artifacts_total += len(arts)
         projects.append({
             "root": proj_root,
             "markers_found": markers,
+            "version_pins": pins,
             "artifacts": arts,
         })
 

@@ -69,10 +69,10 @@ Language / package manager caches.
 - `~/Library/Caches/org.carthage.CarthageKit/**`
 - `~/Library/Android/sdk/system-images/*` where the entry's mtime is older than 180 days (each API-level/arch subdir is one item; active development keeps the dir fresh)
 - `~/Library/Android/sdk/.temp/**`, `~/Library/Android/sdk/emulator/skins/**`
-- `~/.nvm/versions/node/*` excluding the `~/.nvm/alias/default` target and any version dir touched in the last 90 days (one item per kept-out version)
+- `~/.nvm/versions/node/*` excluding the `~/.nvm/alias/default` target, any version dir touched in the last 90 days, and the union of `version_pins.node` from every project surfaced by `scripts/scan_projects.py` (v0.9+; each project's `.nvmrc` is read in one pass). One item per kept-out version.
 - `~/Library/Application Support/fnm/node-versions/*` excluding the result of `fnm current`
 - `~/Library/Caches/fnm_multishells/**` (shell-session caches, always disposable)
-- `~/.pyenv/versions/*` excluding `pyenv version --bare` and any pin discovered via `pyenv local` in scanned projects
+- `~/.pyenv/versions/*` excluding `pyenv version --bare` and the union of `version_pins.python` from every project surfaced by `scripts/scan_projects.py` (v0.9+; each project's `.python-version` is read in one pass rather than via per-project `pyenv local`)
 - `~/.rustup/toolchains/*` excluding the `rustup default` toolchain and any `rustup override list` pin
 - `~/.gem/ruby/*/cache/**`, `~/.gem/specs/**` (RubyGems download cache and spec mirror; `gem install` and `gem sources --update` regenerate)
 - `~/.bundle/cache/**` (Bundler 2 download cache; whole dir cleared safely — `bundle install` re-downloads)
