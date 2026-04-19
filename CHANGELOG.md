@@ -4,6 +4,26 @@ All notable changes to mac-space-cleanup. Newest first.
 
 ## Unreleased
 
+## v0.9.0 — 2026-04-19
+
+### Added
+- **`brew:cleanup-s` semantic dispatch** in `safe_delete.py`. The skill now surfaces a `brew:cleanup-s` item alongside the existing `$(brew --cache)` directory and on confirmation runs `brew cleanup -s` to drop old Cellar versions and stale downloads (typically 5–30 GB on a long-lived dev Mac). Pinned formulae are preserved automatically by Homebrew. Reclaim is parsed from brew's "freed approximately X" tail line and credited to `freed_now_bytes` rather than relying on a pre-estimate.
+- **Three `docker:*` semantic dispatches** in `safe_delete.py`: `docker:build-cache` → `docker builder prune -f`, `docker:dangling-images` → `docker image prune -f`, `docker:stopped-containers` → `docker container prune -f`. Each parses "Total reclaimed space: X" from prune output for accurate freed-bytes accounting. **`docker:unused-volumes` is intentionally NOT in the dispatch table** because volumes contain user data; an unknown suffix fails fast without ever shelling out.
+- **7 modern toolchain probes** in `cleanup-scope.md` Tier A/E + matching `category-rules.md` rules: Bun (`~/.bun/install/cache`), Deno (`~/Library/Caches/deno`), Yarn Berry PnP global cache (`~/.yarn/berry/cache`, only when `enableGlobalCache: true`), Swift Package Manager (`~/Library/Caches/org.swift.swiftpm`), Carthage (`~/Library/Caches/org.carthage.CarthageKit`), Xcode Playground (`~/Library/Developer/XCPGDevices`, `~/Library/Developer/XCPGPlaygrounds`), and `~/Library/DiagnosticReports`. Each surfaces under a specific UI-safe `source_label` (`"Bun cache"`, `"Swift PM cache"`, `"Diagnostic reports"`, …) instead of falling into the generic "System caches" bucket.
+- `_parse_human_bytes()` helper in `safe_delete.py` for parsing B/KB/MB/GB/TB sizes out of CLI output (shared by brew + docker handlers).
+
+### Changed
+- **`large_media` generic du fallback threshold lowered from 10 GB to 2 GB.** The previous threshold meant the catch-all probe only ever fired on truly enormous trees; mid-sized strangers (4–8 GB folders) silently slipped through. To keep Stage 3 budget in check, the probe now uses `du -d 2 ~/` (depth-limited so deeply nested project trees don't push the per-path 30s budget) and the surfaced list is capped at the **top 30 by size** so the deferred section stays scannable. Risk envelope unchanged: still L3 defer + deep-mode-only, never auto-cleaned.
+- **Xcode `iOS / watchOS / tvOS DeviceSupport` default action: `delete` → `trash`.** Each per-OS dir is 5–10 GB and rebuilding requires plugging a real device of that OS into Xcode again — a 10+ minute symbol re-pull. Defaulting to L1 delete made them unrecoverable. Match the risk class of pkg_cache nvm/pyenv/rustup per-version entries: L2 trash, same-session recovery via Finder. DerivedData stays L1 delete (fully regenerable from one rebuild).
+- **SKILL.md Stage 2 probe lines** extended with `bun deno` (CLI probe) and `~/Library/Caches/{org.swift.swiftpm,org.carthage.CarthageKit}` (directory probe).
+- **SKILL.md Stage 3 "semantic / tool entries"** rewritten to spell out that `docker:*` and `brew:cleanup-s` are dispatcher-handled paths whose `size_bytes` may be 0 at scan time — the dispatcher reports the real freed bytes back via `actions.jsonl`. Pre-estimate hints come from `brew cleanup -ns` and `docker system df`.
+
+### Tests
+- 86 → **91** (`test_safe_delete.py` adds 5: brew parse-on-success, brew failure-propagates, brew dry-run keeps input, docker parameterised dispatch over three subcommands, docker unknown-suffix fails safe).
+
+### Known limitation (CI)
+- The CI macos-latest runner does not have `bun`, `deno`, `docker`, Cursor, etc. installed, so the 7 new Tier E probes silently skip in CI. CI test coverage is limited to the `safe_delete.py` dispatch unit tests (subprocess mocked); real-path coverage relies on PR submitter dry-runs and user feedback.
+
 ## v0.8.0 — 2026-04-19
 
 ### Changed
