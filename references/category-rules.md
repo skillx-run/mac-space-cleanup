@@ -23,6 +23,7 @@ Developer build caches. Fully regenerable by rebuilding.
 - `~/Library/Developer/XCPGDevices/**`, `~/Library/Developer/XCPGPlaygrounds/**` (Xcode Playground per-device snapshots)
 - Docker build cache reported by `docker builder du` (semantic path `docker:build-cache`)
 - Docker dangling images from `docker images -f dangling=true` (semantic path `docker:dangling-images`)
+- Docker stopped containers from `docker ps -a --filter status=exited --filter status=created` (semantic path `docker:stopped-containers`; running containers are not touched)
 
 Defaults: **L1**, `delete`, `mode_hit_tags=["quick","deep"]`.
 
@@ -51,6 +52,7 @@ Rationale: aligns with Apple's own `xcrun simctl delete unavailable`, which remo
 Language / package manager caches.
 
 - `$(brew --cache)` directory contents older than 30 days
+- Old Homebrew Cellar versions and stale downloads via `brew cleanup -s` (semantic path `brew:cleanup-s`; pinned formulae are preserved automatically)
 - `$(npm config get cache)/**`
 - `$(pnpm store path)` contents
 - `~/Library/Caches/Yarn/**`
@@ -241,9 +243,9 @@ Stage 4 produces in-memory items with these fields (matches `cleanup-result.json
 
 | Category | Typical source_label values |
 | --- | --- |
-| `dev_cache` | `"Xcode DerivedData"`, `"Xcode Archives"`, `"iOS DeviceSupport"`, `"watchOS DeviceSupport"`, `"tvOS DeviceSupport"`, `"Xcode Playground cache"`, `"Go build cache"`, `"Gradle cache"`, `"Docker build cache"`, `"JetBrains cache"`, `"Flutter SDK cache"` |
+| `dev_cache` | `"Xcode DerivedData"`, `"Xcode Archives"`, `"iOS DeviceSupport"`, `"watchOS DeviceSupport"`, `"tvOS DeviceSupport"`, `"Xcode Playground cache"`, `"Go build cache"`, `"Gradle cache"`, `"Docker build cache"`, `"Docker dangling images"`, `"Docker stopped containers"`, `"JetBrains cache"`, `"Flutter SDK cache"` |
 | `sim_runtime` | `"Xcode Simulator Runtimes"`, `"Xcode Simulator Devices"` |
-| `pkg_cache` | `"Homebrew cache"`, `"npm cache"`, `"pnpm store"`, `"Yarn Berry cache"`, `"Bun cache"`, `"Deno cache"`, `"pip cache"`, `"uv cache"`, `"Cargo cache"`, `"Swift PM cache"`, `"Carthage cache"`, `"Android SDK image"`, `"Node version manager"`, `"Python version manager"`, `"Rust toolchain"` |
+| `pkg_cache` | `"Homebrew cache"`, `"Homebrew Cellar cleanup"`, `"npm cache"`, `"pnpm store"`, `"Yarn Berry cache"`, `"Bun cache"`, `"Deno cache"`, `"pip cache"`, `"uv cache"`, `"Cargo cache"`, `"Swift PM cache"`, `"Carthage cache"`, `"Android SDK image"`, `"Node version manager"`, `"Python version manager"`, `"Rust toolchain"` |
 | `app_cache` | `"System caches"`, `"Saved application state"`, `"Trash"`, `"Browser cache"`, `"Messaging cache"` |
 | `logs` | `"User logs"`, `"Crash reports"`, `"Diagnostic reports"`, `"System logs"` |
 | `downloads` | `"Old installers"`, `"Large archives in Downloads"` |

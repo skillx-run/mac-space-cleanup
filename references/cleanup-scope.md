@@ -71,8 +71,8 @@ Skip the row silently if the probe fails.
 | `xcrun simctl` | `~/Library/Developer/Xcode/watchOS DeviceSupport` | `dev_cache` |
 | `xcrun simctl` | `~/Library/Developer/Xcode/tvOS DeviceSupport` | `dev_cache` |
 | `xcrun simctl` | `~/Library/Developer/XCPGDevices`, `~/Library/Developer/XCPGPlaygrounds` (Playground devices and snapshots — used once and rarely revisited) | `dev_cache` |
-| `docker` | `docker system df` output (images / containers / volumes / build cache) | `dev_cache` |
-| `brew` | `brew --cache` directory | `pkg_cache` |
+| `docker` | `docker system df` output (images / containers / volumes / build cache) — surface the four semantic entries `docker:build-cache`, `docker:dangling-images`, `docker:stopped-containers` (each dispatched by `safe_delete.py`); **`docker:unused-volumes` is intentionally excluded** because volumes contain user data | `dev_cache` |
+| `brew` | `brew --cache` directory **and** the semantic entry `brew:cleanup-s` (dispatches `brew cleanup -s` to remove old Cellar versions and stale downloads — pinned formulae are preserved automatically by Homebrew) | `pkg_cache` |
 | `npm` | `npm config get cache` directory | `pkg_cache` |
 | `pnpm` | `pnpm store path` directory | `pkg_cache` |
 | `yarn` | `~/Library/Caches/Yarn`, `~/.yarn/berry/cache` (Yarn Berry PnP global cache, only present when `enableGlobalCache: true`) | `pkg_cache` |
