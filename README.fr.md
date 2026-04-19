@@ -90,18 +90,20 @@ Les écritures de droite à gauche (arabe, hébreu, persan) reçoivent `<html di
 
 **Nettoie** (avec un classement de risque selon `references/category-rules.md`) :
 
-- Caches développeur : Xcode DerivedData, Docker build cache, Go build cache, Gradle cache, ccache, sccache.
-- Caches de gestionnaires de paquets : Homebrew, npm, pnpm, yarn, pip, uv, Cargo, CocoaPods, RubyGems, Bundler, Composer, Poetry, Dart pub.
-- Runtimes des simulateurs iOS/watchOS/tvOS (via `xcrun simctl delete`, **jamais `rm -rf`**).
-- Caches d'applications sous `~/Library/Caches/*`, saved application state et la Trash elle-même.
+- Caches développeur : Xcode DerivedData, Docker build cache, Go build cache, Gradle cache, ccache, sccache, JetBrains, Flutter SDK, caches des éditeurs de la famille VSCode (Code / Cursor / Windsurf / Zed `blob_store`).
+- Caches de gestionnaires de paquets : Homebrew, npm, pnpm, yarn, pip, uv, Cargo, CocoaPods, RubyGems, Bundler, Composer, Poetry, Dart pub, Bun, Deno, Swift PM, Carthage. Les gestionnaires de versions (nvm / fnm / pyenv / rustup) font remonter les entrées non actives par version, les pins actifs étant lus depuis les `.python-version` / `.nvmrc` de chaque projet.
+- Caches de modèles AI/ML : HuggingFace (`hub/` en L2 trash, `datasets/` en L3 defer), PyTorch hub, Ollama (L3 defer ; en mode deep, dispatch par modèle via `ollama:<name>:<tag>` avec comptage de références de blobs, de sorte que les couches partagées entre tags survivent à la suppression d'un tag frère), LM Studio, OpenAI Whisper, cache global Weights & Biases. Envs non `base` de Conda / Mamba / Miniforge sur les sept layouts d'installation courants sous macOS.
+- Outils frontend : navigateurs + driver de Playwright, navigateurs embarqués de Puppeteer.
+- Runtimes des simulateurs iOS/watchOS/tvOS (via `xcrun simctl delete`, **jamais `rm -rf`**). Les entrées `DeviceSupport/<OS>` d'iOS dont le major.minor correspond à un appareil appairé ou à un runtime de simulateur disponible sont automatiquement rétrogradées en L3 defer.
+- Caches d'applications sous `~/Library/Caches/*`, saved application state et la Trash elle-même. Les caches des applications créatives (Adobe Media Cache / Peak Files, Final Cut Pro, Logic Pro) remontent sous des étiquettes spécifiques plutôt que sous le bucket générique `"System caches"`.
 - Journaux, rapports de crash.
 - Anciens installateurs dans `~/Downloads` (`.dmg / .pkg / .xip / .iso` de plus de 30 jours).
 - Instantanés locaux Time Machine (via `tmutil deletelocalsnapshots`).
 - **Artéfacts de build de projets** (mode deep uniquement, scannés par `scripts/scan_projects.py` pour tout répertoire ayant une racine `.git`) :
   - L1 suppression : `node_modules`, `target`, `build`, `dist`, `out`, `.next`, `.nuxt`, `.svelte-kit`, `.turbo`, `.parcel-cache`, `__pycache__`, `.pytest_cache`, `.tox`, `.mypy_cache`, `.ruff_cache`, `.dart_tool`, `.nyc_output`, `_build` (projets Elixir uniquement), `Pods`, `vendor` (projets Go uniquement).
-  - L2 vers Trash : `.venv`, `venv`, `env` (venvs Python — les pins de wheels peuvent ne pas se reproduire ; d'où la fenêtre de récupération) ; `coverage` (rapports de couverture de tests, conditionnés à `package.json` ou un marker Python).
+  - L2 vers Trash : `.venv`, `venv`, `env` (venvs Python — les pins de wheels peuvent ne pas se reproduire ; d'où la fenêtre de récupération) ; `coverage` (rapports de couverture de tests, conditionnés à `package.json` ou un marker Python) ; `.dvc/cache` (cache content-addressed de DVC, conditionné à un marker frère `.dvc/config` — le parent `.dvc/` contient l'état utilisateur et est préservé).
   - Répertoires système / gestionnaires de paquets (`~/Library`, `~/.cache`, `~/.npm`, `~/.cargo`, `~/.cocoapods`, `~/.gradle`, `~/.m2`, `~/.gem`, `~/.bundle`, `~/.composer`, `~/.pub-cache`, `~/.local`, `~/.rustup`, `~/.pnpm-store`, `~/.Trash`) sont élagués lors de la découverte de projets.
-- **Le mode deep remonte aussi les répertoires sous `~` ≥ 2 Gio qu'aucune autre règle n'a capturés** (L3 defer, `source_label="Unclassified large directory"`), pour que les véritables gros répertoires orphelins deviennent visibles pour une revue manuelle.
+- **Le mode deep remonte aussi les répertoires sous `~` ≥ 2 Gio qu'aucune autre règle n'a capturés** (L3 defer, `source_label="Unclassified large directory"`), pour que les véritables gros répertoires orphelins deviennent visibles pour une revue manuelle. Avant la classification finale, l'agent lance une brève investigation en lecture seule (au plus 6 commandes par candidat) pour affiner `category` et `source_label` ; le niveau de risque L3 defer est verrouillé quel que soit le résultat.
 
 **Garde-fou dur — refuse peu importe ce que dit `confirmed.json`** (voir `_BLOCKED_PATTERNS` dans `scripts/safe_delete.py`) :
 
@@ -109,6 +111,8 @@ Les écritures de droite à gauche (arabe, hébreu, persan) reçoivent `<html di
 - `~/Library/Keychains`, `~/Library/Mail`, `~/Library/Messages`, `~/Library/Mobile Documents` (iCloud Drive).
 - Bibliothèque Photos, bibliothèque Apple Music.
 - Fichiers `.env*`, clés SSH (`id_rsa`, `id_ed25519`, …).
+- État des éditeurs de la famille VSCode : `{Code, Cursor, Windsurf}/{User, Backups, History}` (éditions non sauvegardées, équivalents de git-stash, historique local d'édition).
+- Dossiers `Auto-Save` des apps créatives d'Adobe — projets non sauvegardés de Premiere / After Effects / Photoshop.
 
 L'agent lui-même lit `references/cleanup-scope.md` pour la whitelist / blacklist orientée utilisateur — la blocklist ci-dessus en est le sous-ensemble appliqué à l'exécution.
 
@@ -161,7 +165,7 @@ mac-space-cleanup/
 
 ---
 
-## Limitations & non-goals (v0.10.0)
+## Limitations & non-goals (v0.11.0)
 
 - **Pas de pile d'undo.** Les voies de récupération sont la Trash native, les tars dans `archive/` du workdir et le volume cible du migrate.
 - **Pas de cron / pas d'exécution en arrière-plan.** Chaque run est déclenchée par l'utilisateur.

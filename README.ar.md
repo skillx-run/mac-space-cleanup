@@ -90,18 +90,20 @@ brew install trash
 
 **يُنظِّف** (مع تصنيف مخاطر وفق `references/category-rules.md`):
 
-- كاشات المطوِّرين: Xcode DerivedData، Docker build cache، Go build cache، Gradle cache، ccache، sccache.
-- كاشات مديري الحِزَم: Homebrew، npm، pnpm، yarn، pip، uv، Cargo، CocoaPods، RubyGems، Bundler، Composer، Poetry، Dart pub.
-- أزمنة تشغيل محاكيات iOS/watchOS/tvOS (عبر `xcrun simctl delete`، **لا يستخدم `rm -rf` إطلاقاً**).
-- كاشات التطبيقات تحت `~/Library/Caches/*`، وsaved application state، وسلة المهملات Trash ذاتها.
+- كاشات المطوِّرين: Xcode DerivedData، Docker build cache، Go build cache، Gradle cache، ccache، sccache، JetBrains، Flutter SDK، كاشات المحرِّرات من عائلة VSCode (Code / Cursor / Windsurf / Zed `blob_store`).
+- كاشات مديري الحِزَم: Homebrew، npm، pnpm، yarn، pip، uv، Cargo، CocoaPods، RubyGems، Bundler، Composer، Poetry، Dart pub، Bun، Deno، Swift PM، Carthage. مديرو الإصدارات (nvm / fnm / pyenv / rustup) يُبرزون الإصدارات غير النشطة لكلٍّ منهم، مع قراءة الـ pins النشطة تلقائياً من `.python-version` / `.nvmrc` في كل مشروع.
+- كاشات نماذج AI/ML: HuggingFace (`hub/` بـ L2 trash، و`datasets/` بـ L3 defer)، PyTorch hub، Ollama (L3 defer؛ في وضع deep يتمُّ التوزيع لكلِّ نموذج بصيغة `ollama:<name>:<tag>` مع احتساب مراجع الـ blob بحيث تبقى الطبقات المشتركة بين الوسوم على قيد الحياة عند حذف وسمٍ شقيق)، LM Studio، OpenAI Whisper، كاش Weights & Biases العام. بيئات Conda / Mamba / Miniforge غير `base` عبر سبعة تخطيطات تثبيت شائعة على macOS.
+- أدوات الواجهة الأمامية: متصفِّحات Playwright + driver، والمتصفِّحات المُرفَقة مع Puppeteer.
+- أزمنة تشغيل محاكيات iOS/watchOS/tvOS (عبر `xcrun simctl delete`، **لا يستخدم `rm -rf` إطلاقاً**). بنود `DeviceSupport/<OS>` في iOS التي تطابق major.minor لجهازٍ مقترنٍ حالياً أو runtime محاكاةٍ متاحة تُخفَّض تلقائياً إلى L3 defer.
+- كاشات التطبيقات تحت `~/Library/Caches/*`، وsaved application state، وسلة المهملات Trash ذاتها. كاشات تطبيقات الإبداع (Adobe Media Cache / Peak Files، Final Cut Pro، Logic Pro) تظهر بوسوم مخصَّصة بدلاً من تصنيف `"System caches"` العام.
 - السجلات وتقارير الأعطال.
 - المُثبِّتات القديمة في `~/Downloads` (`.dmg / .pkg / .xip / .iso` التي تجاوزت 30 يوماً).
 - لقطات Time Machine المحلية (عبر `tmutil deletelocalsnapshots`).
 - **مخرجات بناء المشاريع** (في وضع deep فقط، تُمسح بواسطة `scripts/scan_projects.py` لأي مجلَّد يملك جذراً بـ `.git`):
   - L1 حذف مباشر: `node_modules`، `target`، `build`، `dist`، `out`، `.next`، `.nuxt`، `.svelte-kit`، `.turbo`، `.parcel-cache`، `__pycache__`، `.pytest_cache`، `.tox`، `.mypy_cache`، `.ruff_cache`، `.dart_tool`، `.nyc_output`، `_build` (مشاريع Elixir فقط)، `Pods`، `vendor` (مشاريع Go فقط).
-  - L2 إلى Trash: `.venv`، `venv`، `env` (بيئات Python الافتراضية — قد لا تُستنسخ wheel pins حرفياً، ولذلك نترك نافذة استرداد)؛ `coverage` (تقارير تغطية الاختبارات، مشروطة بوجود `package.json` أو marker بايثون).
+  - L2 إلى Trash: `.venv`، `venv`، `env` (بيئات Python الافتراضية — قد لا تُستنسخ wheel pins حرفياً، ولذلك نترك نافذة استرداد)؛ `coverage` (تقارير تغطية الاختبارات، مشروطة بوجود `package.json` أو marker بايثون)؛ `.dvc/cache` (كاش DVC المُعنون بالمحتوى، مشروط بوجود marker شقيق `.dvc/config` — المجلَّد الأب `.dvc/` يحتوي حالة المستخدم ويُحفَظ كما هو).
   - مجلَّدات النظام / مديري الحِزَم (`~/Library`، `~/.cache`، `~/.npm`، `~/.cargo`، `~/.cocoapods`، `~/.gradle`، `~/.m2`، `~/.gem`، `~/.bundle`، `~/.composer`، `~/.pub-cache`، `~/.local`، `~/.rustup`، `~/.pnpm-store`، `~/.Trash`) يتمُّ تقليمها عند اكتشاف المشاريع.
-- **وضع deep يُبرز أيضاً المجلَّدات تحت `~` التي يبلغ حجمها 2 ج.ب. فأكثر ولم تلتقطها أي قاعدة أخرى** (L3 defer، `source_label="Unclassified large directory"`)، بحيث تصبح المجلَّدات اليتيمة المُلتهمة للقرص مرئيَّةً للمراجعة اليدويَّة.
+- **وضع deep يُبرز أيضاً المجلَّدات تحت `~` التي يبلغ حجمها 2 ج.ب. فأكثر ولم تلتقطها أي قاعدة أخرى** (L3 defer، `source_label="Unclassified large directory"`)، بحيث تصبح المجلَّدات اليتيمة المُلتهمة للقرص مرئيَّةً للمراجعة اليدويَّة. قبل الإقرار النهائي يُجري الـ agent تحقيقاً قصيراً للقراءة فقط (بحدٍّ أقصى 6 أوامر لكل مرشَّح) لتحسين `category` و`source_label`؛ مستوى المخاطرة L3 defer يبقى مقفلاً بصرف النظر عن نتيجة التحقيق.
 
 **جدار احتياطي صلب — يرفض بصرف النظر عن محتوى `confirmed.json`** (انظر `_BLOCKED_PATTERNS` في `scripts/safe_delete.py`):
 
@@ -109,6 +111,8 @@ brew install trash
 - `~/Library/Keychains`، `~/Library/Mail`، `~/Library/Messages`، `~/Library/Mobile Documents` (iCloud Drive).
 - مكتبة Photos ومكتبة Apple Music.
 - ملفات `.env*`، ومفاتيح SSH الخاصة (`id_rsa`، `id_ed25519`…).
+- حالة محرِّرات عائلة VSCode: `{Code, Cursor, Windsurf}/{User, Backups, History}` (تعديلات غير محفوظة، ومكافئات git-stash، وسجلٌّ محلي للتعديلات).
+- مجلَّدات `Auto-Save` لتطبيقات Adobe الإبداعية — مشاريع Premiere / After Effects / Photoshop غير المحفوظة.
 
 يقرأ الـ agent نفسه `references/cleanup-scope.md` للاطلاع على whitelist / blacklist الموجَّهة للمستخدم — والـ blocklist أعلاه هي المجموعة الفرعية المُنفَّذة عند التشغيل.
 
@@ -161,7 +165,7 @@ mac-space-cleanup/
 
 ---
 
-## Limitations & non-goals (v0.10.0)
+## Limitations & non-goals (v0.11.0)
 
 - **لا مكدِّس للتراجع undo.** مسارات الاسترداد هي: سلة المهملات الأصلية، وملفات tar داخل `archive/` في workdir، ومُجلَّد الوجهة في migrate.
 - **لا cron ولا تشغيل في الخلفية.** كلُّ تشغيلة يُطلِقها المستخدم صراحةً.

@@ -90,18 +90,20 @@ Right-to-left scripts (Arabic, Hebrew, Persian) get `<html dir="rtl">`; basic di
 
 **Cleans** (with risk grading per `references/category-rules.md`):
 
-- Developer caches: Xcode DerivedData, Docker build cache, Go build cache, Gradle cache, ccache, sccache.
-- Package manager caches: Homebrew, npm, pnpm, yarn, pip, uv, Cargo, CocoaPods, RubyGems, Bundler, Composer, Poetry, Dart pub.
-- iOS/watchOS/tvOS simulator runtimes (via `xcrun simctl delete`, **never `rm -rf`**).
-- App caches under `~/Library/Caches/*`, saved application state, the Trash itself.
+- Developer caches: Xcode DerivedData, Docker build cache, Go build cache, Gradle cache, ccache, sccache, JetBrains, Flutter SDK, VSCode-family editor caches (Code / Cursor / Windsurf / Zed `blob_store`).
+- Package manager caches: Homebrew, npm, pnpm, yarn, pip, uv, Cargo, CocoaPods, RubyGems, Bundler, Composer, Poetry, Dart pub, Bun, Deno, Swift PM, Carthage. Version managers (nvm / fnm / pyenv / rustup) surface non-active per-version entries, with active pins read from each project's `.python-version` / `.nvmrc`.
+- AI/ML model caches: HuggingFace (`hub/` L2 trash, `datasets/` L3 defer), PyTorch hub, Ollama (L3 defer; deep mode dispatches per-model `ollama:<name>:<tag>` with blob reference counting so shared layers survive the delete of one sibling tag), LM Studio, OpenAI Whisper, Weights & Biases global cache. Conda / Mamba / Miniforge envs (non-`base`) across seven macOS install layouts.
+- Frontend tooling: Playwright browsers + driver, Puppeteer bundled browsers.
+- iOS/watchOS/tvOS simulator runtimes (via `xcrun simctl delete`, **never `rm -rf`**). iOS `DeviceSupport/<OS>` entries whose major.minor matches a currently paired device or available simulator are auto-downgraded to L3 defer.
+- App caches under `~/Library/Caches/*`, saved application state, the Trash itself. Creative-app caches (Adobe Media Cache / Peak Files, Final Cut Pro, Logic Pro) surface under specific labels rather than the generic `"System caches"` bucket.
 - Logs, crash reports.
 - Old installers in `~/Downloads` (`.dmg / .pkg / .xip / .iso` older than 30 days).
 - Time Machine local snapshots (via `tmutil deletelocalsnapshots`).
 - **Project build artifacts** (deep mode only, scanned via `scripts/scan_projects.py` for any directory with a `.git` root):
   - L1 delete: `node_modules`, `target`, `build`, `dist`, `out`, `.next`, `.nuxt`, `.svelte-kit`, `.turbo`, `.parcel-cache`, `__pycache__`, `.pytest_cache`, `.tox`, `.mypy_cache`, `.ruff_cache`, `.dart_tool`, `.nyc_output`, `_build` (Elixir projects only), `Pods`, `vendor` (Go projects only).
-  - L2 trash: `.venv`, `venv`, `env` (Python venvs — wheel pins may not reproduce, hence the recovery window); `coverage` (test-coverage reports, gated by `package.json` or a Python marker).
+  - L2 trash: `.venv`, `venv`, `env` (Python venvs — wheel pins may not reproduce, hence the recovery window); `coverage` (test-coverage reports, gated by `package.json` or a Python marker); `.dvc/cache` (DVC content-addressed cache, gated by a sibling `.dvc/config` marker — the parent `.dvc/` holds user state and is preserved).
   - System / package-manager directories (`~/Library`, `~/.cache`, `~/.npm`, `~/.cargo`, `~/.cocoapods`, `~/.gradle`, `~/.m2`, `~/.gem`, `~/.bundle`, `~/.composer`, `~/.pub-cache`, `~/.local`, `~/.rustup`, `~/.pnpm-store`, `~/.Trash`) are pruned from project discovery.
-- **Deep mode also surfaces `~`-wide directories ≥ 2 GiB that no other rule matched** (L3 defer, `source_label="Unclassified large directory"`) so genuinely orphan disk hogs become visible for manual review.
+- **Deep mode also surfaces `~`-wide directories ≥ 2 GiB that no other rule matched** (L3 defer, `source_label="Unclassified large directory"`) so genuinely orphan disk hogs become visible for manual review. Before finalisation the agent runs a brief read-only investigation (capped at 6 commands per candidate) that may refine the category and source label; the L3 defer grading is locked regardless.
 
 **Hard backstop — refuses regardless of what `confirmed.json` says** (see `scripts/safe_delete.py` `_BLOCKED_PATTERNS`):
 
@@ -109,6 +111,8 @@ Right-to-left scripts (Arabic, Hebrew, Persian) get `<html dir="rtl">`; basic di
 - `~/Library/Keychains`, `~/Library/Mail`, `~/Library/Messages`, `~/Library/Mobile Documents` (iCloud Drive).
 - Photos Library, Apple Music library.
 - `.env*` files, SSH key files (`id_rsa`, `id_ed25519`, …).
+- VSCode-family editor state: `{Code, Cursor, Windsurf}/{User, Backups, History}` (unsaved edits, git-stash equivalents, local edit history).
+- Adobe creative-app `Auto-Save` folders — unsaved Premiere / After Effects / Photoshop project files.
 
 The agent itself reads `references/cleanup-scope.md` for the user-facing whitelist/blacklist — the blocklist above is the runtime-enforced subset.
 
@@ -161,7 +165,7 @@ mac-space-cleanup/
 
 ---
 
-## Limitations & non-goals (v0.10.0)
+## Limitations & non-goals (v0.11.0)
 
 - **No undo stack.** Recovery paths are the native Trash, the workdir's `archive/` tars, and the migrate target volume.
 - **No cron / no background runs.** Every run is user-triggered.

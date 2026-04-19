@@ -90,18 +90,20 @@ HTML レポートは **1 回の実行につき単一言語** で生成され、s
 
 **対象**（`references/category-rules.md` のリスクグレーディングに従う）:
 
-- 開発者キャッシュ: Xcode DerivedData、Docker build cache、Go build cache、Gradle cache、ccache、sccache。
-- パッケージマネージャキャッシュ: Homebrew、npm、pnpm、yarn、pip、uv、Cargo、CocoaPods、RubyGems、Bundler、Composer、Poetry、Dart pub。
-- iOS/watchOS/tvOS シミュレータランタイム（`xcrun simctl delete` 経由、**`rm -rf` は絶対に使いません**）。
-- `~/Library/Caches/*` 配下のアプリキャッシュ、saved application state、Trash そのもの。
+- 開発者キャッシュ: Xcode DerivedData、Docker build cache、Go build cache、Gradle cache、ccache、sccache、JetBrains、Flutter SDK、VSCode 系エディタキャッシュ（Code / Cursor / Windsurf / Zed `blob_store`）。
+- パッケージマネージャキャッシュ: Homebrew、npm、pnpm、yarn、pip、uv、Cargo、CocoaPods、RubyGems、Bundler、Composer、Poetry、Dart pub、Bun、Deno、Swift PM、Carthage。バージョンマネージャ（nvm / fnm / pyenv / rustup）はバージョン別に非アクティブなエントリのみをサーフェスし、アクティブな pin は各プロジェクトの `.python-version` / `.nvmrc` から自動的に除外されます。
+- AI/ML モデルキャッシュ: HuggingFace（`hub/` は L2 trash、`datasets/` は L3 defer）、PyTorch hub、Ollama（L3 defer；deep モードでは `ollama:<name>:<tag>` 形式でモデル単位にディスパッチされ、blob の参照カウントによって異なる tag 間で共有されたレイヤーは、ある tag の削除時にも保持される）、LM Studio、OpenAI Whisper、Weights & Biases グローバルキャッシュ。Conda / Mamba / Miniforge の非 `base` env、macOS で一般的な 7 種類のインストールレイアウトをカバー。
+- フロントエンドツール: Playwright のブラウザ + driver、Puppeteer のバンドルブラウザ。
+- iOS/watchOS/tvOS シミュレータランタイム（`xcrun simctl delete` 経由、**`rm -rf` は絶対に使いません**）。iOS `DeviceSupport/<OS>` エントリのうち major.minor が現在ペアリング中の実機または使用可能なシミュレータの runtime と一致するものは、自動的に L3 defer に降格されます。
+- `~/Library/Caches/*` 配下のアプリキャッシュ、saved application state、Trash そのもの。クリエイティブ系アプリのキャッシュ（Adobe Media Cache / Peak Files、Final Cut Pro、Logic Pro）は、汎用の `"System caches"` ではなく固有のラベルでサーフェスされます。
 - ログ、クラッシュレポート。
 - `~/Downloads` 内の 30 日以上前の古いインストーラ（`.dmg / .pkg / .xip / .iso`）。
 - Time Machine ローカルスナップショット（`tmutil deletelocalsnapshots` 経由）。
 - **プロジェクトのビルド成果物**（deep モードのみ。`scripts/scan_projects.py` で `.git` ルートを持つディレクトリをスキャン）:
   - L1 で直接削除: `node_modules`、`target`、`build`、`dist`、`out`、`.next`、`.nuxt`、`.svelte-kit`、`.turbo`、`.parcel-cache`、`__pycache__`、`.pytest_cache`、`.tox`、`.mypy_cache`、`.ruff_cache`、`.dart_tool`、`.nyc_output`、`_build`（Elixir プロジェクトのみ）、`Pods`、`vendor`（Go プロジェクトのみ）。
-  - L2 で Trash へ: `.venv`、`venv`、`env`（Python 仮想環境 — wheel ピン留めだと完全に再現できない場合があるため、回収期間を設ける）；`coverage`（テストカバレッジレポート、`package.json` または Python marker の有無で判定）。
+  - L2 で Trash へ: `.venv`、`venv`、`env`（Python 仮想環境 — wheel ピン留めだと完全に再現できない場合があるため、回収期間を設ける）；`coverage`（テストカバレッジレポート、`package.json` または Python marker の有無で判定）；`.dvc/cache`（DVC のコンテンツアドレス指定キャッシュ。隣接する `.dvc/config` marker の有無で判定 — 親ディレクトリ `.dvc/` はユーザ状態を含むためそのまま保持）。
   - システム / パッケージマネージャディレクトリ（`~/Library`、`~/.cache`、`~/.npm`、`~/.cargo`、`~/.cocoapods`、`~/.gradle`、`~/.m2`、`~/.gem`、`~/.bundle`、`~/.composer`、`~/.pub-cache`、`~/.local`、`~/.rustup`、`~/.pnpm-store`、`~/.Trash`）はプロジェクト検出時にプルーニングされます。
-- **deep モードはさらに `~` 配下で 2 GiB 以上、他のルールにマッチしないディレクトリもサーフェスします**（L3 defer、`source_label="Unclassified large directory"`）。真の孤児ディレクトリをユーザーが手動で判断できるようにします。
+- **deep モードはさらに `~` 配下で 2 GiB 以上、他のルールにマッチしないディレクトリもサーフェスします**（L3 defer、`source_label="Unclassified large directory"`）。真の孤児ディレクトリをユーザーが手動で判断できるようにします。最終確定の前に agent は短時間の読み取り専用調査（候補ごとに最大 6 コマンド）を実行して category と source_label を精緻化しますが、調査結果に関わらず L3 defer のリスクグレードはロックされます。
 
 **ハードブロック — `confirmed.json` がどう書かれていても拒否**（`scripts/safe_delete.py` の `_BLOCKED_PATTERNS` を参照）:
 
@@ -109,6 +111,8 @@ HTML レポートは **1 回の実行につき単一言語** で生成され、s
 - `~/Library/Keychains`、`~/Library/Mail`、`~/Library/Messages`、`~/Library/Mobile Documents`（iCloud Drive）。
 - Photos Library、Apple Music ライブラリ。
 - `.env*` ファイル、SSH 秘密鍵ファイル（`id_rsa`、`id_ed25519`…）。
+- VSCode 系エディタの状態: `{Code, Cursor, Windsurf}/{User, Backups, History}`（未保存の編集、git-stash 相当物、ローカル編集履歴）。
+- Adobe クリエイティブ系アプリの `Auto-Save` フォルダ — 未保存の Premiere / After Effects / Photoshop プロジェクトファイル。
 
 Agent 自身はユーザ向けのホワイトリスト / ブラックリストを `references/cleanup-scope.md` から読み込みます — 上記のブロックリストは、ランタイムで強制実行されるそのサブセットです。
 
@@ -161,7 +165,7 @@ mac-space-cleanup/
 
 ---
 
-## Limitations & non-goals (v0.10.0)
+## Limitations & non-goals (v0.11.0)
 
 - **undo スタックなし。** 復旧経路は、ネイティブ Trash、作業ディレクトリの `archive/` tar、migrate 先ボリュームのみ。
 - **cron なし / バックグラウンド実行なし。** すべてユーザが明示的にトリガー。
