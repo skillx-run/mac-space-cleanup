@@ -144,7 +144,7 @@ mac-space-cleanup/
 
 ---
 
-## Limitations & non-goals (v0.9)
+## Limitations & non-goals (v0.9.1)
 
 - **Sin pila de undo.** Las vías de recuperación son la Trash nativa, los tar en `archive/` del workdir y el volumen destino del migrate.
 - **Sin cron / sin ejecuciones en segundo plano.** Cada ejecución la activa el usuario.

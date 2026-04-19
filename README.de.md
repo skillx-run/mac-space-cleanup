@@ -144,7 +144,7 @@ mac-space-cleanup/
 
 ---
 
-## Limitations & non-goals (v0.9)
+## Limitations & non-goals (v0.9.1)
 
 - **Kein Undo-Stack.** Wiederherstellungswege sind der native Trash, die `archive/`-tar-Dateien im workdir und das migrate-Zielvolume.
 - **Kein cron / kein Hintergrundlauf.** Jeder Lauf wird vom Nutzer ausgelöst.

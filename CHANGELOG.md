@@ -4,6 +4,23 @@ All notable changes to mac-space-cleanup. Newest first.
 
 ## Unreleased
 
+## v0.9.1 — 2026-04-19
+
+### Added
+- **VSCode-family non-sandboxed editor cache scanning.** Cleanup-scope.md gets a new Tier C subset for Code / Cursor / Windsurf / Zed whose caches live under `~/Library/Application Support/<editor>/` and so were missed by the generic Tier C sweep (which only walks `~/Library/Caches/*` and `~/Library/Containers/*/Data/Library/Caches/*`). Each editor surfaces only via a **positive whitelist** of specific cache subdirs (`Cache`, `CachedData`, `CachedExtensionVSIXs`, `Crashpad`, `GPUCache`, `Code Cache`, `logs` for VSCode-family; `db/0/blob_store` and `logs` for Zed) — never glob, never descend into `User` / `Backups` / `History` / `db`. Default: L2 trash (Tier C semantics — recovery window for an active editing session). Typical reclaim 1–5 GB for an active developer.
+- **`"Editor cache"` source_label** in category-rules.md §4 source_label table so these caches surface under a UI-safe label rather than the generic "System caches" bucket.
+
+### Changed
+- **`_BLOCKED_PATTERNS` runtime backstop** in `safe_delete.py` gains a regex matching `~/Library/Application Support/{Code,Cursor,Windsurf}/{User,Backups,History}`. Even if confirmed.json mistakenly targets `User/workspaceStorage` (which holds unsaved edits and git-stash equivalents), `Backups` (unsaved files), or `History` (local edit history), dispatch refuses — never reaching `rm` or `trash`. Third defence layer paired with the Tier C positive whitelist and the User-critical blacklist. Zed is intentionally not in the runtime backstop because a regex blocking `dev.zed.Zed/db` would also block the legitimate `db/0/blob_store` cleanup leaf; doc-level blacklist + agent positive whitelist cover Zed.
+- **Cleanup-scope.md cross-reference list** for runtime backstop sync now mentions the VSCode-family patterns.
+- **User-critical blacklist** explicitly lists VSCode-family `User` / `Backups` / `History` and Zed's `db/` (with `db/0/blob_store` carve-out) so the agent reads the same protections at the doc layer.
+
+### Tests
+- 91 → **93** (`test_safe_delete.py` adds 2: parameterised positive/negative cases over 3 brands × 3 guarded subdirs vs the 5 cache subdirs that must remain cleanable; end-to-end dispatch test verifying disk state is preserved when blocklist fires).
+
+### Known limitation (CI)
+- Same as v0.9.0: CI macos-latest does not have Code / Cursor / Windsurf / Zed installed, so the new probes silently skip in CI. CI test coverage relies on the `_BLOCKED_PATTERNS` unit tests; real-path coverage is left to PR submitter dry-runs and user feedback.
+
 ## v0.9.0 — 2026-04-19
 
 ### Added
