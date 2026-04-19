@@ -63,7 +63,7 @@ VSCode and its forks (Cursor, Windsurf) plus Zed are **not sandboxed**, so their
 | --- | --- | --- |
 | `~/Downloads` | Scan for installers older than 30 days (`.dmg / .pkg / .xip / .iso / .appimage / .deb / .rpm / .msi`), generic archives older than 90 days (`.zip / .tar.gz / .tgz / .tar.bz2 / .7z / .rar`, size > 100MB), and pulled-out `.app` bundles older than 90 days (size > 100MB, deep mode only — surface as L3 defer because the user may still want to install). | `downloads` |
 | `~/Desktop` | Scan **only** for macOS-auto-named screen artefacts older than 30 days: `Screenshot *.png`, `Screen Shot *.png`, `Screen Recording *.mov`. Do NOT glob for other files — users curate the Desktop. | `downloads` |
-| `~/Library/Application Support/MobileSync/Backup` | iOS device backups. Only surface entries older than 180 days. | `large_media` |
+| `~/Library/Application Support/MobileSync/Backup` | iOS device backups. Only surface per-device subdirs whose **mtime is older than 180 days** (probe with `find ~/Library/Application\ Support/MobileSync/Backup -mindepth 1 -maxdepth 1 -type d -mtime +180`). | `large_media` |
 
 ### Tier E · Developer ecosystem (scan only when tool detected)
 
@@ -104,7 +104,7 @@ Skip the row silently if the probe fails.
 | `flutter` (CLI probe) | `~/.flutter`, `~/Library/Caches/Flutter`, `~/Library/Caches/com.google.FlutterSdk` | `pkg_cache` |
 | `nvm` (`~/.nvm` present, dir probe — NVM is a shell function, no CLI on PATH) | `~/.nvm/versions/node/*` **except** the version matching `~/.nvm/alias/default` and any version used in the last 90 days (mtime on the version dir). Surface as individual items, one per non-default/stale version. | `pkg_cache` |
 | `fnm` (CLI probe) | `~/Library/Application Support/fnm/node-versions/*` **except** the current one from `fnm current`, `~/Library/Caches/fnm_multishells` | `pkg_cache` |
-| `pyenv` (CLI probe) | `~/.pyenv/versions/*` **except** the version in `pyenv version --bare` and any `pyenv local` pins found in `markers_found` during project scan. Surface per-version. | `pkg_cache` |
+| `pyenv` (CLI probe) | `~/.pyenv/versions/*` **except** (a) the global default from `pyenv version --bare` (run once, no cwd needed) and (b) any per-project pin from `pyenv local` — to collect (b) the agent must `cd` into each project root from `paths-projects.json` and run `pyenv local 2>/dev/null`; collect the union of every non-empty result. Surface per-version. | `pkg_cache` |
 | `rustup` (CLI probe) | `~/.rustup/toolchains/*` **except** the default from `rustup default` and any pinned via `rustup override list`. Surface per-toolchain. | `pkg_cache` |
 | JetBrains (`~/Library/Caches/JetBrains` present, dir probe) | `~/Library/Caches/JetBrains/*` (per-IDE cache: IntelliJIdea, PyCharm, WebStorm, GoLand, RubyMine, CLion, DataGrip, AndroidStudio, RustRover), `~/Library/Logs/JetBrains/*` | `dev_cache` |
 

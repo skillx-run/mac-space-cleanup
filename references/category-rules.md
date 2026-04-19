@@ -27,8 +27,8 @@ Developer build caches. Fully regenerable by rebuilding.
 
 Defaults: **L1**, `delete`, `mode_hit_tags=["quick","deep"]`.
 
-Exceptions:
-- Xcode Archives younger than 90 days → `dev_cache` L2 `trash` (might still be needed for App Store upload).
+Exceptions (all override defaults — exception always wins on a tied match):
+- Xcode Archives younger than 90 days → `dev_cache` L2 `trash` (might still be needed for App Store upload). The default L1 delete only applies to Archives mtime ≥ 90 days; never both at once for the same item.
 - iOS / watchOS / tvOS `DeviceSupport` entries default to **L2 `trash`** (not delete) because each per-OS subdir is 5–10 GB and rebuilding the symbol cache requires plugging in a device of that OS again — re-pull takes 10+ minutes the next time the user debugs against that OS. Trash gives a same-session recovery window. (DerivedData stays L1 `delete` — fully regenerable from a single project rebuild.)
 - iOS DeviceSupport for the OS version currently installed on a paired device (not knowable without `xcrun devicectl list` — agent should skip this check; surface per-OS so user can uncheck active ones in deep mode).
 
@@ -52,7 +52,7 @@ Rationale: aligns with Apple's own `xcrun simctl delete unavailable`, which remo
 
 Language / package manager caches.
 
-- `$(brew --cache)` directory contents older than 30 days
+- `$(brew --cache)` — files within the directory whose **mtime is older than 30 days**; the directory itself is never deleted, only its files (`find $(brew --cache) -type f -mtime +30`)
 - Old Homebrew Cellar versions and stale downloads via `brew cleanup -s` (semantic path `brew:cleanup-s`; pinned formulae are preserved automatically)
 - `$(npm config get cache)/**`
 - `$(pnpm store path)` contents
