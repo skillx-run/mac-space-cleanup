@@ -42,6 +42,7 @@ def _write_blob(blobs_dir: Path, digest: str, size: int) -> Path:
 
 def _write_manifest(
     manifests_root: Path,
+    blobs_dir: Path,
     *,
     registry: str = "registry.ollama.ai",
     namespace: str = "library",
@@ -50,7 +51,21 @@ def _write_manifest(
     config_digest: str,
     layer_digests: list[str],
 ) -> Path:
-    """Build an Ollama-style manifest JSON at the on-disk path for <name>:<tag>."""
+    """Build an Ollama-style manifest JSON at the on-disk path for <name>:<tag>.
+
+    The manifest's ``size`` field for each blob is filled from the actual
+    on-disk blob byte count when available, so the fixture stays internally
+    consistent even though the dispatcher only reads ``digest`` (not ``size``).
+    Falls back to 0 for digests whose blob file doesn't yet exist.
+    """
+
+    def _real_size(digest: str) -> int:
+        blob_path = blobs_dir / digest.replace(":", "-", 1)
+        try:
+            return blob_path.stat().st_size
+        except OSError:
+            return 0
+
     manifest_dir = manifests_root / registry / namespace / name
     manifest_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = manifest_dir / tag
@@ -60,13 +75,13 @@ def _write_manifest(
         "config": {
             "mediaType": "application/vnd.docker.container.image.v1+json",
             "digest": config_digest,
-            "size": 100,
+            "size": _real_size(config_digest),
         },
         "layers": [
             {
                 "mediaType": "application/vnd.ollama.image.model",
                 "digest": d,
-                "size": 100,
+                "size": _real_size(d),
             }
             for d in layer_digests
         ],
@@ -103,11 +118,11 @@ class TestOllamaDispatcher(unittest.TestCase):
         layer_a_blob = _write_blob(self.blobs, layer_a, 2000)
         layer_b_blob = _write_blob(self.blobs, layer_b, 2000)
         manifest_a = _write_manifest(
-            self.manifests, name="llama3", tag="8b",
+            self.manifests, self.blobs, name="llama3", tag="8b",
             config_digest=shared, layer_digests=[layer_a],
         )
         manifest_b = _write_manifest(
-            self.manifests, name="llama3", tag="70b",
+            self.manifests, self.blobs, name="llama3", tag="70b",
             config_digest=shared, layer_digests=[layer_b],
         )
         return {
@@ -221,6 +236,36 @@ class TestOllamaDispatcher(unittest.TestCase):
         self.assertNotIn(str(self.manifests), rec["error"])
         self.assertNotIn(str(fx["manifest_a"]), rec["error"])
 
+    def test_missing_manifest_root_fails_cleanly(self):
+        """When ``~/.ollama/models/manifests/`` does not exist at all (fresh
+        Mac that never ran ``ollama pull`` but somehow ended up with a
+        stale ``ollama:`` candidate in ``confirmed.json``), the dispatcher
+        fails cleanly with the manifest-missing error rather than crashing
+        during the walk. Exercises the code path where
+        ``_collect_manifest_blobs`` returns None because the file doesn't
+        exist at all (as opposed to existing-but-corrupt, which
+        ``test_corrupted_manifest_fails_without_leaking_full_path`` covers).
+        """
+        # Remove the entire manifests dir — leave blobs/ alone so we don't
+        # short-circuit through some other path.
+        import shutil as _shutil
+        _shutil.rmtree(self.manifests)
+        with tempfile.TemporaryDirectory() as wd:
+            work = Path(wd)
+            code, out, _ = _run_with_payload(
+                {"confirmed_items": [
+                    {"id": "m", "path": "ollama:llama3:8b", "action": "delete",
+                     "size_bytes": 0, "category": "pkg_cache",
+                     "risk_level": "L3", "reason": "t"}
+                ]}, work,
+            )
+        self.assertEqual(code, 1)
+        rec = out["records"][0]
+        self.assertEqual(rec["status"], "failed")
+        self.assertIn("manifest missing or unreadable", rec["error"])
+        # Same redaction contract as the corrupt-manifest case.
+        self.assertNotIn(str(self.models), rec["error"])
+
     def test_malformed_path_form_fails_cleanly(self):
         """ollama:<name> without a tag, or ollama: with empty suffix, both
         come back as failed with a path-form error — no blob walk."""
@@ -248,7 +293,8 @@ class TestOllamaDispatcher(unittest.TestCase):
         layer = "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
         layer_blob = _write_blob(self.blobs, layer, 5000)
         manifest = _write_manifest(
-            self.manifests, registry="hf.co", namespace="bartowski",
+            self.manifests, self.blobs,
+            registry="hf.co", namespace="bartowski",
             name="xxx", tag="Q4",
             config_digest=layer, layer_digests=[layer],
         )
@@ -275,7 +321,8 @@ class TestOllamaDispatcher(unittest.TestCase):
         layer = "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
         _write_blob(self.blobs, layer, 7000)
         manifest = _write_manifest(
-            self.manifests, registry="registry.ollama.ai",
+            self.manifests, self.blobs,
+            registry="registry.ollama.ai",
             namespace="user", name="custom", tag="v1",
             config_digest=layer, layer_digests=[layer],
         )
@@ -293,16 +340,24 @@ class TestOllamaDispatcher(unittest.TestCase):
         self.assertFalse(manifest.exists())
         self.assertEqual(out["freed_now_bytes"], 7000)
 
-    def test_ollama_semantic_path_bypasses_blocked_patterns(self):
-        """Ollama semantic paths are synthetic and must bypass _BLOCKED_PATTERNS
-        (there is no filesystem target to protect). A raw ~/.ollama path
-        would be blocked by neither v0.8 nor v0.9's regex set; this smoke
-        test confirms the is_specialised flag keeps that contract even
-        when the semantic path grows."""
+    def test_ollama_path_not_matched_by_blocked_patterns(self):
+        """Ollama semantic paths must not incidentally match any regex in
+        ``_BLOCKED_PATTERNS``. If a future regex change (say a pattern for
+        ``(^|/)\\.models/``) accidentally captures an ``ollama:`` path, this
+        test flags it before the v0.9+ per-model path silently stops
+        reclaiming. The separate ``is_specialised`` bypass in ``dispatch()``
+        is a second line of defence exercised end-to-end by the dispatch
+        path below — together the two ensure the path never hits the
+        blocklist-refusal branch regardless of which catches it first.
+        """
         self.assertFalse(safe_delete._is_blocked("ollama:llama3:8b"))
         self.assertFalse(safe_delete._is_blocked("ollama:hf.co/x/y:tag"))
-        # And the actual is_specialised path doesn't hit the blocked check
-        # either — a fresh fixture + dispatch confirms end-to-end.
+        self.assertFalse(safe_delete._is_blocked("ollama:user/custom:v1"))
+        # End-to-end: a real dispatch against an ollama: path never surfaces
+        # the standard blocklist-refusal error message, even though
+        # is_specialised is the mechanism that would save us if _is_blocked
+        # ever did match (the positive assertion for that mechanism lives in
+        # the existing brew:/docker: tests in test_safe_delete.py).
         fx = self._build_shared_blob_fixture()
         with tempfile.TemporaryDirectory() as wd:
             work = Path(wd)
@@ -315,7 +370,6 @@ class TestOllamaDispatcher(unittest.TestCase):
             )
         self.assertEqual(code, 0)
         self.assertNotIn("blocked by safety pattern", out["records"][0].get("error") or "")
-        # Exclusive layer a was reclaimed.
         self.assertFalse(fx["layer_a_blob"].exists())
 
 

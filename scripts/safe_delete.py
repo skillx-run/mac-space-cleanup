@@ -490,8 +490,20 @@ def _handle_ollama_delete(item: dict[str, Any], dry_run: bool) -> dict[str, Any]
     of whatever estimate the agent supplied at Stage 3.
 
     Failure modes (each maps to a short error string with no raw path):
-      - Malformed ``ollama:<...>`` path (empty name or tag)
-      - Manifest missing or unreadable (corrupted JSON, permissions)
+      - Malformed ``ollama:<...>`` path (empty name or tag) — detected before
+        any filesystem access.
+      - Manifest missing or unreadable — JSON parse error, permission denied,
+        non-dict JSON root, or ``~/.ollama/models/manifests/`` absent.
+      - Real-run manifest unlink failure — rare; typically permission error
+        or filesystem exhaustion. Surfaces as
+        ``ollama manifest unlink failed: <ErrorType>``. Blob reclaim is
+        skipped when unlink fails so the manifest-still-present state
+        remains consistent.
+
+    Blob unlinks after a successful manifest unlink are best-effort — a
+    leftover orphan blob is less damaging than aborting mid-delete and
+    leaving an inconsistent state (manifest gone but caller thinks the
+    reclaim failed).
     """
     rec = _base_record(item, ACTION_DELETE)
     t0 = time.monotonic()
