@@ -389,6 +389,77 @@ class TestDispatch(unittest.TestCase):
             self.assertIn("brew cleanup -s failed", rec["error"])
             self.assertEqual(out["freed_now_bytes"], 0)
 
+    def test_docker_prune_dispatch_per_subcommand(self):
+        """All three docker:* semantic paths must dispatch to the right
+        prune sub-command and parse the 'Total reclaimed space: X' line."""
+        cases = [
+            ("docker:build-cache", ["docker", "builder", "prune", "-f"], "456MB"),
+            ("docker:dangling-images", ["docker", "image", "prune", "-f"], "1.5GB"),
+            ("docker:stopped-containers", ["docker", "container", "prune", "-f"], "78KB"),
+        ]
+        expected_bytes = {
+            "456MB": 456 * 1024 ** 2,
+            "1.5GB": int(1.5 * 1024 ** 3),
+            "78KB": 78 * 1024,
+        }
+
+        for path, expected_cmd, reclaimed in cases:
+            with self.subTest(path=path):
+                with tempfile.TemporaryDirectory() as td:
+                    work = Path(td) / "work"
+                    calls: list[list[str]] = []
+                    docker_stdout = (
+                        f"Deleted: ...some hash...\n"
+                        f"Total reclaimed space: {reclaimed}\n"
+                    )
+
+                    def fake_run(cmd, **kw):
+                        calls.append(cmd)
+                        if cmd[0] == "docker":
+                            return mock.Mock(returncode=0, stdout=docker_stdout, stderr="")
+                        raise AssertionError(f"unexpected cmd: {cmd}")
+
+                    with mock.patch.object(safe_delete.subprocess, "run", side_effect=fake_run):
+                        payload = {
+                            "confirmed_items": [
+                                {"id": f"d-{path}", "path": path,
+                                 "action": "delete", "size_bytes": 0,
+                                 "category": "dev_cache", "risk_level": "L1",
+                                 "reason": "test"}
+                            ]
+                        }
+                        code, out, _ = _run_with_payload(payload, work)
+
+                    self.assertEqual(code, 0)
+                    self.assertEqual(calls, [expected_cmd])
+                    rec = out["records"][0]
+                    self.assertEqual(rec["status"], "success")
+                    self.assertEqual(rec["size_before_bytes"], expected_bytes[reclaimed])
+
+    def test_docker_prune_unknown_suffix_fails_safely(self):
+        """An unrecognised docker:* path must fail with a clear error and
+        must NOT shell out — protects against typos in confirmed.json."""
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td) / "work"
+
+            def fake_run(cmd, **kw):
+                raise AssertionError(f"must not invoke for unknown suffix: {cmd}")
+
+            with mock.patch.object(safe_delete.subprocess, "run", side_effect=fake_run):
+                payload = {
+                    "confirmed_items": [
+                        {"id": "d_unknown", "path": "docker:unused-volumes",
+                         "action": "delete", "size_bytes": 0,
+                         "category": "dev_cache", "risk_level": "L1", "reason": "t"}
+                    ]
+                }
+                code, out, _ = _run_with_payload(payload, work)
+
+            self.assertEqual(code, 1)
+            rec = out["records"][0]
+            self.assertEqual(rec["status"], "failed")
+            self.assertIn("unrecognised docker prune target", rec["error"])
+
     def test_brew_cleanup_dry_run_keeps_input_estimate(self):
         """Dry-run skips brew invocation and credits the input size estimate
         so the dry-run summary reflects the upper-bound reclaim."""

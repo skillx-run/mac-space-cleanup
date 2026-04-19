@@ -82,11 +82,26 @@ _SIMCTL_UDID_RE = re.compile(r"/CoreSimulator/Devices/([0-9A-Fa-f-]{36})(?:/|$)"
 # These bypass the blocklist + idempotency check (path is synthetic, not a
 # real fs target).
 BREW_CLEANUP_PATH = "brew:cleanup-s"
+DOCKER_PATH_PREFIX = "docker:"
+# Each suffix maps to the prune sub-command. Volumes are intentionally absent
+# (volumes contain user data); see references/cleanup-scope.md Tier E docker
+# row for the rationale.
+_DOCKER_PRUNE_COMMANDS: dict[str, list[str]] = {
+    "build-cache": ["docker", "builder", "prune", "-f"],
+    "dangling-images": ["docker", "image", "prune", "-f"],
+    "stopped-containers": ["docker", "container", "prune", "-f"],
+}
 
 # `brew cleanup -s` ends with: "==> This operation has freed approximately
 # 1.2GB of disk space." Capture number + unit suffix.
 _BREW_FREED_RE = re.compile(
     r"freed approximately\s+([\d.]+)\s*([KMGT]?B)",
+    re.IGNORECASE,
+)
+# `docker {builder|image|container} prune -f` ends with:
+# "Total reclaimed space: 1.234GB" (or 0B when nothing matched).
+_DOCKER_RECLAIMED_RE = re.compile(
+    r"Total reclaimed space:\s+([\d.]+)\s*([KMGT]?B)",
     re.IGNORECASE,
 )
 _HUMAN_UNIT_FACTORS = {
@@ -258,6 +273,50 @@ def _handle_brew_cleanup(item: dict[str, Any], dry_run: bool) -> dict[str, Any]:
     freed = _parse_human_bytes(result.stdout, _BREW_FREED_RE)
     if freed is not None:
         rec["size_before_bytes"] = freed
+    return _finalize(rec, t0)
+
+
+def _handle_docker_prune(item: dict[str, Any], dry_run: bool) -> dict[str, Any]:
+    """`docker {builder|image|container} prune -f` for the three semantic
+    paths under the ``docker:`` prefix.
+
+    Recognised paths:
+      - "docker:build-cache"        -> docker builder prune -f
+      - "docker:dangling-images"    -> docker image prune -f
+      - "docker:stopped-containers" -> docker container prune -f
+
+    "docker:unused-volumes" is NOT recognised — volumes contain user data and
+    must never be auto-pruned. See cleanup-scope.md Tier E docker row.
+
+    Each prune subcommand prints a "Total reclaimed space: X" tail; we parse
+    it and override ``size_before_bytes`` so freed_now_bytes reflects real
+    reclaim. Dry-run keeps the agent's input estimate.
+    """
+    rec = _base_record(item, ACTION_DELETE)
+    t0 = time.monotonic()
+    raw = item.get("path") or ""
+    suffix = raw[len(DOCKER_PATH_PREFIX):] if raw.startswith(DOCKER_PATH_PREFIX) else ""
+    cmd = _DOCKER_PRUNE_COMMANDS.get(suffix)
+    if cmd is None:
+        rec["status"] = STATUS_FAILED
+        rec["error"] = f"unrecognised docker prune target: {raw!r}"
+        return _finalize(rec, t0)
+
+    if dry_run:
+        return _finalize(rec, t0, dry_run=True)
+
+    try:
+        result = subprocess.run(
+            cmd, check=True, capture_output=True, text=True, timeout=600,
+        )
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as e:
+        rec["status"] = STATUS_FAILED
+        rec["error"] = f"{' '.join(cmd)} failed: {e}"
+        return _finalize(rec, t0)
+
+    reclaimed = _parse_human_bytes(result.stdout, _DOCKER_RECLAIMED_RE)
+    if reclaimed is not None:
+        rec["size_before_bytes"] = reclaimed
     return _finalize(rec, t0)
 
 
@@ -475,7 +534,10 @@ def dispatch(
     is_snapshot = category == CATEGORY_SYSTEM_SNAPSHOTS
     is_sim_runtime = category == CATEGORY_SIM_RUNTIME
     is_brew_cleanup = path == BREW_CLEANUP_PATH
-    is_specialised = is_snapshot or is_sim_runtime or is_brew_cleanup
+    is_docker_prune = path.startswith(DOCKER_PATH_PREFIX)
+    is_specialised = (
+        is_snapshot or is_sim_runtime or is_brew_cleanup or is_docker_prune
+    )
 
     # Hard backstop: refuse fs-touching actions on high-value paths even if
     # confirmed.json explicitly requests them. Specialised categories use
@@ -503,6 +565,8 @@ def dispatch(
     if action == ACTION_DELETE:
         if is_brew_cleanup:
             return _handle_brew_cleanup(item, dry_run)
+        if is_docker_prune:
+            return _handle_docker_prune(item, dry_run)
         if is_snapshot:
             return _handle_snapshot_delete(item, dry_run)
         if is_sim_runtime:
