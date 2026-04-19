@@ -29,7 +29,8 @@ Defaults: **L1**, `delete`, `mode_hit_tags=["quick","deep"]`.
 
 Exceptions:
 - Xcode Archives younger than 90 days → `dev_cache` L2 `trash` (might still be needed for App Store upload).
-- iOS DeviceSupport for the OS version currently installed on a paired device (not knowable without `xcrun devicectl list` — agent should skip this check; emit all DeviceSupport entries as L1 but surface per-OS so user can uncheck active ones in deep mode).
+- iOS / watchOS / tvOS `DeviceSupport` entries default to **L2 `trash`** (not delete) because each per-OS subdir is 5–10 GB and rebuilding the symbol cache requires plugging in a device of that OS again — re-pull takes 10+ minutes the next time the user debugs against that OS. Trash gives a same-session recovery window. (DerivedData stays L1 `delete` — fully regenerable from a single project rebuild.)
+- iOS DeviceSupport for the OS version currently installed on a paired device (not knowable without `xcrun devicectl list` — agent should skip this check; surface per-OS so user can uncheck active ones in deep mode).
 
 ---
 
