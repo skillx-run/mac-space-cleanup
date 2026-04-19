@@ -137,7 +137,6 @@ mac-space-cleanup/
 │   ├── report.css
 │   └── share-card-template.svg   # بطاقة مشاركة X مقاس 1200×630
 ├── tests/                        # مجموعة unittest قياسية الاعتماديات
-├── docs/                         # لقطات README
 ├── CHANGELOG.md
 ├── CLAUDE.md                     # ثوابت للمساهمين
 └── .github/workflows/ci.yml      # macos-latest: tests + smoke + dry-e2e

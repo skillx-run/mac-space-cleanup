@@ -137,7 +137,6 @@ mac-space-cleanup/
 │   ├── report.css
 │   └── share-card-template.svg   # 1200×630 の X シェアカード
 ├── tests/                        # 標準ライブラリのみの unittest スイート
-├── docs/                         # README スクリーンショット
 ├── CHANGELOG.md
 ├── CLAUDE.md                     # コントリビュータ向け不変量
 └── .github/workflows/ci.yml      # macos-latest: tests + smoke + dry-e2e

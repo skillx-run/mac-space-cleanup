@@ -137,7 +137,6 @@ mac-space-cleanup/
 │   ├── report.css
 │   └── share-card-template.svg   # tarjeta para compartir en X 1200×630
 ├── tests/                        # suite unittest solo biblioteca estándar
-├── docs/                         # capturas del README
 ├── CHANGELOG.md
 ├── CLAUDE.md                     # invariantes para contribuidores
 └── .github/workflows/ci.yml      # macos-latest: tests + smoke + dry-e2e

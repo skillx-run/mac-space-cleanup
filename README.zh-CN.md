@@ -137,7 +137,6 @@ mac-space-cleanup/
 │   ├── report.css
 │   └── share-card-template.svg   # 1200×630 X 分享卡
 ├── tests/                        # 纯标准库 unittest 套件
-├── docs/                         # README 截图
 ├── CHANGELOG.md
 ├── CLAUDE.md                     # 贡献者必读的不变量
 └── .github/workflows/ci.yml      # macos-latest：tests + smoke + dry-e2e
