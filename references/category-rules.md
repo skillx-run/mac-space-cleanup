@@ -86,6 +86,8 @@ Language / package manager caches.
 - `~/.ollama/models/**` (Ollama local LLM store; one aggregate item — v0.8 does not enumerate per-model because the underlying storage is content-addressed in `blobs/` and naive `rm` on a `manifests/` entry would orphan shared blobs)
 - `~/.cache/lm-studio/models/**`, `~/.lmstudio/models/**` (LM Studio local model store — one aggregate item from whichever path exists; same per-model rationale as Ollama)
 - `~/miniconda3/envs/*`, `~/anaconda3/envs/*`, `~/opt/miniconda3/envs/*`, `~/opt/anaconda3/envs/*`, `~/.mamba/envs/*` (per-env subdirs under whichever Conda / Mamba install layout the user has; **`base` env is excluded** because removing it is equivalent to uninstalling conda / mamba. Scope deliberately limited to `~/...` — system-managed `/opt/miniconda3/envs` is not scanned.)
+- `~/Library/Caches/ms-playwright/**`, `~/.cache/ms-playwright/**`, `~/Library/Caches/ms-playwright-driver/**` (Playwright browser binaries and driver cache — `npx playwright install` fully regenerates)
+- `~/.cache/puppeteer/**` (Puppeteer bundled browser binaries; re-downloaded on next install or programmatic launch)
 
 Defaults: **L1**, `delete`, `mode_hit_tags=["quick","deep"]`.
 
@@ -294,7 +296,7 @@ Stage 4 produces in-memory items with these fields (matches `cleanup-result.json
 | --- | --- |
 | `dev_cache` | `"Xcode DerivedData"`, `"Xcode Archives"`, `"iOS DeviceSupport"`, `"watchOS DeviceSupport"`, `"tvOS DeviceSupport"`, `"Xcode Playground cache"`, `"Go build cache"`, `"Gradle cache"`, `"Docker build cache"`, `"Docker dangling images"`, `"Docker stopped containers"`, `"JetBrains cache"`, `"Flutter SDK cache"` |
 | `sim_runtime` | `"Xcode Simulator Runtimes"`, `"Xcode Simulator Devices"` |
-| `pkg_cache` | `"Homebrew cache"`, `"Homebrew Cellar cleanup"`, `"npm cache"`, `"pnpm store"`, `"Yarn Berry cache"`, `"Bun cache"`, `"Deno cache"`, `"pip cache"`, `"uv cache"`, `"Cargo cache"`, `"Swift PM cache"`, `"Carthage cache"`, `"Android SDK image"`, `"Node version manager"`, `"Python version manager"`, `"Rust toolchain"`, `"RubyGems cache"`, `"Bundler cache"`, `"Composer cache"`, `"Poetry cache"`, `"ccache"`, `"sccache"`, `"Dart pub cache"`, `"HuggingFace model cache"`, `"HuggingFace dataset cache"`, `"PyTorch hub cache"`, `"Ollama model cache"`, `"LM Studio model cache"`, `"Conda environment"` |
+| `pkg_cache` | `"Homebrew cache"`, `"Homebrew Cellar cleanup"`, `"npm cache"`, `"pnpm store"`, `"Yarn Berry cache"`, `"Bun cache"`, `"Deno cache"`, `"pip cache"`, `"uv cache"`, `"Cargo cache"`, `"Swift PM cache"`, `"Carthage cache"`, `"Android SDK image"`, `"Node version manager"`, `"Python version manager"`, `"Rust toolchain"`, `"RubyGems cache"`, `"Bundler cache"`, `"Composer cache"`, `"Poetry cache"`, `"ccache"`, `"sccache"`, `"Dart pub cache"`, `"HuggingFace model cache"`, `"HuggingFace dataset cache"`, `"PyTorch hub cache"`, `"Ollama model cache"`, `"LM Studio model cache"`, `"Conda environment"`, `"Playwright browsers"`, `"Puppeteer browsers"` |
 | `app_cache` | `"System caches"`, `"Saved application state"`, `"Trash"`, `"Browser cache"`, `"Messaging cache"`, `"Editor cache"` |
 | `logs` | `"User logs"`, `"Crash reports"`, `"Diagnostic reports"`, `"System logs"` |
 | `downloads` | `"Old installers"`, `"Large archives in Downloads"` |
