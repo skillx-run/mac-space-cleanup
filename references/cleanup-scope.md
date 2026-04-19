@@ -118,6 +118,7 @@ Skip the row silently if the probe fails.
 | PyTorch hub (`~/.cache/torch` present, dir probe) | `~/.cache/torch/hub/` (one aggregate item; pretrained model weights downloaded by `torch.hub.load`) | `pkg_cache` |
 | Ollama (`~/.ollama` present, dir probe — **no CLI probe** to avoid redundancy with the dir probe; surfacing `~/.ollama` after the user has uninstalled the `ollama` CLI is exactly the case we want to catch) | `~/.ollama/models/` (one aggregate item; v0.8 does not enumerate per-model because the storage is content-addressed in `blobs/` and individual `rm` on a `manifests/` entry would orphan blobs — per-model granularity is gated on a future `ollama:<model>` semantic dispatcher in `safe_delete.py`) | `pkg_cache` |
 | LM Studio (`~/.cache/lm-studio` or `~/.lmstudio` present, dir probe — either path gates this row; LM Studio has shipped both layouts across versions) | `~/.cache/lm-studio/models/`, `~/.lmstudio/models/` (one aggregate item from whichever path exists; same per-model rationale as Ollama) | `pkg_cache` |
+| Conda / Mamba (`~/miniconda3/envs`, `~/anaconda3/envs`, `~/opt/miniconda3/envs`, `~/opt/anaconda3/envs`, or `~/.mamba/envs` present — dir probe only; scope deliberately limited to `~/...` to avoid system-managed `/opt/miniconda3/envs` which may lie under Hard-forbid blacklist and require privilege) | Each env subdir under the detected `envs/` root is one item, **excluding `base`** (removing the `base` env is equivalent to uninstalling conda / mamba). | `pkg_cache` |
 
 ## Blacklist — never touch
 

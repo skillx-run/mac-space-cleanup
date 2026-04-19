@@ -85,6 +85,7 @@ Language / package manager caches.
 - `~/.cache/torch/hub/**` (PyTorch hub pretrained weights downloaded via `torch.hub.load`; one aggregate item)
 - `~/.ollama/models/**` (Ollama local LLM store; one aggregate item — v0.8 does not enumerate per-model because the underlying storage is content-addressed in `blobs/` and naive `rm` on a `manifests/` entry would orphan shared blobs)
 - `~/.cache/lm-studio/models/**`, `~/.lmstudio/models/**` (LM Studio local model store — one aggregate item from whichever path exists; same per-model rationale as Ollama)
+- `~/miniconda3/envs/*`, `~/anaconda3/envs/*`, `~/opt/miniconda3/envs/*`, `~/opt/anaconda3/envs/*`, `~/.mamba/envs/*` (per-env subdirs under whichever Conda / Mamba install layout the user has; **`base` env is excluded** because removing it is equivalent to uninstalling conda / mamba. Scope deliberately limited to `~/...` — system-managed `/opt/miniconda3/envs` is not scanned.)
 
 Defaults: **L1**, `delete`, `mode_hit_tags=["quick","deep"]`.
 
@@ -95,6 +96,7 @@ Exceptions:
 - `~/.cache/huggingface/{hub,datasets}/**` — set **L3** `defer` (single model snapshot can reach tens of GB; 70B-class LLM redownload runs into hours and consumes substantial bandwidth — same rationale as the `~/.m2/repository` carve-out, applied to ML model artifacts).
 - `~/.cache/torch/hub/**` — set **L2** `trash` (typical pretrained weight is < 1 GB; trash gives a recovery window in case `torch.hub.load` fails to refetch on next run).
 - `~/.ollama/models/**`, `~/.cache/lm-studio/models/**`, `~/.lmstudio/models/**` — set **L3** `defer` (multi-GB local LLMs the user pulled deliberately; v0.8 surfaces each tool as one aggregate item because per-model `rm` is unsafe without a `ollama:<model>` semantic dispatcher in `safe_delete.py`).
+- Conda / Mamba env entries (one item per non-`base` subdir of the detected `envs/`) — set **L2** `trash`, `mode_hit_tags=["deep"]`. Reason: a user env can carry pip packages from a yanked version, editable installs pointing at local projects, or a channel-specific build that is inconvenient to reproduce — `trash` gives a same-session recovery window, and `deep` gates prevent a quick-mode run from sweeping an environment still in active shell use.
 
 ---
 
@@ -292,7 +294,7 @@ Stage 4 produces in-memory items with these fields (matches `cleanup-result.json
 | --- | --- |
 | `dev_cache` | `"Xcode DerivedData"`, `"Xcode Archives"`, `"iOS DeviceSupport"`, `"watchOS DeviceSupport"`, `"tvOS DeviceSupport"`, `"Xcode Playground cache"`, `"Go build cache"`, `"Gradle cache"`, `"Docker build cache"`, `"Docker dangling images"`, `"Docker stopped containers"`, `"JetBrains cache"`, `"Flutter SDK cache"` |
 | `sim_runtime` | `"Xcode Simulator Runtimes"`, `"Xcode Simulator Devices"` |
-| `pkg_cache` | `"Homebrew cache"`, `"Homebrew Cellar cleanup"`, `"npm cache"`, `"pnpm store"`, `"Yarn Berry cache"`, `"Bun cache"`, `"Deno cache"`, `"pip cache"`, `"uv cache"`, `"Cargo cache"`, `"Swift PM cache"`, `"Carthage cache"`, `"Android SDK image"`, `"Node version manager"`, `"Python version manager"`, `"Rust toolchain"`, `"RubyGems cache"`, `"Bundler cache"`, `"Composer cache"`, `"Poetry cache"`, `"ccache"`, `"sccache"`, `"Dart pub cache"`, `"HuggingFace model cache"`, `"HuggingFace dataset cache"`, `"PyTorch hub cache"`, `"Ollama model cache"`, `"LM Studio model cache"` |
+| `pkg_cache` | `"Homebrew cache"`, `"Homebrew Cellar cleanup"`, `"npm cache"`, `"pnpm store"`, `"Yarn Berry cache"`, `"Bun cache"`, `"Deno cache"`, `"pip cache"`, `"uv cache"`, `"Cargo cache"`, `"Swift PM cache"`, `"Carthage cache"`, `"Android SDK image"`, `"Node version manager"`, `"Python version manager"`, `"Rust toolchain"`, `"RubyGems cache"`, `"Bundler cache"`, `"Composer cache"`, `"Poetry cache"`, `"ccache"`, `"sccache"`, `"Dart pub cache"`, `"HuggingFace model cache"`, `"HuggingFace dataset cache"`, `"PyTorch hub cache"`, `"Ollama model cache"`, `"LM Studio model cache"`, `"Conda environment"` |
 | `app_cache` | `"System caches"`, `"Saved application state"`, `"Trash"`, `"Browser cache"`, `"Messaging cache"`, `"Editor cache"` |
 | `logs` | `"User logs"`, `"Crash reports"`, `"Diagnostic reports"`, `"System logs"` |
 | `downloads` | `"Old installers"`, `"Large archives in Downloads"` |

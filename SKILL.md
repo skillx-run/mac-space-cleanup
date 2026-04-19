@@ -114,7 +114,9 @@ ls -d ~/.cocoapods ~/.gradle ~/.m2 ~/.nvm \
       ~/Library/Caches/Mozilla.sccache ~/.cache/sccache \
       ~/.pub-cache \
       ~/.cache/huggingface ~/.cache/torch \
-      ~/.ollama ~/.cache/lm-studio ~/.lmstudio 2>/dev/null
+      ~/.ollama ~/.cache/lm-studio ~/.lmstudio \
+      ~/miniconda3/envs ~/anaconda3/envs \
+      ~/opt/miniconda3/envs ~/opt/anaconda3/envs ~/.mamba/envs 2>/dev/null
 ```
 
 The `which -a` line gates Tier E rows that have a CLI probe; the `ls -d` line gates rows with a directory probe (nvm has no CLI on PATH; Android SDK and JetBrains are detected by their marker dirs). Keep these two lines in sync with `references/cleanup-scope.md` Tier E — when a row is added there, extend the matching probe here.
