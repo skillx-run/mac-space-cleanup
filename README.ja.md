@@ -46,6 +46,25 @@ skillx run --skip-scan --auto https://github.com/skillx-run/mac-space-cleanup "M
 
 ---
 
+## なぜこの skill か
+
+Mac の空き容量を確保する方法はすでに豊富にあります —— 専用 GUI アプリ（CleanMyMac、OnyX、DaisyDisk）、生の LLM プロンプト（「Claude、Mac を掃除して」）、または指が覚えた `rm -rf ~/Library/Caches`。この skill が存在する理由は、開発者の Mac ではこの 3 つのどれにも盲点があるからです。
+
+| 気にしているポイント | 従来の GUI クリーナー | 素の LLM プロンプト | この skill |
+| --- | --- | --- | --- |
+| **書き込みの入口** | クローズドソースの専有エンジン | モデルが決めた `rm -rf` 任せ | 単一の `safe_delete.py` 収束点。ファイルシステム呼び出し**前**に決定的 blocklist（`.git`、`.ssh`、Keychains、`.env*`、Adobe `Auto-Save`、VSCode の未保存編集…）を執行 —— 指示されても拒否する |
+| **リスク認識** | 通常「Safe to remove」の 1 バケット | なし —— モデルは幻覚する | 項目ごとに L1–L4 グレーディング。Quick モードは L1 のみ自動実行。Deep モードは L2/L3 を項目ごとに確認。L4 は決して自動実行しない |
+| **回収数字の誠実さ** | 「40 GB 解放」に Trash に残ったバイトが混入しがち | モデルの主張次第 | `freed_now`（本当にディスクから離れた分）/ `pending_in_trash` / `archived_source` に分割。共有テキストの見出しは `freed_now` を使う |
+| **マシン外に出るプライバシー** | ローカルだが不透明 | 完全なパス + ファイル名をプロバイダに送信 | レポートに出るのは `source_label` + `category` のみ。redaction reviewer サブ agent とレンダリング後 validator が HTML を見る前に漏洩を捕捉 |
+| **開発者 Mac への理解** | ざっくりディレクトリスイープ | チャットだけ、スキャンなし | `.git` ルートのプロジェクト発見、モデル単位の Ollama ディスパッチャ（`ollama:<name>:<tag>`）＋ blob 参照カウント、`DeviceSupport/` のアクティブ iOS バージョン降格、nvm/pyenv のバージョン pin（`.python-version` / `.nvmrc`）除外 |
+| **監査と再実行** | 通常なし | チャットログのみ | 実行ごとに append-only の `actions.jsonl`。冪等 —— 消えているパスは `skip/success` になる、同じ workdir への再実行は安全 |
+| **Dry-run** | 珍しい or 有料 | モデルに「本当にはやらないで」と頼む | 一級市民 —— 全ステージ走るが `safe_delete.py` は何も書かない、レポートに `DRY-RUN` バナー |
+| **オープン性** | クローズドソースの商用製品 | ソース層のガードレールなし | Apache-2.0、pip 依存ゼロ、純粋 macOS コマンド + Python stdlib |
+
+一行でまとめると：**GUI クリーナーは安全だが不透明、しかも数字を盛る。素の LLM は柔軟だが平気で間違った `rm -rf` をやる。この skill は LLM の柔軟さを残しつつ guardrail を付け加える** —— コード内の決定的 blocklist、モデルが迂回できない redaction レイヤー、そして共有カードに載る数字が本当にディスクから離れた数字と一致する誠実な会計。
+
+---
+
 ## Install
 
 skill をロードできる agent harness であればどれでも使えます。以下のコマンドは `~/.claude/skills/` という一般的なパスを例にしていますが、ご利用の harness が別の skills ディレクトリを使う場合はそちらに置き換えてください。

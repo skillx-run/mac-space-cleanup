@@ -46,6 +46,25 @@ Informe completo (Resumen de impacto · Desglose · Registro detallado · Observ
 
 ---
 
+## Por qué este skill
+
+Ya existen muchas formas de liberar disco —— apps GUI dedicadas (CleanMyMac, OnyX, DaisyDisk), un prompt LLM crudo («oye Claude, limpia mi Mac»), o tu memoria muscular con `rm -rf ~/Library/Caches`. Este skill existe porque los tres enfoques dejan vacíos importantes en un Mac de desarrollador.
+
+| Lo que te importa | Limpiador GUI tradicional | Prompt LLM crudo | Este skill |
+| --- | --- | --- | --- |
+| **Dónde ocurre la escritura** | Motor propietario, código cerrado | Cualquier `rm -rf` que el modelo decida | Un único punto de paso `safe_delete.py` con una blocklist determinista (`.git`, `.ssh`, Keychains, `.env*`, Adobe `Auto-Save`, ediciones no guardadas de VSCode, …) aplicada **antes** de la llamada al sistema de archivos —— rechaza aunque se lo pidas |
+| **Conciencia del riesgo** | Normalmente un único cubo «Safe to remove» | Ninguna —— los modelos alucinan | Gradación L1–L4 por elemento. El modo Quick ejecuta automáticamente solo L1. El modo Deep pregunta por cada elemento en L2/L3. L4 nunca se ejecuta automáticamente |
+| **Honestidad del número** | «40 GB liberados» a menudo cuenta bytes que siguen en la Papelera | Lo que el modelo afirme | Dividido en `freed_now` (realmente fuera del disco) / `pending_in_trash` / `archived_source`. El titular del texto para compartir usa `freed_now` |
+| **Privacidad que sale de la máquina** | Local pero opaco | Rutas + nombres de archivo completos enviados al proveedor | Al informe solo llegan `source_label` + `category`. Un sub-agente redaction reviewer más un validator posrenderizado capturan fugas antes de que veas el HTML |
+| **Conciencia del Mac de desarrollador** | Barridos genéricos de directorios | Solo chat, sin escaneo | Descubrimiento de proyectos enraizados en `.git`; despachador Ollama por modelo (`ollama:<name>:<tag>`) con conteo de referencias a blobs; degradación de versión iOS activa para `DeviceSupport/`; exclusión de version-pin (`.python-version` / `.nvmrc`) para nvm/pyenv |
+| **Auditoría y re-ejecución** | Normalmente ninguna | Solo transcript del chat | `actions.jsonl` append-only por ejecución. Idempotente —— las rutas ya ausentes se convierten en `skip/success`, re-ejecutar sobre el mismo workdir es seguro |
+| **Dry-run** | Raro o de pago | Pedir al modelo «no lo hagas de verdad» | De primera clase —— todas las etapas corren, `safe_delete.py` no escribe nada, el informe se etiqueta con banner `DRY-RUN` |
+| **Apertura** | Producto comercial de código cerrado | Sin guardrails a nivel de código | Apache-2.0, cero dependencias pip, solo comandos macOS + Python stdlib |
+
+La versión corta: **los limpiadores GUI son seguros pero opacos e inflan el número. Un LLM crudo es flexible pero felizmente hará `rm -rf` sobre lo equivocado. Este skill mantiene la flexibilidad del LLM y añade las guardrails** —— blocklist determinista en código, una capa de redaction que el modelo no puede saltar, y contabilidad honesta para que el número en la tarjeta de compartir sea el número que realmente salió del disco.
+
+---
+
 ## Install
 
 Cualquier harness de agente que cargue skills puede usarlo. El fragmento de abajo utiliza la ruta habitual `~/.claude/skills/`; adáptala al directorio de skills de tu harness si usas otro.

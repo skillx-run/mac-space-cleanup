@@ -46,6 +46,25 @@ Full report (Impact Summary · Breakdown · Detailed Log · Observations · Run 
 
 ---
 
+## Why this skill
+
+Plenty of ways to free up disk already exist — dedicated GUI apps (CleanMyMac, OnyX, DaisyDisk), a raw LLM prompt ("hey Claude, clean up my Mac"), or your own muscle memory with `rm -rf ~/Library/Caches`. This skill exists because all three leave gaps that matter on a developer Mac:
+
+| What you care about | Traditional GUI cleaner | Plain LLM prompt | This skill |
+| --- | --- | --- | --- |
+| **Where writes happen** | Proprietary engine, closed source | Whatever `rm -rf` the model decides to run | Single `safe_delete.py` chokepoint with a deterministic blocklist (`.git`, `.ssh`, Keychains, `.env*`, Adobe `Auto-Save`, VSCode unsaved edits, …) enforced **before** the filesystem call — refuses even if you instruct it to proceed |
+| **Risk awareness** | Usually one flat "Safe to remove" bucket | None — models hallucinate | L1–L4 grading per item. Quick mode auto-executes L1 only. Deep mode prompts per-item on L2/L3. L4 is never auto-executed |
+| **Reclaim honesty** | "Freed 40 GB" often counts bytes still sitting in Trash | Whatever the model claims | Split into `freed_now` (actually off the disk) / `pending_in_trash` / `archived_source`. The share-text headline uses `freed_now` |
+| **Privacy leaving the machine** | Local but opaque | Full paths + filenames sent to the provider | Only `source_label` + `category` reach the report. A redaction reviewer sub-agent plus a post-render validator catch leaks before you ever see the HTML |
+| **Developer-Mac awareness** | Generic directory sweeps | Chat-only, no scan | `.git`-rooted project discovery; per-model Ollama dispatcher (`ollama:<name>:<tag>`) with blob-reference counting; active-iOS-version downgrade for `DeviceSupport/`; version-pin (`.python-version` / `.nvmrc`) exclusion for nvm/pyenv |
+| **Audit & re-run** | Typically none | Chat transcript only | Append-only `actions.jsonl` per run. Idempotent — already-gone paths become `skip/success`, re-running the same workdir is safe |
+| **Dry-run** | Rare or paywalled | Asks the model to "not really do it" | First-class — every stage runs, `safe_delete.py` writes nothing, report is banner-tagged `DRY-RUN` |
+| **Openness** | Closed-source commercial product | No source-level guardrails | Apache-2.0, zero pip deps, pure macOS commands + Python stdlib |
+
+The short version: **GUI cleaners are safe but opaque and inflate the number. A raw LLM is flexible but will happily `rm -rf` the wrong thing. This skill keeps the LLM's flexibility and adds the guardrails** — a deterministic blocklist in code, a redaction layer the model can't bypass, and honest accounting so the number on the share card is the number that actually came off the disk.
+
+---
+
 ## Install
 
 Any agent harness that loads skills can use this. The snippet below uses the `~/.claude/skills/` convention; adapt the target path to your harness's skills directory.

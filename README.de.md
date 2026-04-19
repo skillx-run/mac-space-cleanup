@@ -46,6 +46,25 @@ Vollständiger Report (Wirkungsübersicht · Aufschlüsselung · Detailprotokoll
 
 ---
 
+## Warum dieses Skill
+
+Es gibt schon viele Wege, Speicherplatz freizugeben —— spezialisierte GUI-Apps (CleanMyMac, OnyX, DaisyDisk), einen rohen LLM-Prompt („hey Claude, räum meinen Mac auf"), oder die Muskel-Erinnerung mit `rm -rf ~/Library/Caches`. Dieses Skill existiert, weil alle drei auf einem Entwickler-Mac Lücken lassen, die wichtig sind.
+
+| Was dich interessiert | Klassischer GUI-Cleaner | Roher LLM-Prompt | Dieses Skill |
+| --- | --- | --- | --- |
+| **Wo Schreibzugriffe passieren** | Proprietäre Engine, Closed Source | Was auch immer das Modell an `rm -rf` beschließt | Einziger Durchlaufpunkt `safe_delete.py` mit deterministischer Blocklist (`.git`, `.ssh`, Keychains, `.env*`, Adobe `Auto-Save`, VSCode-Ungespeichertes, …), angewendet **vor** dem Dateisystem-Aufruf —— verweigert auch auf ausdrückliche Anweisung |
+| **Risikobewusstsein** | Meist ein einziger „Safe to remove"-Topf | Keines —— Modelle halluzinieren | L1–L4-Einstufung pro Eintrag. Quick-Modus führt nur L1 automatisch aus. Deep-Modus fragt L2/L3 pro Eintrag. L4 wird nie automatisch ausgeführt |
+| **Ehrlichkeit der Zahl** | „40 GB freigegeben" zählt oft Bytes, die noch im Papierkorb liegen | Was das Modell behauptet | Aufgeteilt in `freed_now` (wirklich vom Datenträger weg) / `pending_in_trash` / `archived_source`. Die Schlagzeile im Share-Text nutzt `freed_now` |
+| **Privatsphäre, die den Rechner verlässt** | Lokal, aber undurchsichtig | Vollständige Pfade + Dateinamen an den Anbieter | Im Bericht erscheinen nur `source_label` + `category`. Ein Redaction-Reviewer-Sub-Agent plus Post-Render-Validator fangen Lecks ab, bevor du das HTML siehst |
+| **Entwickler-Mac-Bewusstsein** | Generische Verzeichnis-Durchläufe | Chat-only, kein Scan | Projekt-Erkennung anhand `.git`-Wurzel; per-Modell Ollama-Dispatcher (`ollama:<name>:<tag>`) mit Blob-Referenzzählung; aktive iOS-Versions-Abstufung für `DeviceSupport/`; Version-Pin-Ausschluss (`.python-version` / `.nvmrc`) für nvm/pyenv |
+| **Audit & Wiederholung** | Meist keines | Nur Chat-Transkript | Append-only `actions.jsonl` pro Lauf. Idempotent —— bereits verschwundene Pfade werden zu `skip/success`, Wiederholung auf dem gleichen Workdir ist sicher |
+| **Dry-run** | Selten oder zahlungspflichtig | Das Modell bitten „tu es nicht wirklich" | Erste Klasse —— alle Stufen laufen, `safe_delete.py` schreibt nichts, der Bericht trägt ein `DRY-RUN`-Banner |
+| **Offenheit** | Closed-Source kommerzielles Produkt | Keine Guardrails auf Quellcode-Ebene | Apache-2.0, null pip-Abhängigkeiten, reine macOS-Befehle + Python stdlib |
+
+Kurz gesagt: **GUI-Cleaner sind sicher, aber undurchsichtig und blähen die Zahl auf. Ein roher LLM ist flexibel, wird aber bereitwillig das Falsche per `rm -rf` löschen. Dieses Skill bewahrt die Flexibilität des LLMs und fügt die Guardrails hinzu** —— eine deterministische Blocklist im Code, eine Redaction-Schicht, die das Modell nicht umgehen kann, und ehrliche Abrechnung, damit die Zahl auf der Share-Karte die Zahl ist, die wirklich vom Datenträger verschwunden ist.
+
+---
+
 ## Install
 
 Jedes Agent-Harness, das Skills lädt, kann dies verwenden. Der untenstehende Ausschnitt nutzt den geläufigen Pfad `~/.claude/skills/`; passe ihn an das Skills-Verzeichnis deines Harnesses an, falls es anders heißt.
