@@ -130,6 +130,10 @@ The `which -a` line gates Tier E rows that have a CLI probe; the `ls -d` line ga
 
 ```bash
 # Physical devices (Xcode 15+). `devicectl` returns JSON; older Xcode lacks it.
+# Both xcrun and python3 stderr are silenced — the block must stay quiet
+# whether xcrun is missing, the JSON schema drifts, or the inline script ever
+# tripped over a Python version difference. Empty output is the correct
+# failure mode; tracebacks bleeding into the agent transcript are not.
 xcrun devicectl list devices --json-output - 2>/dev/null \
   | python3 -c 'import json,sys
 try:
@@ -138,9 +142,10 @@ except Exception:
     sys.exit(0)
 for dev in d.get("result",{}).get("devices",[]):
     v=dev.get("hardwareProperties",{}).get("productVersion") or ""
-    # reduce "17.4.1" -> "17.4" to match DeviceSupport subdir naming
+    # normalize "17.4.1" -> "17.4"; matched via equal-string compare against
+    # DeviceSupport entries after those are similarly reduced to major.minor.
     parts=v.split(".")
-    if len(parts)>=2: print(".".join(parts[:2]))' \
+    if len(parts)>=2: print(".".join(parts[:2]))' 2>/dev/null \
   > "$WORKDIR/active_ios_versions.txt"
 
 # Available simulators (all Xcode versions).
@@ -153,7 +158,7 @@ except Exception:
 for key in d.get("devices",{}).keys():
     # key looks like "com.apple.CoreSimulator.SimRuntime.iOS-17-4"
     m=re.search(r"iOS-(\d+)-(\d+)", key)
-    if m: print(f"{m.group(1)}.{m.group(2)}")' \
+    if m: print(f"{m.group(1)}.{m.group(2)}")' 2>/dev/null \
   >> "$WORKDIR/active_ios_versions.txt"
 
 sort -u "$WORKDIR/active_ios_versions.txt" -o "$WORKDIR/active_ios_versions.txt"

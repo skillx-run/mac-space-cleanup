@@ -40,6 +40,14 @@ Artifact `kind` is one of:
                     user must keep (e.g. `.dvc/cache` under DVC's `.dvc/`,
                     where the rest of `.dvc/` holds user-curated state).
                     L2 trash, marker-gated at Stage 4 per category-rules.md §10d.
+
+Subtype string contract: for every kind except `nested_cache` the subtype
+equals a single path component (`node_modules`, `.venv`, `coverage`, ...).
+For `nested_cache` the subtype equals the relative path from the project
+root and MAY contain `/` (e.g. `.dvc/cache`). Downstream consumers must
+treat subtype as an opaque display / history tag, not a filename-safe
+token — it is never used as a filesystem path component.
+
 exit:   0 ok / 1 partial errors / 2 bad input
 """
 
