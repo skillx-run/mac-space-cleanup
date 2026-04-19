@@ -74,17 +74,18 @@ Right-to-left scripts (Arabic, Hebrew, Persian) get `<html dir="rtl">`; basic di
 
 **Cleans** (with risk grading per `references/category-rules.md`):
 
-- Developer caches: Xcode DerivedData, Docker build cache, Go build cache, Gradle cache.
-- Package manager caches: Homebrew, npm, pnpm, yarn, pip, uv, Cargo, CocoaPods.
+- Developer caches: Xcode DerivedData, Docker build cache, Go build cache, Gradle cache, ccache, sccache.
+- Package manager caches: Homebrew, npm, pnpm, yarn, pip, uv, Cargo, CocoaPods, RubyGems, Bundler, Composer, Poetry, Dart pub.
 - iOS/watchOS/tvOS simulator runtimes (via `xcrun simctl delete`, **never `rm -rf`**).
 - App caches under `~/Library/Caches/*`, saved application state, the Trash itself.
 - Logs, crash reports.
 - Old installers in `~/Downloads` (`.dmg / .pkg / .xip / .iso` older than 30 days).
 - Time Machine local snapshots (via `tmutil deletelocalsnapshots`).
 - **Project build artifacts** (deep mode only, scanned via `scripts/scan_projects.py` for any directory with a `.git` root):
-  - L1 delete: `node_modules`, `target`, `build`, `dist`, `out`, `.next`, `.nuxt`, `.svelte-kit`, `.turbo`, `.parcel-cache`, `__pycache__`, `.pytest_cache`, `.tox`, `Pods`, `vendor` (Go projects only).
-  - L2 trash: `.venv`, `venv`, `env` (Python venvs — wheel pins may not reproduce, hence the recovery window).
-  - System / package-manager directories (`~/Library`, `~/.cache`, `~/.npm`, `~/.cargo`, `~/.cocoapods`, `~/.gradle`, `~/.m2`, `~/.gem`, `~/.bundle`, `~/.local`, `~/.rustup`, `~/.pnpm-store`, `~/.Trash`) are pruned from project discovery.
+  - L1 delete: `node_modules`, `target`, `build`, `dist`, `out`, `.next`, `.nuxt`, `.svelte-kit`, `.turbo`, `.parcel-cache`, `__pycache__`, `.pytest_cache`, `.tox`, `.mypy_cache`, `.ruff_cache`, `.dart_tool`, `.nyc_output`, `_build` (Elixir projects only), `Pods`, `vendor` (Go projects only).
+  - L2 trash: `.venv`, `venv`, `env` (Python venvs — wheel pins may not reproduce, hence the recovery window); `coverage` (test-coverage reports, gated by `package.json` or a Python marker).
+  - System / package-manager directories (`~/Library`, `~/.cache`, `~/.npm`, `~/.cargo`, `~/.cocoapods`, `~/.gradle`, `~/.m2`, `~/.gem`, `~/.bundle`, `~/.composer`, `~/.pub-cache`, `~/.local`, `~/.rustup`, `~/.pnpm-store`, `~/.Trash`) are pruned from project discovery.
+- **Deep mode also surfaces `~`-wide directories ≥ 2 GiB that no other rule matched** (L3 defer, `source_label="Unclassified large directory"`) so genuinely orphan disk hogs become visible for manual review.
 
 **Hard backstop — refuses regardless of what `confirmed.json` says** (see `scripts/safe_delete.py` `_BLOCKED_PATTERNS`):
 

@@ -74,17 +74,18 @@ Los idiomas de derecha a izquierda (árabe, hebreo, persa) reciben `<html dir="r
 
 **Limpia** (con clasificación de riesgo según `references/category-rules.md`):
 
-- Cachés de desarrollador: Xcode DerivedData, Docker build cache, Go build cache, Gradle cache.
-- Cachés de gestores de paquetes: Homebrew, npm, pnpm, yarn, pip, uv, Cargo, CocoaPods.
+- Cachés de desarrollador: Xcode DerivedData, Docker build cache, Go build cache, Gradle cache, ccache, sccache.
+- Cachés de gestores de paquetes: Homebrew, npm, pnpm, yarn, pip, uv, Cargo, CocoaPods, RubyGems, Bundler, Composer, Poetry, Dart pub.
 - Runtimes de simuladores iOS/watchOS/tvOS (vía `xcrun simctl delete`, **nunca `rm -rf`**).
 - Cachés de aplicaciones bajo `~/Library/Caches/*`, saved application state y la propia Trash.
 - Logs, informes de fallos.
 - Instaladores antiguos en `~/Downloads` (`.dmg / .pkg / .xip / .iso` con más de 30 días).
 - Instantáneas locales de Time Machine (vía `tmutil deletelocalsnapshots`).
 - **Artefactos de build de proyectos** (solo modo deep, escaneados por `scripts/scan_projects.py` para cualquier directorio con raíz `.git`):
-  - L1 borrado: `node_modules`, `target`, `build`, `dist`, `out`, `.next`, `.nuxt`, `.svelte-kit`, `.turbo`, `.parcel-cache`, `__pycache__`, `.pytest_cache`, `.tox`, `Pods`, `vendor` (solo proyectos Go).
-  - L2 a Trash: `.venv`, `venv`, `env` (entornos virtuales de Python — los pins de wheel pueden no reproducirse; por eso la ventana de recuperación).
-  - Directorios de sistema / gestor de paquetes (`~/Library`, `~/.cache`, `~/.npm`, `~/.cargo`, `~/.cocoapods`, `~/.gradle`, `~/.m2`, `~/.gem`, `~/.bundle`, `~/.local`, `~/.rustup`, `~/.pnpm-store`, `~/.Trash`) se podan durante el descubrimiento de proyectos.
+  - L1 borrado: `node_modules`, `target`, `build`, `dist`, `out`, `.next`, `.nuxt`, `.svelte-kit`, `.turbo`, `.parcel-cache`, `__pycache__`, `.pytest_cache`, `.tox`, `.mypy_cache`, `.ruff_cache`, `.dart_tool`, `.nyc_output`, `_build` (solo proyectos Elixir), `Pods`, `vendor` (solo proyectos Go).
+  - L2 a Trash: `.venv`, `venv`, `env` (entornos virtuales de Python — los pins de wheel pueden no reproducirse; por eso la ventana de recuperación); `coverage` (informes de cobertura de tests, condicionado a `package.json` o un marker de Python).
+  - Directorios de sistema / gestor de paquetes (`~/Library`, `~/.cache`, `~/.npm`, `~/.cargo`, `~/.cocoapods`, `~/.gradle`, `~/.m2`, `~/.gem`, `~/.bundle`, `~/.composer`, `~/.pub-cache`, `~/.local`, `~/.rustup`, `~/.pnpm-store`, `~/.Trash`) se podan durante el descubrimiento de proyectos.
+- **El modo deep también saca a la luz directorios bajo `~` de ≥ 2 GiB que ninguna otra regla capturó** (L3 defer, `source_label="Unclassified large directory"`), para que los verdaderos devoradores de disco huérfanos queden visibles para revisión manual.
 
 **Barrera dura — rechaza pase lo que pase en `confirmed.json`** (ver `_BLOCKED_PATTERNS` en `scripts/safe_delete.py`):
 

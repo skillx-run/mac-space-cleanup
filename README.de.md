@@ -74,17 +74,18 @@ Rechts-nach-links-Schriften (Arabisch, Hebräisch, Persisch) erhalten `<html dir
 
 **Räumt auf** (mit Risikoeinstufung gemäß `references/category-rules.md`):
 
-- Entwickler-Caches: Xcode DerivedData, Docker build cache, Go build cache, Gradle cache.
-- Paketmanager-Caches: Homebrew, npm, pnpm, yarn, pip, uv, Cargo, CocoaPods.
+- Entwickler-Caches: Xcode DerivedData, Docker build cache, Go build cache, Gradle cache, ccache, sccache.
+- Paketmanager-Caches: Homebrew, npm, pnpm, yarn, pip, uv, Cargo, CocoaPods, RubyGems, Bundler, Composer, Poetry, Dart pub.
 - iOS/watchOS/tvOS-Simulator-Runtimes (über `xcrun simctl delete`, **niemals `rm -rf`**).
 - App-Caches unter `~/Library/Caches/*`, saved application state und die Trash selbst.
 - Logs, Absturzberichte.
 - Alte Installer in `~/Downloads` (`.dmg / .pkg / .xip / .iso`, älter als 30 Tage).
 - Lokale Time-Machine-Snapshots (über `tmutil deletelocalsnapshots`).
 - **Projekt-Build-Artefakte** (nur deep-Modus, gescannt von `scripts/scan_projects.py` für jedes Verzeichnis mit `.git`-Wurzel):
-  - L1 löschen: `node_modules`, `target`, `build`, `dist`, `out`, `.next`, `.nuxt`, `.svelte-kit`, `.turbo`, `.parcel-cache`, `__pycache__`, `.pytest_cache`, `.tox`, `Pods`, `vendor` (nur Go-Projekte).
-  - L2 in den Trash: `.venv`, `venv`, `env` (Python-venvs — Wheel-Pins reproduzieren eventuell nicht exakt, daher das Recovery-Fenster).
-  - System- / Paketmanager-Verzeichnisse (`~/Library`, `~/.cache`, `~/.npm`, `~/.cargo`, `~/.cocoapods`, `~/.gradle`, `~/.m2`, `~/.gem`, `~/.bundle`, `~/.local`, `~/.rustup`, `~/.pnpm-store`, `~/.Trash`) werden bei der Projekterkennung ausgeschlossen.
+  - L1 löschen: `node_modules`, `target`, `build`, `dist`, `out`, `.next`, `.nuxt`, `.svelte-kit`, `.turbo`, `.parcel-cache`, `__pycache__`, `.pytest_cache`, `.tox`, `.mypy_cache`, `.ruff_cache`, `.dart_tool`, `.nyc_output`, `_build` (nur Elixir-Projekte), `Pods`, `vendor` (nur Go-Projekte).
+  - L2 in den Trash: `.venv`, `venv`, `env` (Python-venvs — Wheel-Pins reproduzieren eventuell nicht exakt, daher das Recovery-Fenster); `coverage` (Test-Coverage-Reports, gebunden an `package.json` oder einen Python-Marker).
+  - System- / Paketmanager-Verzeichnisse (`~/Library`, `~/.cache`, `~/.npm`, `~/.cargo`, `~/.cocoapods`, `~/.gradle`, `~/.m2`, `~/.gem`, `~/.bundle`, `~/.composer`, `~/.pub-cache`, `~/.local`, `~/.rustup`, `~/.pnpm-store`, `~/.Trash`) werden bei der Projekterkennung ausgeschlossen.
+- **Im deep-Modus werden zusätzlich Verzeichnisse unter `~` mit ≥ 2 GiB angezeigt, die keine andere Regel erfasst hat** (L3 defer, `source_label="Unclassified large directory"`), damit echte verwaiste Disk-Hogs für manuelle Sichtung sichtbar werden.
 
 **Harter Riegel — verweigert unabhängig davon, was `confirmed.json` sagt** (siehe `_BLOCKED_PATTERNS` in `scripts/safe_delete.py`):
 

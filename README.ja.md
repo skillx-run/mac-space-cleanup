@@ -74,17 +74,18 @@ HTML レポートは **1 回の実行につき単一言語** で生成され、s
 
 **対象**（`references/category-rules.md` のリスクグレーディングに従う）:
 
-- 開発者キャッシュ: Xcode DerivedData、Docker build cache、Go build cache、Gradle cache。
-- パッケージマネージャキャッシュ: Homebrew、npm、pnpm、yarn、pip、uv、Cargo、CocoaPods。
+- 開発者キャッシュ: Xcode DerivedData、Docker build cache、Go build cache、Gradle cache、ccache、sccache。
+- パッケージマネージャキャッシュ: Homebrew、npm、pnpm、yarn、pip、uv、Cargo、CocoaPods、RubyGems、Bundler、Composer、Poetry、Dart pub。
 - iOS/watchOS/tvOS シミュレータランタイム（`xcrun simctl delete` 経由、**`rm -rf` は絶対に使いません**）。
 - `~/Library/Caches/*` 配下のアプリキャッシュ、saved application state、Trash そのもの。
 - ログ、クラッシュレポート。
 - `~/Downloads` 内の 30 日以上前の古いインストーラ（`.dmg / .pkg / .xip / .iso`）。
 - Time Machine ローカルスナップショット（`tmutil deletelocalsnapshots` 経由）。
 - **プロジェクトのビルド成果物**（deep モードのみ。`scripts/scan_projects.py` で `.git` ルートを持つディレクトリをスキャン）:
-  - L1 で直接削除: `node_modules`、`target`、`build`、`dist`、`out`、`.next`、`.nuxt`、`.svelte-kit`、`.turbo`、`.parcel-cache`、`__pycache__`、`.pytest_cache`、`.tox`、`Pods`、`vendor`（Go プロジェクトのみ）。
-  - L2 で Trash へ: `.venv`、`venv`、`env`（Python 仮想環境 — wheel ピン留めだと完全に再現できない場合があるため、回収期間を設ける）。
-  - システム / パッケージマネージャディレクトリ（`~/Library`、`~/.cache`、`~/.npm`、`~/.cargo`、`~/.cocoapods`、`~/.gradle`、`~/.m2`、`~/.gem`、`~/.bundle`、`~/.local`、`~/.rustup`、`~/.pnpm-store`、`~/.Trash`）はプロジェクト検出時にプルーニングされます。
+  - L1 で直接削除: `node_modules`、`target`、`build`、`dist`、`out`、`.next`、`.nuxt`、`.svelte-kit`、`.turbo`、`.parcel-cache`、`__pycache__`、`.pytest_cache`、`.tox`、`.mypy_cache`、`.ruff_cache`、`.dart_tool`、`.nyc_output`、`_build`（Elixir プロジェクトのみ）、`Pods`、`vendor`（Go プロジェクトのみ）。
+  - L2 で Trash へ: `.venv`、`venv`、`env`（Python 仮想環境 — wheel ピン留めだと完全に再現できない場合があるため、回収期間を設ける）；`coverage`（テストカバレッジレポート、`package.json` または Python marker の有無で判定）。
+  - システム / パッケージマネージャディレクトリ（`~/Library`、`~/.cache`、`~/.npm`、`~/.cargo`、`~/.cocoapods`、`~/.gradle`、`~/.m2`、`~/.gem`、`~/.bundle`、`~/.composer`、`~/.pub-cache`、`~/.local`、`~/.rustup`、`~/.pnpm-store`、`~/.Trash`）はプロジェクト検出時にプルーニングされます。
+- **deep モードはさらに `~` 配下で 2 GiB 以上、他のルールにマッチしないディレクトリもサーフェスします**（L3 defer、`source_label="Unclassified large directory"`）。真の孤児ディレクトリをユーザーが手動で判断できるようにします。
 
 **ハードブロック — `confirmed.json` がどう書かれていても拒否**（`scripts/safe_delete.py` の `_BLOCKED_PATTERNS` を参照）:
 

@@ -74,17 +74,18 @@ brew install trash
 
 **يُنظِّف** (مع تصنيف مخاطر وفق `references/category-rules.md`):
 
-- كاشات المطوِّرين: Xcode DerivedData، Docker build cache، Go build cache، Gradle cache.
-- كاشات مديري الحِزَم: Homebrew، npm، pnpm، yarn، pip، uv، Cargo، CocoaPods.
+- كاشات المطوِّرين: Xcode DerivedData، Docker build cache، Go build cache، Gradle cache، ccache، sccache.
+- كاشات مديري الحِزَم: Homebrew، npm، pnpm، yarn، pip، uv، Cargo، CocoaPods، RubyGems، Bundler، Composer، Poetry، Dart pub.
 - أزمنة تشغيل محاكيات iOS/watchOS/tvOS (عبر `xcrun simctl delete`، **لا يستخدم `rm -rf` إطلاقاً**).
 - كاشات التطبيقات تحت `~/Library/Caches/*`، وsaved application state، وسلة المهملات Trash ذاتها.
 - السجلات وتقارير الأعطال.
 - المُثبِّتات القديمة في `~/Downloads` (`.dmg / .pkg / .xip / .iso` التي تجاوزت 30 يوماً).
 - لقطات Time Machine المحلية (عبر `tmutil deletelocalsnapshots`).
 - **مخرجات بناء المشاريع** (في وضع deep فقط، تُمسح بواسطة `scripts/scan_projects.py` لأي مجلَّد يملك جذراً بـ `.git`):
-  - L1 حذف مباشر: `node_modules`، `target`، `build`، `dist`، `out`، `.next`، `.nuxt`، `.svelte-kit`، `.turbo`، `.parcel-cache`، `__pycache__`، `.pytest_cache`، `.tox`، `Pods`، `vendor` (مشاريع Go فقط).
-  - L2 إلى Trash: `.venv`، `venv`، `env` (بيئات Python الافتراضية — قد لا تُستنسخ wheel pins حرفياً، ولذلك نترك نافذة استرداد).
-  - مجلَّدات النظام / مديري الحِزَم (`~/Library`، `~/.cache`، `~/.npm`، `~/.cargo`، `~/.cocoapods`، `~/.gradle`، `~/.m2`، `~/.gem`، `~/.bundle`، `~/.local`، `~/.rustup`، `~/.pnpm-store`، `~/.Trash`) يتمُّ تقليمها عند اكتشاف المشاريع.
+  - L1 حذف مباشر: `node_modules`، `target`، `build`، `dist`، `out`، `.next`، `.nuxt`، `.svelte-kit`، `.turbo`، `.parcel-cache`، `__pycache__`، `.pytest_cache`، `.tox`، `.mypy_cache`، `.ruff_cache`، `.dart_tool`، `.nyc_output`، `_build` (مشاريع Elixir فقط)، `Pods`، `vendor` (مشاريع Go فقط).
+  - L2 إلى Trash: `.venv`، `venv`، `env` (بيئات Python الافتراضية — قد لا تُستنسخ wheel pins حرفياً، ولذلك نترك نافذة استرداد)؛ `coverage` (تقارير تغطية الاختبارات، مشروطة بوجود `package.json` أو marker بايثون).
+  - مجلَّدات النظام / مديري الحِزَم (`~/Library`، `~/.cache`، `~/.npm`، `~/.cargo`، `~/.cocoapods`، `~/.gradle`، `~/.m2`، `~/.gem`، `~/.bundle`، `~/.composer`، `~/.pub-cache`، `~/.local`، `~/.rustup`، `~/.pnpm-store`، `~/.Trash`) يتمُّ تقليمها عند اكتشاف المشاريع.
+- **وضع deep يُبرز أيضاً المجلَّدات تحت `~` التي يبلغ حجمها 2 ج.ب. فأكثر ولم تلتقطها أي قاعدة أخرى** (L3 defer، `source_label="Unclassified large directory"`)، بحيث تصبح المجلَّدات اليتيمة المُلتهمة للقرص مرئيَّةً للمراجعة اليدويَّة.
 
 **جدار احتياطي صلب — يرفض بصرف النظر عن محتوى `confirmed.json`** (انظر `_BLOCKED_PATTERNS` في `scripts/safe_delete.py`):
 
