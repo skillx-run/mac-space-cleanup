@@ -150,6 +150,12 @@ _BLOCKED_PATTERNS = (
     re.compile(r"/Music/Music(/|$)"),                    # Apple Music library
     re.compile(r"\.(env|envrc)$"),
     re.compile(r"(^|/)id_(rsa|ed25519|ecdsa|dsa)(\.pub)?$"),
+    # VSCode-family editor user data: workspaceStorage holds unsaved edits +
+    # git-stash equivalents; Backups holds unsaved files; History is local
+    # edit history. The Tier C subset whitelist only ever surfaces the cache
+    # subdirs (Cache, CachedData, ...) — this regex backs that contract up at
+    # runtime against agent misjudgement / malformed confirmed.json.
+    re.compile(r"/Application Support/(Code|Cursor|Windsurf)/(User|Backups|History)(/|$)"),
 )
 
 

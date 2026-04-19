@@ -614,6 +614,60 @@ class TestDispatch(unittest.TestCase):
         self.assertTrue(is_blocked("/Users/me/Pictures/Photos Library.photoslibrary/originals"))
         self.assertTrue(is_blocked("/Users/me/Documents/.env"))
 
+    def test_blocked_pattern_refuses_vscode_family_user_data(self):
+        """Even if confirmed.json mistakenly lists VSCode/Cursor/Windsurf
+        User / Backups / History (which hold unsaved edits, git-stash
+        equivalents, and edit history), dispatch must refuse — these are the
+        runtime backstop for the Tier C subset whitelist."""
+        is_blocked = safe_delete._is_blocked
+        # Positive: every dangerous sibling under each of the three brands is
+        # caught.
+        for brand in ("Code", "Cursor", "Windsurf"):
+            for guarded in ("User", "Backups", "History"):
+                with self.subTest(brand=brand, guarded=guarded):
+                    self.assertTrue(is_blocked(
+                        f"/Users/me/Library/Application Support/{brand}/{guarded}"
+                    ))
+                    self.assertTrue(is_blocked(
+                        f"/Users/me/Library/Application Support/{brand}/{guarded}/workspaceStorage/abc"
+                    ))
+        # Negative: the cleanable cache subdirs must NOT be blocked, otherwise
+        # the v0.9.1 expansion would never reclaim anything.
+        for cache_subdir in ("Cache", "CachedData", "GPUCache", "Code Cache", "logs"):
+            with self.subTest(cache_subdir=cache_subdir):
+                self.assertFalse(is_blocked(
+                    f"/Users/me/Library/Application Support/Code/{cache_subdir}"
+                ))
+                self.assertFalse(is_blocked(
+                    f"/Users/me/Library/Application Support/Cursor/{cache_subdir}/blob"
+                ))
+
+    def test_blocked_pattern_refuses_delete_on_vscode_user_data_via_dispatch(self):
+        """End-to-end: a delete request against Code/User must come back as
+        failed with the standard blocklist error message and must NOT delete
+        anything from disk."""
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td) / "work"
+            target = Path(td) / "Library/Application Support/Code/User/workspaceStorage"
+            target.mkdir(parents=True)
+            (target / "state.vscdb").write_bytes(b"x" * 1234)
+
+            payload = {
+                "confirmed_items": [
+                    {"id": "vsc1", "path": str(target), "action": "delete",
+                     "size_bytes": 1234, "category": "app_cache",
+                     "risk_level": "L1", "reason": "agent misjudged"}
+                ]
+            }
+            code, out, _ = _run_with_payload(payload, work)
+
+            self.assertEqual(code, 1)
+            rec = out["records"][0]
+            self.assertEqual(rec["status"], "failed")
+            self.assertIn("blocked by safety pattern", rec["error"])
+            self.assertTrue(target.exists(), "blocklist must protect disk state")
+            self.assertTrue((target / "state.vscdb").exists())
+
     def test_migrate_dest_not_writable_fails_without_rsync(self):
         with tempfile.TemporaryDirectory() as td:
             work = Path(td) / "work"
