@@ -19,11 +19,17 @@ from _helpers import run_script_with_json, run_script  # noqa: E402
 
 
 def _mkproj(parent: Path, name: str, *, marker_files=(), subdirs=()) -> Path:
-    """Create a fake project under <parent>/<name> with .git, marker files, subdirs."""
+    """Create a fake project under <parent>/<name> with .git, marker files, subdirs.
+
+    Both marker_files and subdirs accept nested relative paths (e.g. `.dvc/config`
+    or `.dvc/cache`). Parent dirs are created on demand.
+    """
     proj = parent / name
     (proj / ".git").mkdir(parents=True)
     for m in marker_files:
-        (proj / m).write_text("")
+        marker_path = proj / m
+        marker_path.parent.mkdir(parents=True, exist_ok=True)
+        marker_path.write_text("")
     for sub in subdirs:
         (proj / sub).mkdir(parents=True, exist_ok=True)
         (proj / sub / "placeholder").write_text("x")
@@ -140,6 +146,66 @@ class TestScanProjects(unittest.TestCase):
         # Regression: `mix.exs` must be in PROJECT_MARKERS so Elixir projects
         # with no other marker still surface markers_found=["mix.exs"].
         self.assertIn("mix.exs", scan_projects.PROJECT_MARKERS)
+
+    def test_dvc_config_in_project_markers(self):
+        # v0.9: `.dvc/config` is a nested-path marker that gates the
+        # `.dvc/cache` nested_cache subtype at Stage 4. Must appear in
+        # PROJECT_MARKERS so the marker gate has a signal to check.
+        self.assertIn(".dvc/config", scan_projects.PROJECT_MARKERS)
+
+    def test_dvc_cache_subtype_emitted_as_nested_cache(self):
+        # v0.9: DVC's `.dvc/cache/` is surfaced as kind="nested_cache" so the
+        # agent can clean it while preserving the sibling `.dvc/config` (user
+        # state). The parent `.dvc/` must NOT appear as a standalone artifact.
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            _mkproj(base, "ml-repo",
+                    marker_files=["pyproject.toml", ".dvc/config"],
+                    subdirs=[".dvc/cache"])
+            code, out, _ = _scan_dir(base)
+        self.assertEqual(code, 0)
+        p = out["projects"][0]
+        self.assertIn(".dvc/config", p["markers_found"])
+        subs = {a["subtype"]: a for a in p["artifacts"]}
+        # Nested cache surfaces under its literal relative path as subtype.
+        self.assertIn(".dvc/cache", subs)
+        self.assertEqual(subs[".dvc/cache"]["kind"], "nested_cache")
+        # The parent `.dvc/` itself must not be emitted as a deletable artifact.
+        self.assertNotIn(".dvc", subs)
+
+    def test_dvc_cache_without_config_marker_still_emitted(self):
+        # Stage 4 gates on markers_found — scan_projects emits the artifact
+        # unconditionally so the agent gets visibility, analogous to how
+        # `env` without a Python marker is still emitted and then downgraded
+        # at Stage 4. Here: .dvc/cache exists but .dvc/config does NOT.
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            _mkproj(base, "no-dvc-config",
+                    marker_files=["package.json"],
+                    subdirs=[".dvc/cache"])
+            code, out, _ = _scan_dir(base)
+        self.assertEqual(code, 0)
+        p = out["projects"][0]
+        self.assertNotIn(".dvc/config", p["markers_found"])
+        # Still emitted — agent demotes to orphan L4 at Stage 4 per §10d.
+        nc = [a for a in p["artifacts"] if a["subtype"] == ".dvc/cache"]
+        self.assertEqual(len(nc), 1)
+        self.assertEqual(nc[0]["kind"], "nested_cache")
+
+    def test_dvc_cache_missing_is_silent(self):
+        # If `.dvc/cache/` doesn't exist on disk, no nested_cache artifact is
+        # emitted — the marker alone is not enough to fabricate a path.
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            _mkproj(base, "dvc-no-cache-yet",
+                    marker_files=["pyproject.toml", ".dvc/config"],
+                    subdirs=[])
+            code, out, _ = _scan_dir(base)
+        self.assertEqual(code, 0)
+        p = out["projects"][0]
+        self.assertIn(".dvc/config", p["markers_found"])
+        nc = [a for a in p["artifacts"] if a["kind"] == "nested_cache"]
+        self.assertEqual(nc, [])
 
     def test_skips_directory_without_git(self):
         with tempfile.TemporaryDirectory() as td:

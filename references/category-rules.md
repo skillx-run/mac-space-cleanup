@@ -269,9 +269,21 @@ Rationale: pytest-cov, nyc, istanbul, jest and similar test-coverage tools all d
 
 **Marker gate**: the agent must verify `markers_found` contains `package.json` or any Python marker (`pyproject.toml`, `requirements.txt`, `setup.py`) before treating `coverage/` as `project_artifacts`. Without a matching marker, classify as `orphan` L4. This is analogous to the `env/` and `_build/` carve-outs above — `scan_projects.py` surfaces the directory unconditionally, classification-time disambiguation happens here.
 
+### 10d. Nested cache subdirs → **L2 `trash`**
+
+Subtype: `.dvc/cache` (returned by `scan_projects.py` with `kind="nested_cache"`).
+
+Defaults: **L2**, `trash`, `mode_hit_tags=["deep"]`.
+
+Rationale: DVC's `.dvc/` directory holds both user-curated state (`.dvc/config`, `.dvc/plots/`) and a content-addressed cache (`.dvc/cache/`). The top-level `.dvc/` can NOT be deleted without wrecking the repo's DVC setup, but the nested cache is pure local storage that `dvc pull` / `dvc fetch` fully rebuilds from the remote. Surfacing the pair as separate artifact kinds lets the agent clean the cache while leaving the repo state intact — same structural pattern that could later generalise to other "keep parent, drop cache-child" layouts.
+
+**Marker gate**: the agent must verify `markers_found` contains `.dvc/config` before treating `.dvc/cache/` as `project_artifacts`. Without the marker, fall through to `orphan` L4 — a bare `.dvc/cache` directory without the sibling config file is not a DVC repo and the directory semantics are unknown. `scan_projects.py::PROJECT_MARKERS` includes `.dvc/config` (a nested-path marker) specifically so this check works; keep the two in sync.
+
+**L2 not L1**: rebuilding a DVC cache requires network access to the remote (S3 / GCS / self-hosted) and a potentially large transfer. `trash` gives the user an offline recovery window against a connectivity issue or a misconfigured remote.
+
 ### Source label
 
-`source_label` for both subtypes: `"Project <subtype>"` (e.g. `"Project node_modules"`, `"Project .venv"`). **Never include the project name or path in source_label** — that would leak through to report.html / share text. The agent ↔ user confirm dialog at Stage 5 may use project basenames per the `safety-policy.md` confirm-stage exception, but those basenames must not propagate to persisted artefacts.
+`source_label` for all four subtypes: `"Project <subtype>"` (e.g. `"Project node_modules"`, `"Project .venv"`, `"Project coverage"`, `"Project .dvc/cache"`). **Never include the project name or path in source_label** — that would leak through to report.html / share text. The agent ↔ user confirm dialog at Stage 5 may use project basenames per the `safety-policy.md` confirm-stage exception, but those basenames must not propagate to persisted artefacts.
 
 `mode_hit_tags=["deep"]` only — quick mode does NOT scan project artifacts. Reason: quick mode runs without per-item review, and a fresh `node_modules` deleted right after `npm install` is a bad UX even if technically harmless.
 

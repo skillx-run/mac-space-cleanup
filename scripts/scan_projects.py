@@ -28,9 +28,13 @@ stdout: {
 }
 
 Artifact `kind` is one of:
-  - "deletable": build outputs that reinstall / rebuild reliably
-  - "venv":      Python virtual environments (may pin yanked wheels)
-  - "coverage":  test-coverage report dirs (L2 trash, marker-gated at Stage 4)
+  - "deletable":    build outputs that reinstall / rebuild reliably
+  - "venv":         Python virtual environments (may pin yanked wheels)
+  - "coverage":     test-coverage report dirs (L2 trash, marker-gated at Stage 4)
+  - "nested_cache": a cache subdir under a tool-specific top-level dir the
+                    user must keep (e.g. `.dvc/cache` under DVC's `.dvc/`,
+                    where the rest of `.dvc/` holds user-curated state).
+                    L2 trash, marker-gated at Stage 4 per category-rules.md §10d.
 exit:   0 ok / 1 partial errors / 2 bad input
 """
 
@@ -58,6 +62,7 @@ ERROR_OTHER = "other"
 KIND_DELETABLE = "deletable"
 KIND_VENV = "venv"
 KIND_COVERAGE = "coverage"
+KIND_NESTED_CACHE = "nested_cache"
 
 # Directories under each search root to prune from the find walk. These are
 # system / package-manager caches that may contain cloned repos with .git
@@ -84,7 +89,10 @@ PRUNE_RELATIVE = [
 # Files at the project root used to detect what kind of project it is. Used
 # by the agent (via `markers_found`) to decide ambiguous subtypes (vendor
 # only matters for Go; env only matters when there's a Python marker).
-# Keep in sync with the marker list in references/cleanup-scope.md
+# Each entry is a path relative to the project root. Nested paths
+# (containing `/`) are supported — `.dvc/config` lets us distinguish
+# "this repo uses DVC" from a random directory that happens to be named
+# `.dvc`. Keep in sync with the marker list in references/cleanup-scope.md
 # §"Project artifacts allowlist".
 PROJECT_MARKERS = (
     "go.mod",
@@ -98,6 +106,7 @@ PROJECT_MARKERS = (
     "composer.json",
     "pubspec.yaml",
     "mix.exs",
+    ".dvc/config",
 )
 
 # Conventional artifact subdirectory names. Order matters only for output
@@ -133,6 +142,16 @@ ARTIFACT_SUBTYPES_VENV = (
 
 ARTIFACT_SUBTYPES_COVERAGE = (
     "coverage",  # agent verifies package.json or Python marker at Stage 4
+)
+
+# Cache subdirs nested under a top-level dir the user must keep. Unlike
+# ARTIFACT_SUBTYPES_DELETABLE (which name a top-level dir that is itself
+# safe to remove), these name a `<parent>/<cache-subdir>` pair where the
+# parent is user state and only the nested cache is reclaimable. The
+# reported `subtype` equals the relative path so Stage 4 can marker-gate
+# each one (e.g. `.dvc/cache` requires `.dvc/config` in markers_found).
+ARTIFACT_SUBTYPES_NESTED_CACHE = (
+    ".dvc/cache",  # agent verifies .dvc/config marker (DVC)
 )
 
 
@@ -217,6 +236,10 @@ def _enumerate_artifacts(project_root: str) -> list[dict[str, str]]:
         full = os.path.join(project_root, sub)
         if os.path.isdir(full) and not os.path.islink(full):
             artifacts.append({"path": full, "subtype": sub, "kind": KIND_COVERAGE})
+    for sub in ARTIFACT_SUBTYPES_NESTED_CACHE:
+        full = os.path.join(project_root, sub)
+        if os.path.isdir(full) and not os.path.islink(full):
+            artifacts.append({"path": full, "subtype": sub, "kind": KIND_NESTED_CACHE})
     return artifacts
 
 
