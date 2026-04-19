@@ -55,7 +55,10 @@ This release bundles two internal milestone families that accumulated on `main` 
 
 ### Tests
 
-- 100 → **123** (+23): 4 new Ollama aggregate/per-model fixtures under `test_safe_delete_ollama.py` (plus 4 v0.8 AI/ML path-not-blocked cases under `test_safe_delete.py`), 12 under `test_scan_projects.py` (4 for `nested_cache` / `.dvc/config`, 8 for `version_pins` edge cases), 2 under `test_safe_delete.py` for the Adobe `Auto-Save` blacklist, 9 in the new `test_safe_delete_ollama.py` covering blob reference counting, dry-run parity, redaction-safe error strings, and malformed / third-party / missing-root path forms.
+- 100 → **123** (+23):
+  - `tests/test_safe_delete.py`: **+2** for the Adobe `Auto-Save` blacklist (six-product positive matrix with root + nested depth, plus an end-to-end dispatch case asserting an unsaved `.prproj` survives the attempted delete).
+  - `tests/test_scan_projects.py`: **+12** across two families — 4 for the `nested_cache` kind and `.dvc/config` marker (kind returned, surfacing even without the marker so Stage 4 can demote, silent when `.dvc/cache` is absent, marker presence in `PROJECT_MARKERS`), and 8 for `version_pins` edge cases (missing → `{}`, single Python version, multi-version pyenv chain, nvmrc, both langs, empty-or-whitespace omits key, comments + CRLF, missing-vs-present coexistence).
+  - `tests/test_safe_delete_ollama.py` (new file): **+9** covering blob reference counting (shared-blob preserved on single delete, cascading reclaim across sequential deletes), dry-run parity without disk writes, corrupt-manifest redaction-safe failure, missing `manifests/` root fails cleanly, three malformed path forms, third-party `hf.co/...` registry mapping, default-registry user-namespace mapping, and an explicit blocklist-bypass smoke.
 
 ### Known limitation
 
