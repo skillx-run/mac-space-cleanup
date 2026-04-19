@@ -114,6 +114,10 @@ Skip the row silently if the probe fails.
 | `ccache` (CLI probe) or `~/.ccache` / `~/Library/Caches/ccache` present (dir probe) | `~/.ccache/` (legacy default), `~/Library/Caches/ccache/` (XDG-style default used by newer ccache) — probe both | `pkg_cache` |
 | `sccache` (CLI probe) or `~/Library/Caches/Mozilla.sccache` / `~/.cache/sccache` present (dir probe) | `~/Library/Caches/Mozilla.sccache/` (macOS default), `~/.cache/sccache/` (XDG fallback) — probe both | `pkg_cache` |
 | `dart` (CLI probe) or `~/.pub-cache` present (dir probe) | `~/.pub-cache/hosted/`, `~/.pub-cache/git/` (Flutter's own `~/.flutter` cache is covered by the `flutter` row above; this is the standalone Dart pub cache) | `pkg_cache` |
+| HuggingFace (`~/.cache/huggingface` present, dir probe) | `~/.cache/huggingface/hub/`, `~/.cache/huggingface/datasets/` (each surfaced as one aggregate item; the `transformers/`, `accelerate/`, `evaluate/` subdirs are usually smaller and not separately surfaced) | `pkg_cache` |
+| PyTorch hub (`~/.cache/torch` present, dir probe) | `~/.cache/torch/hub/` (one aggregate item; pretrained model weights downloaded by `torch.hub.load`) | `pkg_cache` |
+| Ollama (`~/.ollama` present, dir probe — **no CLI probe** to avoid redundancy with the dir probe; surfacing `~/.ollama` after the user has uninstalled the `ollama` CLI is exactly the case we want to catch) | `~/.ollama/models/` (one aggregate item; v0.8 does not enumerate per-model because the storage is content-addressed in `blobs/` and individual `rm` on a `manifests/` entry would orphan blobs — per-model granularity is gated on a future `ollama:<model>` semantic dispatcher in `safe_delete.py`) | `pkg_cache` |
+| LM Studio (`~/.cache/lm-studio` or `~/.lmstudio` present, dir probe — either path gates this row; LM Studio has shipped both layouts across versions) | `~/.cache/lm-studio/models/`, `~/.lmstudio/models/` (one aggregate item from whichever path exists; same per-model rationale as Ollama) | `pkg_cache` |
 
 ## Blacklist — never touch
 
