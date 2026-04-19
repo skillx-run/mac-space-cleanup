@@ -88,6 +88,37 @@ Strict rules for the exception:
 | §14.4 Report render failure | agent (Stage 6) | Keep `cleanup-result.json` on disk; summarise results as plain text to the user. |
 | §14.5 Enhancement tool missing (Docker/brew/etc.) | agent (Stage 2) | Skip the corresponding Tier E rows from `cleanup-scope.md`; proceed with whatever is detected. |
 
+## Orphan investigation (v0.8+)
+
+The Stage 3.5 large-directory probe (`timeout 45 du -k -d 2 ~`, see `category-rules.md` §7) finds directories that no path-rule in §1-§8 matched. The default routing is `category=large_media`, `source_label="Unclassified large directory"`, `risk_level=L3`, `action=defer`. **Before that default fires**, the agent runs a brief read-only investigation that may refine `category` and `source_label` — but never `risk_level` or `action`.
+
+### Allowed probes (read-only)
+
+For each du-probe candidate, the agent may run:
+
+- `ls -lah <path>` — top-level contents (1 call)
+- `file <path>/<file>` — type detection on at most 3 representative files
+- `head -c 200 <file>` — peek at README, configuration, or other text files (at most 2 calls)
+- Existence checks for known marker files: `.gguf`, `.safetensors`, `pytorch_model.bin`, `model_index.json`, `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `mix.exs`, `Pipfile`, `.iso`, `.dmg`, large `.mp4` / `.mov`
+
+Soft cap: ≤ 6 probe commands per candidate. Across the top-30 du-probe items the total walk should stay under ~30 seconds.
+
+### What the agent may refine
+
+- `category` — must be one of §1-§9 in `category-rules.md`. **Never §10 `project_artifacts`.** §10 is reserved for items returned by `scripts/scan_projects.py`, which has its own `.git`-rooted discovery and marker-gate disambiguation (`vendor` / `env` / `_build` / `coverage`). Reclassifying a du-probe orphan into §10 would let arbitrary directories appear under the project-artifact UX without going through those gates.
+- `source_label` — may pick from the canonical labels in `category-rules.md`'s source_label table, or coin a new one following the convention "tool/product name + category descriptor" (examples: `"Conda env cache"`, `"Plex transcode cache"`, `"AI training dataset"`, `"Diffusion model cache"`). New labels still must obey the redaction rules above (no path / basename / username / project name); the redaction reviewer sub-agent and `validate_report.py` are the backstops.
+- `reason` — one short sentence describing what evidence drove the refinement (e.g. `"found .gguf files indicating local LLM model cache"`).
+
+### What the agent must NOT change
+
+- `risk_level` — stays **L3**, regardless of the refined category's defaults. Even when the agent confidently identifies a HuggingFace cache (whose canonical §3 rule is L3 defer anyway) or a Homebrew cache (whose canonical §3 rule is L1 delete), the du-probe-pathway item stays L3. The fact that the directory was discovered by a fallback probe rather than a whitelisted path is the signal that it is non-canonical and therefore not eligible for the canonical risk treatment. Symmetrically to "Risk-level boundaries are never crossed" in §"History-driven UI adjustments" below, this invariant is what lets the agent investigate at all without expanding the `safe_delete.py` attack surface.
+- `action` — stays **`defer`**, regardless of the refined category's defaults. No item generated through the du-probe pathway is auto-executed.
+- The `_BLOCKED_PATTERNS` regex backstop in `safe_delete.py` and the confirm-stage exception (which permits project basenames in the live confirm dialog) are unaffected by investigation outcomes.
+
+### Why these locks
+
+Path-rule whitelists are auditable; agent semantic judgment is not. The whole point of L1-L4 is that the user can read `category-rules.md` and predict what will happen. Letting investigation lift items out of L3/defer would make system behaviour depend on a model's classification of unfamiliar contents — which is exactly the failure mode the architecture is designed to avoid. The user keeps the final say through Stage 5's per-item L3 confirmation; investigation only improves the *quality of information* the user sees, not the system's authority to act.
+
 ## History-driven UI adjustments (v0.5+)
 
 `scripts/aggregate_history.py` surfaces cross-run confidence into `$WORKDIR/history.json` (see SKILL.md Stage 2.6). Stage 5 may use this data to collapse repetitive per-item confirmation into batch confirmation for `(source_label, category)` tuples the user has approved **≥3 times with 0 rejections**. These constraints are non-negotiable:
@@ -113,3 +144,4 @@ Strict rules for the exception:
    The report's headline number and the share text default to `freed_now_bytes`. The "One last step" report region surfaces `pending_in_trash_bytes` and the one-line `osascript` command to empty trash, so users can convert pending into freed without leaving the report. Archive that succeeds without trashing the original (`archive_only_success`) contributes to none of these four — it is surfaced separately in the report's deferred section so the user can recover the partial state manually.
 5. **No undo stack.** Recovery paths: `trash` → restore from Finder; `archive` → extract the tar from `workdir/archive/`; `migrate` → browse the target volume. If a user asks to "undo the last cleanup," point them at these artefacts.
 6. **Blocklist backstop is non-negotiable.** `safe_delete.py` carries an in-code regex set (`_BLOCKED_PATTERNS`) that refuses any fs-touching action on paths matching `.git/`, `.ssh/`, `.gnupg/`, `Library/Keychains/`, `Library/Mail/`, `Library/Messages/`, `Library/Mobile Documents/`, `Photos Library.photoslibrary/`, `Music/Music/`, `.env*`, and SSH key files — independent of risk_level, category, or what `confirmed.json` says. This is a last-line-of-defence against agent misjudgement and a malformed `confirmed.json`. To remove a pattern you must change the code AND justify it in the commit message.
+7. **Stage 3.5 orphan investigation may refine `category` and `source_label`, but never `risk_level` or `action`.** When the `du -d 2 ~` probe surfaces an unclassified large directory, the agent may run read-only probes (`ls`/`file`/`head`, marker-file existence checks) to propose a more specific `category` (∈ §1-§9 of `category-rules.md`; **never §10 `project_artifacts`**, which is reserved for `scripts/scan_projects.py`) and a more specific `source_label`. The `risk_level` stays **L3** and `action` stays **`defer`** regardless of what the refined category's defaults would otherwise be — symmetric to the "Risk-level boundaries are never crossed" rule in §"History-driven UI adjustments". Redaction (no paths / basenames / usernames in `source_label`, including any newly coined label) and the `_BLOCKED_PATTERNS` backstop remain in force. See §"Orphan investigation" above for the full procedure and the allowed probe / heuristic list.
