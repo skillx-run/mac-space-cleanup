@@ -155,13 +155,17 @@ Stage 1's dry-run detection step now instructs the agent to judge user intent (p
 
 Downstream consumers are unaffected: Stage 5 / Stage 6 still read `$WORKDIR/dry_run.txt` as a bool, `scripts/safe_delete.py --dry-run` is unchanged, `scripts/validate_report.py --dry-run` is unchanged. No new test coverage needed — agent NL understanding is not mechanically testable per `CLAUDE.md` §Testing, and the CLI flag semantics that `safe_delete.py` / `validate_report.py` depend on are unchanged.
 
-### README — "Why this skill" comparison section across all 8 locales
+### README — "Why this skill" section across all 8 locales
 
-`README.md` and the 7 translations gain a `## Why this skill` section between Demo and Install. It opens with three prose paragraphs framing the core problem — traditional GUI cleaners (CleanMyMac, OnyX, DaisyDisk) miss the bulk of a developer Mac because they work from hard-coded path lists and can't read `.python-version` / `.nvmrc` / project markers; raw LLM prompts have the judgment GUI tools lack but without guardrails are a loaded `rm -rf` gun; this skill combines LLM judgement with a deterministic safety layer — followed by an 8-row comparison table across write path, risk awareness, reclaim honesty, privacy, developer-Mac awareness, audit & re-run, dry-run, and openness. Every row in the table is anchored to existing material elsewhere in the README (Honesty contract, Architecture, What it touches, `safe_delete.py::_BLOCKED_PATTERNS`, `SKILL.md` Stage 4/5) — no new technical claims introduced.
+`README.md` and the 7 translations gain a `## Why this skill` section placed **between the intro quote and the Try section**, so the elevator pitch lands before the reader hits the one-click try command. Three short paragraphs, no table:
 
-Translation note: `redaction` was rendered to each locale's natural equivalent where one exists (`anonymisation` / `anonymisés` for fr, `マスキング` for ja); where a natural equivalent is contextually awkward it's kept as a backticked English technical token (Arabic `redaction reviewer`). The same pattern applies to `guardrail` / `blocklist` / `dispatcher` — these stay English inline.
+1. GUI cleaners work from fixed rules — they can't judge your specific situation (irreplaceable `~/Datasets/` vs temporary cache, active `node_modules` vs dead one, in-use Ollama model vs forgotten one).
+2. A raw LLM prompt has the judgment GUI tools lack, but no guardrails: one wrong hallucination and it `rm -rf`s `.git` / `.env` / Keychains.
+3. This skill combines both — LLM judgement for the smart calls, `safe_delete.py`'s blocklist as the deterministic safety layer that refuses the disaster list regardless of what the agent says.
 
-Known follow-up: the Arabic 4-column RTL table has not been verified against GitHub's renderer. If column widths collapse under RTL mirroring, the plan recorded in commit `2817033` is to switch `README.ar.md` alone to a 4-paragraph vertical list while the other 7 keep the table.
+Earlier drafts during development included an 8-row comparison table after these paragraphs and placed the section between Demo and Install. Removed in favour of the current compact form so the section reads as a pitch rather than a specification, and moved to the top of the page so the reasoning arrives before the CTA.
+
+Translation note: `redaction` was rendered to each locale's natural equivalent where one exists (`anonymisation` / `anonymisés` for fr, `マスキング` for ja); where a natural equivalent is contextually awkward it's kept as a backticked English technical token. `guardrail` / `blocklist` / `dispatcher` stay English inline.
 
 ### Back-compat & known gaps
 

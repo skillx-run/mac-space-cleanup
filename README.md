@@ -8,6 +8,16 @@ A **skill** that cleans up your Mac's disk space — cautious, honest, multi-sta
 
 ---
 
+## Why this skill
+
+**GUI cleaners** (CleanMyMac, OnyX, DaisyDisk) work from fixed rules — they can't judge your specific situation. They don't know whether your `~/Datasets/` is irreplaceable research data or temporary cache, whether a given `node_modules` belongs to an active project or a dead one, whether a 12 GB Ollama model is still in use or long forgotten.
+
+**Raw LLM prompts** ("Claude, clean my Mac") have the judgment GUI tools lack — but no guardrails. One wrong hallucination and it `rm -rf`'s your `.git`, `.env`, or Keychains.
+
+**This skill** combines both: the agent reads your system in context and makes judgment calls, but every write goes through `safe_delete.py` whose blocklist refuses `.git` / `.ssh` / Keychains / `.env*` regardless of what the agent says.
+
+---
+
 <!-- skillx:begin:setup-skillx -->
 ## Try it with skillx
 
@@ -43,31 +53,6 @@ The report is **localized** to whichever language you triggered the skill with �
 
 Full report (Impact Summary · Breakdown · Detailed Log · Observations · Run Details · L1–L4 risk distribution):
 [English full page](assets/mac-space-cleanup.full.en.png) · [中文整页](assets/mac-space-cleanup.full.zh.png)
-
----
-
-## Why this skill
-
-There are two existing ways to free up disk on a Mac, and both have a fundamental limitation:
-
-**Traditional GUI cleaners** (CleanMyMac, OnyX, DaisyDisk) work from **hard-coded path lists**. That handles the obvious stuff — `~/Library/Caches`, logs, old installers — but it misses most of what's actually eating disk on a developer Mac: 40 GB of HuggingFace weights, 12 GB of Ollama models, `node_modules` scattered across dead projects, non-active `pyenv`/`nvm` versions, dead iOS simulator runtimes. The cleaner can't read your `.python-version` or `.nvmrc`, can't tell `build/` from `src/`, can't distinguish a freshly-compiled artifact you care about from pure cache. Fixed rules miss most of what an LLM could handle with context.
-
-**A raw LLM prompt** ("hey Claude, clean up my Mac") has exactly the intelligence the GUI tool lacks — it *can* read project files, understand conventions, make judgment calls. But the same flexibility makes it **dangerous without guardrails**: one confident hallucination and the model runs `rm -rf` on your `.git`, your `.env`, your Keychains, or VSCode's unsaved-edits history. No deterministic refuse list, no per-item risk grading, no redaction before the model sees your paths, no honest accounting of what actually left the disk.
-
-**This skill combines LLM judgment with a deterministic safety layer.** The agent makes the smart calls a GUI cleaner can't — per-model Ollama dispatching with shared-blob refcounting, reading `.nvmrc` to skip the active Node version, downgrading `DeviceSupport/` entries that match a currently paired iOS device. But every write routes through `safe_delete.py` whose blocklist refuses `.git` / `.ssh` / Keychains / `.env*` / unsaved editor state **regardless of what the agent says**. Risk is graded L1–L4 with per-item confirmation at L2+, paths are redacted to `source_label` + `category` before reaching the report, and the reclaim number is split into what actually left the disk vs what's still in the Trash.
-
-Dimension by dimension:
-
-| What you care about | Traditional GUI cleaner | Plain LLM prompt | This skill |
-| --- | --- | --- | --- |
-| **Where writes happen** | Proprietary engine, closed source | Whatever `rm -rf` the model decides to run | Single `safe_delete.py` chokepoint with a deterministic blocklist (`.git`, `.ssh`, Keychains, `.env*`, Adobe `Auto-Save`, VSCode unsaved edits, …) enforced **before** the filesystem call — refuses even if you instruct it to proceed |
-| **Risk awareness** | Usually one flat "Safe to remove" bucket | None — models hallucinate | L1–L4 grading per item. Quick mode auto-executes L1 only. Deep mode prompts per-item on L2/L3. L4 is never auto-executed |
-| **Reclaim honesty** | "Freed 40 GB" often counts bytes still sitting in Trash | Whatever the model claims | Split into `freed_now` (actually off the disk) / `pending_in_trash` / `archived_source`. The share-text headline uses `freed_now` |
-| **Privacy leaving the machine** | Local but opaque | Full paths + filenames sent to the provider | Only `source_label` + `category` reach the report. A redaction reviewer sub-agent plus a post-render validator catch leaks before you ever see the HTML |
-| **Developer-Mac awareness** | Generic directory sweeps | Chat-only, no scan | `.git`-rooted project discovery; per-model Ollama dispatcher (`ollama:<name>:<tag>`) with blob-reference counting; active-iOS-version downgrade for `DeviceSupport/`; version-pin (`.python-version` / `.nvmrc`) exclusion for nvm/pyenv |
-| **Audit & re-run** | Typically none | Chat transcript only | Append-only `actions.jsonl` per run. Idempotent — already-gone paths become `skip/success`, re-running the same workdir is safe |
-| **Dry-run** | Rare or paywalled | Asks the model to "not really do it" | First-class — every stage runs, `safe_delete.py` writes nothing, report is banner-tagged `DRY-RUN` |
-| **Openness** | Closed-source commercial product | No source-level guardrails | Apache-2.0, zero pip deps, pure macOS commands + Python stdlib |
 
 ---
 

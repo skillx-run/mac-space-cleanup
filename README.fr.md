@@ -8,6 +8,16 @@ Un **skill** qui nettoie l'espace disque de votre Mac — prudent, honnête, mul
 
 ---
 
+## Pourquoi ce skill
+
+**Les nettoyeurs GUI classiques** (CleanMyMac, OnyX, DaisyDisk) fonctionnent à partir de règles fixes —— ils ne peuvent pas juger votre situation spécifique. Ils ne savent pas si votre `~/Datasets/` contient des données de recherche irremplaçables ou du cache temporaire, si un `node_modules` donné appartient à un projet actif ou mort, si ce modèle Ollama de 12 Go vous sert encore ou est oublié depuis longtemps.
+
+**Un prompt LLM brut** (« Claude, nettoie mon Mac ») a le jugement qui manque au GUI —— mais sans garde-fous. Une hallucination erronée et il lance `rm -rf` sur votre `.git`, `.env` ou Keychains.
+
+**Ce skill** combine les deux : l'agent lit votre système en contexte et prend des décisions, mais chaque écriture passe par `safe_delete.py` dont la blocklist refuse `.git` / `.ssh` / Keychains / `.env*` quoi que dise l'agent.
+
+---
+
 <!-- skillx:begin:setup-skillx -->
 ## Essayez-le avec skillx
 
@@ -43,31 +53,6 @@ Le rapport est **localisé** dans la langue avec laquelle vous avez déclenché 
 
 Rapport complet (Résumé d'impact · Répartition · Journal détaillé · Observations · Détails d'exécution · Distribution de risque L1–L4) :
 [Page complète en anglais](assets/mac-space-cleanup.full.en.png) · [Page complète en chinois](assets/mac-space-cleanup.full.zh.png)
-
----
-
-## Pourquoi ce skill
-
-Il existe deux façons de libérer du disque sur un Mac, et les deux ont une limitation fondamentale :
-
-**Les nettoyeurs GUI classiques** (CleanMyMac, OnyX, DaisyDisk) fonctionnent à partir de **listes de chemins codées en dur**. Cela traite les évidences —— `~/Library/Caches`, logs, vieux installateurs —— mais passe à côté de la majeure partie de ce qui mange vraiment le disque sur un Mac de développeur : 40 Go de poids HuggingFace, 12 Go de modèles Ollama, des `node_modules` éparpillés dans des projets morts, versions non actives de `pyenv` / `nvm`, runtimes de simulateur iOS morts. Le nettoyeur ne peut pas lire votre `.python-version` ni votre `.nvmrc`, ne distingue pas `build/` de `src/`, ne différencie pas un artefact fraîchement compilé qui compte du cache pur. Les règles fixes manquent la majeure partie de ce qu'un LLM pourrait gérer avec du contexte.
-
-**Un prompt LLM brut** (« hey Claude, nettoie mon Mac ») a exactement l'intelligence qui manque au GUI —— le modèle *peut* lire les fichiers de projet, comprendre les conventions, prendre des décisions. Mais cette même flexibilité le rend **dangereux sans garde-fous** : une hallucination confiante et le modèle lance `rm -rf` sur votre `.git`, votre `.env`, vos Keychains, ou l'historique d'éditions non sauvegardées de VSCode. Aucune liste de refus déterministe, aucune gradation de risque par élément, aucune anonymisation avant que le modèle voie vos chemins, aucune comptabilité honnête de ce qui est vraiment sorti du disque.
-
-**Ce skill combine le jugement du LLM avec une couche de sécurité déterministe.** L'agent prend les décisions intelligentes que le nettoyeur GUI ne peut pas —— dispatcher Ollama par modèle avec comptage de références aux blobs partagés, lecture de `.nvmrc` pour sauter la version de Node active, rétrogradation des entrées `DeviceSupport/` dont le major.minor correspond à un appareil iOS actuellement apparié. Mais chaque écriture passe par `safe_delete.py` dont la blocklist refuse `.git` / `.ssh` / Keychains / `.env*` / état d'éditeur non sauvegardé **quoi que dise l'agent**. Le risque est gradué L1–L4 avec confirmation par élément à partir de L2, les chemins sont anonymisés en `source_label` + `category` avant d'atteindre le rapport, et le nombre de récupération est divisé entre ce qui est vraiment sorti du disque et ce qui est encore dans la Corbeille.
-
-Dimension par dimension :
-
-| Ce qui vous importe | Nettoyeur GUI classique | Prompt LLM brut | Ce skill |
-| --- | --- | --- | --- |
-| **Où se font les écritures** | Moteur propriétaire, code fermé | Le `rm -rf` que le modèle choisit | Point de passage unique `safe_delete.py` avec une blocklist déterministe (`.git`, `.ssh`, Keychains, `.env*`, Adobe `Auto-Save`, éditions VSCode non sauvegardées, …) appliquée **avant** l'appel au système de fichiers —— refuse même si vous lui demandez de procéder |
-| **Conscience du risque** | Habituellement un seul seau « Safe to remove » | Aucune —— les modèles hallucinent | Gradation L1–L4 par élément. Le mode Quick exécute automatiquement uniquement L1. Le mode Deep demande élément par élément pour L2/L3. L4 n'est jamais exécuté automatiquement |
-| **Honnêteté du chiffre** | « 40 Go libérés » compte souvent des octets encore dans la Corbeille | Ce que le modèle prétend | Séparé en `freed_now` (vraiment sorti du disque) / `pending_in_trash` / `archived_source`. Le titre du texte de partage utilise `freed_now` |
-| **Confidentialité sortant de la machine** | Local mais opaque | Chemins + noms de fichiers complets envoyés au fournisseur | Seuls `source_label` + `category` atteignent le rapport. Un sous-agent `redaction reviewer` plus un validator post-rendu attrapent les fuites avant que vous ne voyiez le HTML |
-| **Conscience du Mac de développeur** | Balayages génériques de répertoires | Chat uniquement, pas de scan | Découverte de projets enracinés dans `.git` ; dispatcher Ollama par modèle (`ollama:<name>:<tag>`) avec comptage de références aux blobs ; rétrogradation de version iOS active pour `DeviceSupport/` ; exclusion de version-pin (`.python-version` / `.nvmrc`) pour nvm/pyenv |
-| **Audit et ré-exécution** | Habituellement aucun | Transcript du chat seulement | `actions.jsonl` append-only par exécution. Idempotent —— les chemins déjà absents deviennent `skip/success`, réexécuter sur le même workdir est sûr |
-| **Dry-run** | Rare ou payant | Demander au modèle « ne le fais pas vraiment » | Citoyen de première classe —— toutes les étapes s'exécutent, `safe_delete.py` n'écrit rien, le rapport affiche un bandeau `DRY-RUN` |
-| **Ouverture** | Produit commercial à code fermé | Pas de guardrails au niveau du code | Apache-2.0, zéro dépendance pip, commandes macOS pures + Python stdlib |
 
 ---
 
