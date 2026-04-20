@@ -2,17 +2,19 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja.md) · **Español** · [Français](README.fr.md) · [العربية](README.ar.md) · [Deutsch](README.de.md)
 
-Un **skill** que limpia el espacio en disco de tu Mac — cauto, honesto, multietapa.
+Un skill que limpia el espacio en disco de tu Mac.
 
-> El skill conduce al agente a través de una limpieza en siete etapas (modo → sondeo → escaneo → clasificación → confirmación → informe → apertura) con **clasificación de riesgo L1–L4**, **contabilidad honesta del espacio recuperado** (dividida en `freed_now` / `pending_in_trash` / `archived`) y **múltiples barreras de seguridad** (una blocklist determinista en código, un sub-agente revisor de privacidad y un validador post-render). Cero dependencias de pip — solo comandos de macOS y la biblioteca estándar de Python.
+> Flujo de trabajo en seis etapas: selección de modo, sondeo del entorno, escaneo, clasificación, confirmación, informe. Cada candidato se clasifica como L1-L4; todas las escrituras al sistema de archivos se enrutan a través de `safe_delete.py`, que incorpora una blocklist interna y se combina con un sub-agente revisor de privacidad y un validador post-render formando tres capas de protección. Los bytes pendientes de vaciar en la Trash se contabilizan por separado y no se incluyen en el total «liberado». Cero dependencias de pip — solo comandos de macOS y la biblioteca estándar de Python.
 
 ---
 
 ## Por qué este skill
 
-Los limpiadores tradicionales (CleanMyMac, OnyX) funcionan con reglas fijas —— **no pueden juzgar tu situación**, no distinguen un `node_modules` activo de uno abandonado ni datos irreemplazables de caché basura. Un agente sin protecciones («Claude, limpia mi Mac») tiene ese juicio, pero **ningún guardrail** —— una decisión errónea y `rm -rf` alcanza tu `.git`, `.env` o Keychains.
+Los limpiadores basados en reglas (CleanMyMac, OnyX) solo manejan elementos que sus reglas pueden nombrar: si un determinado `node_modules` sigue en uso, qué directorios bajo `~/Library/Caches` corresponden a preferencias activas del usuario y cuáles son residuos — estos juicios escapan a las reglas, así que estas herramientas los omiten de forma conservadora y dejan atrás un volumen considerable de espacio recuperable.
 
-Este skill combina ambos: el juicio del agente al frente, la blocklist determinista de `safe_delete.py` detrás. **El juicio al agente, el último filtro a la blocklist.**
+Delegar la limpieza directamente a un agente («Claude, limpia mi Mac») cubre esas zonas grises, pero sin límites estrictos un solo error de juicio puede alcanzar `.git` / `.env` / Keychains.
+
+Este skill establece primero el límite de seguridad: la blocklist de `safe_delete.py`, el revisor de privacidad y el validador post-render forman tres barreras que rechazan en tiempo de ejecución las rutas mencionadas. Bajo esa premisa, el juicio se delega íntegramente al agente, que cubre las zonas grises a las que las herramientas basadas en reglas no llegan.
 
 ---
 
@@ -27,20 +29,20 @@ Ejecuta este skill sin instalar nada:
 skillx run --skip-scan --auto https://github.com/skillx-run/mac-space-cleanup "Libera espacio en mi Mac."
 ```
 
-¿Quieres previsualizar primero? Añade `--dry-run` al mensaje. El skill recorre las siete etapas pero `safe_delete.py` no escribe nada en el sistema de archivos (solo el `actions.jsonl` del workdir).
+Para previsualizar en lugar de ejecutar realmente, añade `--dry-run` al mensaje. El skill recorre las seis etapas, pero `safe_delete.py` no escribe nada en el sistema de archivos (solo el `actions.jsonl` del workdir).
 
 ```bash
 skillx run --skip-scan --auto https://github.com/skillx-run/mac-space-cleanup "Libera espacio en mi Mac con --dry-run, solo vista previa, sin borrar nada de verdad."
 ```
 
-Con tecnología de [skillx](https://skillx.run) — descarga, escanea, inyecta y limpia cualquier agent skill con un solo comando.
+Con tecnología de [skillx](https://skillx.run) — un único comando para descargar, escanear, inyectar y ejecutar cualquier agent skill.
 <!-- skillx:end:setup-skillx -->
 
 ---
 
 ## Demo
 
-El informe se **localiza** al idioma con el que se active el skill — un idioma por ejecución, sin conmutador en tiempo de ejecución. Si lo activas en inglés → informe en inglés; en chino → informe en chino; en japonés, español, francés, etc. → ese idioma. A continuación: impresión de la primera vista (EN a la izquierda, ZH a la derecha, cada una de una ejecución distinta), seguida de los enlaces a las capturas de página completa. Actualmente solo proporcionamos capturas en inglés y chino como muestra; el skill genera el informe completo en **el idioma de esta página** (español) cuando lo activas así.
+El idioma del informe lo determina el idioma de conversación con el que se activa el skill — un idioma por ejecución. A continuación: la primera vista, inglés a la izquierda, chino a la derecha, procedentes de ejecuciones distintas.
 
 <table>
 <tr>
@@ -56,7 +58,7 @@ Informe completo (Resumen de impacto · Desglose · Registro detallado · Observ
 
 ## Install
 
-Cualquier harness de agente que cargue skills puede usarlo. El fragmento de abajo utiliza la ruta habitual `~/.claude/skills/`; adáptala al directorio de skills de tu harness si usas otro.
+Cualquier harness de agente que cargue skills puede usarlo. El comando siguiente utiliza `~/.claude/skills/` como ruta de ejemplo; si tu harness usa un directorio de skills distinto, sustitúyelo por la ruta correspondiente.
 
 ```bash
 git clone git@github.com:skillx-run/mac-space-cleanup.git
@@ -64,62 +66,50 @@ mkdir -p ~/.claude/skills
 ln -s "$(pwd)/mac-space-cleanup" ~/.claude/skills/mac-space-cleanup
 ```
 
-Recarga tu harness para que la lista de skills tome la entrada nueva (en la mayoría de los harnesses: abre una nueva sesión).
+A continuación, abre una nueva sesión del agente para refrescar la lista de skills.
 
-### Recommended optional dependency
-
-```bash
-brew install trash
-```
-
-Si falta el CLI `trash`, `safe_delete.py` recurre a mover al `~/.Trash` con `mv` (añadiendo un sufijo `-<timestamp>`) — funciona, pero el sufijo queda raro en Finder. El propio skill te lo recordará en la primera ejecución.
+Se recomienda instalar también `trash` (`brew install trash`). Sin él, `safe_delete.py` recurre a `mv` para mover los archivos a `~/.Trash`, y los nombres movidos llevan un sufijo de marca de tiempo.
 
 ---
 
 ## Use
 
-En tu conversación con el agente, di algo como:
+En tu conversación con el agente, usa una frase de activación como:
 
-| Tú dices… | El skill elige |
+| Frase de activación | El skill elige |
 | --- | --- |
 | «limpieza rápida», «libera espacio ya», «hazme una pasada rápida» | modo `quick` (limpia automáticamente los elementos de bajo riesgo, ~30 s) |
-| «limpieza profunda», «analiza el espacio», «busca los pesos pesados» | modo `deep` (auditoría completa, pregunta ítem por ítem lo arriesgado, ~2–5 min) |
-| «limpia mi Mac», «mi Mac está lleno» (ambiguo) | El skill te pregunta cuál eliges, con estimaciones de tiempo |
+| «limpieza profunda», «analiza el espacio», «busca los pesos pesados» | modo `deep` (auditoría completa, confirmación ítem por ítem para los elementos de riesgo, ~2–5 min) |
+| «limpia mi Mac», «mi Mac está lleno» (ambiguo) | El skill pregunta cuál eliges, con estimaciones de tiempo |
 
 Para previsualizar sin tocar el sistema de archivos, añade `--dry-run` a tu mensaje:
 
 > «Libera espacio en mi Mac con --dry-run, solo vista previa, sin borrar nada de verdad.»
 
-El informe indicará visiblemente `DRY-RUN — no files touched` en la parte superior (localizado al idioma con el que lo activaste) y antepondrá a cada número el equivalente en tu idioma de «se liberarían».
-
-### Report language
-
-El informe HTML es de **un único idioma por ejecución**, producido en el idioma con el que activaste el skill. El agente detecta el idioma de la conversación a partir del mensaje desencadenante, escribe su valor (un sub-tag BCP-47 como `en`, `zh`, `ja`, `es`, `ar`) en el workdir, y luego redacta cada nodo de lenguaje natural — título principal, razones de las acciones, observaciones, representaciones de source_label, prosa de dry-run — directamente en ese idioma. Las etiquetas estáticas (títulos de sección, textos de botones, cabeceras de columnas) vienen con una base en inglés en la plantilla; para ejecuciones no inglesas el agente las traduce una sola vez a un diccionario embebido que hidrata la página al cargar. Sin conmutador en tiempo de ejecución, sin DOM bilingüe — gana el idioma de la conversación.
-
-Los idiomas de derecha a izquierda (árabe, hebreo, persa) reciben `<html dir="rtl">`; la inversión básica de dirección funciona, pero el ajuste fino de CSS RTL es una limitación conocida.
+El informe marca el estado de dry-run en la parte superior y antepone a cada cifra un calificador equivalente a «se liberarían». Los idiomas RTL (árabe, hebreo, persa) reciben `<html dir="rtl">` automáticamente; el ajuste fino del CSS RTL es una limitación conocida.
 
 ---
 
-## What it touches (and never touches)
+## Scope
 
-**Limpia** (con clasificación de riesgo según `references/category-rules.md`):
+Limpia (clasificación de riesgo según `references/category-rules.md`):
 
 - Cachés de desarrollador: Xcode DerivedData, Docker build cache, Go build cache, Gradle cache, ccache, sccache, JetBrains, Flutter SDK, cachés de editores de la familia VSCode (Code / Cursor / Windsurf / Zed `blob_store`).
-- Cachés de gestores de paquetes: Homebrew, npm, pnpm, yarn, pip, uv, Cargo, CocoaPods, RubyGems, Bundler, Composer, Poetry, Dart pub, Bun, Deno, Swift PM, Carthage. Los gestores de versiones (nvm / fnm / pyenv / rustup) surfacean las entradas no activas por versión, con los pins activos leídos del `.python-version` / `.nvmrc` de cada proyecto.
-- Cachés de modelos de AI/ML: HuggingFace (`hub/` L2 trash, `datasets/` L3 defer), PyTorch hub, Ollama (L3 defer; en modo deep se despacha por modelo con `ollama:<name>:<tag>` usando conteo de referencias de blobs, de modo que las capas compartidas entre tags sobreviven al borrado de una etiqueta hermana), LM Studio, OpenAI Whisper, caché global de Weights & Biases. Envs no-`base` de Conda / Mamba / Miniforge en las siete layouts de instalación comunes en macOS.
+- Cachés de gestores de paquetes: Homebrew, npm, pnpm, yarn, pip, uv, Cargo, CocoaPods, RubyGems, Bundler, Composer, Poetry, Dart pub, Bun, Deno, Swift PM, Carthage. Los gestores de versiones (nvm / fnm / pyenv / rustup) muestran las entradas no activas por versión; los pins activos quedan excluidos automáticamente vía `.python-version` / `.nvmrc` de cada proyecto.
+- Cachés de modelos de AI/ML: HuggingFace (`hub/` L2 trash, `datasets/` L3 defer), PyTorch hub, Ollama (L3 defer; en modo deep se despacha por modelo con `ollama:<name>:<tag>` usando conteo de referencias de blobs, de modo que las capas compartidas entre tags sobreviven al borrado de una etiqueta hermana), LM Studio, OpenAI Whisper, caché global de Weights & Biases. Envs no-`base` de Conda / Mamba / Miniforge a través de las siete layouts de instalación comunes en macOS.
 - Herramientas frontend: navegadores + driver de Playwright, navegadores empaquetados de Puppeteer.
-- Runtimes de simuladores iOS/watchOS/tvOS (vía `xcrun simctl delete`, **nunca `rm -rf`**). Las entradas `DeviceSupport/<OS>` de iOS cuyo major.minor coincida con un dispositivo emparejado o un runtime de simulador disponible se degradan automáticamente a L3 defer.
-- Cachés de aplicaciones bajo `~/Library/Caches/*`, saved application state y la propia Trash. Las cachés de aplicaciones creativas (Adobe Media Cache / Peak Files, Final Cut Pro, Logic Pro) salen bajo etiquetas específicas en lugar del bucket genérico `"System caches"`.
+- Runtimes de simuladores iOS/watchOS/tvOS (vía `xcrun simctl delete`, no `rm -rf`). Las entradas `DeviceSupport/<OS>` de iOS cuyo major.minor coincida con un dispositivo emparejado o un runtime de simulador disponible se degradan automáticamente a L3 defer.
+- Cachés de aplicaciones bajo `~/Library/Caches/*`, saved application state y la propia Trash. Las cachés de aplicaciones creativas (Adobe Media Cache / Peak Files, Final Cut Pro, Logic Pro) usan etiquetas específicas en lugar del bucket genérico `"System caches"`.
 - Logs, informes de fallos.
 - Instaladores antiguos en `~/Downloads` (`.dmg / .pkg / .xip / .iso` con más de 30 días).
 - Instantáneas locales de Time Machine (vía `tmutil deletelocalsnapshots`).
-- **Artefactos de build de proyectos** (solo modo deep, escaneados por `scripts/scan_projects.py` para cualquier directorio con raíz `.git`):
+- Artefactos de build de proyectos (solo modo deep; escaneados por `scripts/scan_projects.py` en cualquier directorio con raíz `.git`):
   - L1 borrado: `node_modules`, `target`, `build`, `dist`, `out`, `.next`, `.nuxt`, `.svelte-kit`, `.turbo`, `.parcel-cache`, `__pycache__`, `.pytest_cache`, `.tox`, `.mypy_cache`, `.ruff_cache`, `.dart_tool`, `.nyc_output`, `_build` (solo proyectos Elixir), `Pods`, `vendor` (solo proyectos Go).
-  - L2 a Trash: `.venv`, `venv`, `env` (entornos virtuales de Python — los pins de wheel pueden no reproducirse; por eso la ventana de recuperación); `coverage` (informes de cobertura de tests, condicionado a `package.json` o un marker de Python); `.dvc/cache` (caché content-addressed de DVC, condicionada a un marker hermano `.dvc/config` — el padre `.dvc/` contiene estado del usuario y se preserva).
+  - L2 a Trash: `.venv`, `venv`, `env` (entornos virtuales de Python — los pins de wheel pueden no reproducirse, por lo que se preserva una ventana de recuperación); `coverage` (informes de cobertura de tests, condicionado a `package.json` o un marker de Python); `.dvc/cache` (caché content-addressed de DVC, condicionada a un marker hermano `.dvc/config`; el padre `.dvc/` contiene estado del usuario y se preserva).
   - Directorios de sistema / gestor de paquetes (`~/Library`, `~/.cache`, `~/.npm`, `~/.cargo`, `~/.cocoapods`, `~/.gradle`, `~/.m2`, `~/.gem`, `~/.bundle`, `~/.composer`, `~/.pub-cache`, `~/.local`, `~/.rustup`, `~/.pnpm-store`, `~/.Trash`) se podan durante el descubrimiento de proyectos.
-- **El modo deep también saca a la luz directorios bajo `~` de ≥ 2 GiB que ninguna otra regla capturó** (L3 defer, `source_label="Unclassified large directory"`), para que los verdaderos devoradores de disco huérfanos queden visibles para revisión manual. Antes de la clasificación final el agente ejecuta una breve investigación de solo lectura (máximo 6 comandos por candidato) para refinar `category` y `source_label`; el grado de riesgo L3 defer queda bloqueado sea cual sea el resultado.
+- Escaneo de directorios huérfanos grandes (solo modo deep): los directorios bajo `~` ≥ 2 GiB que ninguna otra regla capturó se marcan como L3 defer (`source_label="Unclassified large directory"`). Antes de la clasificación final, el agente ejecuta una breve investigación de solo lectura (hasta 6 comandos por candidato) para refinar `category` y `source_label`; el grado L3 defer queda bloqueado independientemente del resultado.
 
-**Barrera dura — rechaza pase lo que pase en `confirmed.json`** (ver `_BLOCKED_PATTERNS` en `scripts/safe_delete.py`):
+Barrera dura — rechaza independientemente de lo que contenga `confirmed.json`; ver `_BLOCKED_PATTERNS` en `scripts/safe_delete.py`:
 
 - Directorios `.git`, `.ssh`, `.gnupg`.
 - `~/Library/Keychains`, `~/Library/Mail`, `~/Library/Messages`, `~/Library/Mobile Documents` (iCloud Drive).
@@ -128,24 +118,11 @@ Los idiomas de derecha a izquierda (árabe, hebreo, persa) reciben `<html dir="r
 - Estado de editores de la familia VSCode: `{Code, Cursor, Windsurf}/{User, Backups, History}` (ediciones no guardadas, equivalentes a git-stash, historial local de ediciones).
 - Carpetas `Auto-Save` de las apps creativas de Adobe — proyectos no guardados de Premiere / After Effects / Photoshop.
 
-El propio agente lee `references/cleanup-scope.md` para la whitelist/blacklist orientada al usuario — la blocklist anterior es el subconjunto que se fuerza en runtime.
-
 ---
 
-## Architecture (one paragraph)
+## Architecture
 
-`SKILL.md` es el contrato del flujo de trabajo — el agente se encarga del juicio (elección de modo, clasificación, conversación, renderizado HTML). Dos scripts pequeños de Python hacen lo que el agente no debe: `scripts/safe_delete.py` es la **única** ruta por la que ocurren escrituras en el fs (seis acciones despachadas: delete / trash / archive / migrate / defer / skip; idempotente; aislamiento de errores por ítem; `actions.jsonl` solo-append); `scripts/collect_sizes.py` ejecuta `du -sk` en paralelo con un timeout de 30 s por ruta y salida JSON estructurada. Tres documentos de referencia (`references/`) son la base de conocimiento del agente. Tres plantillas de asset (`assets/`) son el esqueleto del informe que el agente rellena. Dos capas reviewer/validator en la Stage 6 atrapan filtraciones de privacidad antes de que el usuario vea el informe. El workdir por ejecución vive en `~/.cache/mac-space-cleanup/run-XXXXXX/`.
-
----
-
-## Honesty contract
-
-Toda herramienta de limpieza infla su número de «N GB liberados» contando también lo que empuja a la Trash. macOS no libera ese disco hasta que vacías `~/.Trash`. Este skill divide la métrica:
-
-- `freed_now_bytes` — realmente fuera del disco (delete + migrate a otro volumen).
-- `pending_in_trash_bytes` — dentro de `~/.Trash`; el informe muestra una línea `osascript` para vaciarla.
-- `archived_source_bytes` / `archived_count` — bytes envueltos en un tar dentro del workdir.
-- `reclaimed_bytes` — alias retrocompatible = `freed_now + pending_in_trash`. El texto para compartir y el titular del informe usan `freed_now_bytes`, no esto.
+`SKILL.md` es el contrato de flujo de trabajo del agente: la elección de modo, la clasificación, la conversación y el renderizado HTML los realiza el agente. Dos scripts de Python asumen las responsabilidades inadecuadas para el agente — `scripts/safe_delete.py` es el único punto de entrada para las escrituras al sistema de archivos, y proporciona seis acciones despachadas, idempotencia y aislamiento de errores por ítem; `scripts/collect_sizes.py` ejecuta `du -sk` en paralelo usando la biblioteca estándar. `references/` es la base de conocimiento del agente, `assets/` contiene plantillas de informe. La Stage 6 ejecuta una capa reviewer / validator de dos niveles que intercepta filtraciones de privacidad antes de que el usuario vea el informe. El directorio de trabajo por ejecución reside en `~/.cache/mac-space-cleanup/run-XXXXXX/`.
 
 ---
 
@@ -153,7 +130,7 @@ Toda herramienta de limpieza infla su número de «N GB liberados» contando tam
 
 ```
 mac-space-cleanup/
-├── SKILL.md                      # flujo principal del agente (siete etapas)
+├── SKILL.md                      # flujo principal del agente (seis etapas)
 ├── scripts/
 │   ├── safe_delete.py            # despachador de seis acciones + blocklist de seguridad
 │   ├── collect_sizes.py          # du -sk en paralelo
@@ -168,7 +145,7 @@ mac-space-cleanup/
 │   ├── category-rules.md         # 10 categorías con patrones + risk_level + action
 │   └── reviewer-prompts.md       # plantilla de prompt para el sub-agente revisor
 ├── assets/
-│   ├── report-template.html      # esqueleto HTML de seis regiones con marcadores pareados
+│   ├── report-template.html      # plantilla HTML de seis regiones con marcadores pareados
 │   ├── report.css
 │   └── share-card-template.svg   # tarjeta para compartir en X 1200×630
 ├── tests/                        # suite unittest solo biblioteca estándar
@@ -179,15 +156,15 @@ mac-space-cleanup/
 
 ---
 
-## Limitations & non-goals (v0.11.0)
+## Limitations
 
 - **Sin pila de undo.** Las vías de recuperación son la Trash nativa, los tar en `archive/` del workdir y el volumen destino del migrate.
-- **Sin cron / sin ejecuciones en segundo plano.** Cada ejecución la activa el usuario.
-- **Sin nube / sin telemetría.** El workdir se queda en local.
+- **Sin cron, sin ejecuciones en segundo plano.** Cada ejecución la inicia el usuario.
+- **Sin nube, sin telemetría.** El workdir se queda en local.
 - **Sin rutas protegidas por SIP**, sin desinstalar `/Applications/*.app`.
-- **La identificación de raíz de proyecto usa solo `.git`.** Los checkouts de git desnudos se reconocen; los workspaces sin directorio `.git`, no. Los submódulos anidados se deduplican (no aparecen como proyectos separados).
-- **El descubrimiento de artefactos no respeta `.gitignore`** — escanea por nombres fijos de subdirectorios convencionales (`node_modules`, `target`, …). Puede sacar a la luz un directorio ignorado por git o pasar por alto uno que el proyecto crea fuera de convención.
-- **Validación en una única máquina.** Construido y probado sobre macOS 25.x / 26.x con cadena de herramientas de desarrollo. Los patrones aún no se han validado entre Apple Silicon e Intel, ni en versiones antiguas de macOS.
+- **La identificación de raíz de proyecto usa solo `.git`.** Los checkouts de git estándar se reconocen; los workspaces sin directorio `.git` no. Los submódulos anidados se deduplican y no aparecen como proyectos separados.
+- **El descubrimiento de artefactos no respeta `.gitignore`** — escanea por nombres fijos de subdirectorios convencionales (`node_modules`, `target`, …). Puede incluir un directorio ignorado por git o pasar por alto uno que el proyecto crea fuera de convención.
+- **Validación en una única máquina.** Construido y probado sobre macOS 25.x / 26.x con cadena de herramientas de desarrollo. Aún no validado entre Apple Silicon e Intel ni entre versiones anteriores de macOS.
 
 ---
 
