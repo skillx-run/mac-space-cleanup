@@ -58,15 +58,19 @@ skillx run --skip-scan --auto https://github.com/skillx-run/mac-space-cleanup "M
 
 ## Install
 
-skill をロードできる agent harness であればどれでも使えます。以下のコマンドは `~/.claude/skills/` を例のパスとして使用しています。ご利用の harness が別の skills ディレクトリを使う場合はそちらに置き換えてください。
+永続インストールは skillx 経由で行います。skillx CLI をまだ入れていない場合:
 
 ```bash
-git clone git@github.com:skillx-run/mac-space-cleanup.git
-mkdir -p ~/.claude/skills
-ln -s "$(pwd)/mac-space-cleanup" ~/.claude/skills/mac-space-cleanup
+curl -fsSL https://skillx.run/install.sh | sh
 ```
 
-続いて新しい agent セッションを開いて skill リストを更新してください。
+続いてこの skill を skillx が認識する任意の agent harness の skills ディレクトリ（Claude Code の `~/.claude/skills/` など）にインストールします:
+
+```bash
+skillx install https://github.com/skillx-run/mac-space-cleanup
+```
+
+新しい agent セッションを開いて skill リストを更新してください。以後の更新やアンインストールは `skillx update mac-space-cleanup` / `skillx uninstall mac-space-cleanup` を使用します。
 
 `trash` も併せてインストールすることを推奨します（`brew install trash`）。未インストール時は `safe_delete.py` が `mv` で `~/.Trash` に退避するフォールバックとなり、ファイル名にタイムスタンプのサフィックスが付加されます。
 

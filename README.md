@@ -58,15 +58,19 @@ Full report (Impact Summary · Breakdown · Detailed Log · Observations · Run 
 
 ## Install
 
-Any agent harness that loads skills can use this. The command below uses `~/.claude/skills/` as an example path; if your harness uses a different skills directory, substitute the corresponding path.
+Persistent installation goes through skillx. If you don't have the skillx CLI yet:
 
 ```bash
-git clone git@github.com:skillx-run/mac-space-cleanup.git
-mkdir -p ~/.claude/skills
-ln -s "$(pwd)/mac-space-cleanup" ~/.claude/skills/mac-space-cleanup
+curl -fsSL https://skillx.run/install.sh | sh
 ```
 
-Then start a new agent session to refresh the skill list.
+Then install this skill into the skills directory of any agent harness skillx recognizes (Claude Code's `~/.claude/skills/`, etc.):
+
+```bash
+skillx install https://github.com/skillx-run/mac-space-cleanup
+```
+
+Start a new agent session to refresh the skill list. To update or remove later: `skillx update mac-space-cleanup` / `skillx uninstall mac-space-cleanup`.
 
 Installing `trash` alongside is recommended (`brew install trash`). Without it, `safe_delete.py` falls back to `mv` into `~/.Trash`, and the moved filenames carry a timestamp suffix.
 
