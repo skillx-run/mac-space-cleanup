@@ -143,6 +143,32 @@ LM Studio stays on the single aggregate in v0.9 — storage layout is less unifo
 - **Cross-run history (`history.json`) stays format-compatible** across M1-M3: new source_labels are just new tags; `version_pins` is a new sibling field that downstream `"X" in markers_found` membership checks never see; `projects.json`'s `kind` enum grows by one value (`nested_cache`), same contract as v0.7's `coverage` addition.
 - **Known untested path**: the Xcode 15+ `devicectl` output-schema assumption (`result.devices[].hardwareProperties.productVersion`) has not been end-to-end-verified against a real Mac with a paired iOS device. The schema matches Apple's public CoreDevice framework docs, and the inline script has an `except Exception: sys.exit(0)` bail-out so a schema drift manifests as an empty `active_ios_versions` (i.e. fallback to the L2 default), not as a crash. If a future reader has access to such a setup, confirm the keys and either strike this note or file a fix.
 
+## v0.12 dry-run detection refactor + README "Why this skill" section
+
+v0.12 replaces the keyword-substring approach for dry-run detection with intent-based LLM judgement, and introduces a top-of-README comparison section addressing the most common reader question. No risk-model / redaction / blocklist changes; `scripts/*` unchanged; test suite unaffected.
+
+### SKILL.md — dry-run detection refactored
+
+v0.11.0's substring-match rule (`DRY_RUN=true if triggering message contains any of: --dry-run, dry run, 预演, 模拟, 演练`) had a latent collision: `模拟` is a substring of `模拟器` (simulator), so any Simplified-Chinese user asking to clean iOS Simulator caches — a first-class Tier-B target of this skill — would be silently routed into dry-run mode and nothing would actually be deleted. A mid-PR attempt to expand the list to 19 keywords across 8 locales (covering zh-TW `模擬`, ja `ドライラン` / `予行演習`, es `simulacro` / `prueba en seco`, fr `essai à blanc` / `à blanc`, ar `تجربة جافة`, de `Probelauf` / `Trockenlauf`) surfaced that substring-match is the wrong primitive regardless of list size — `à blanc` collides with `voter à blanc` / `tirer à blanc`, `模擬` repeats the simulator collision for zh-TW, etc.
+
+Stage 1's dry-run detection step now instructs the agent to judge user intent (preview vs real-run) directly from the triggering message, in whatever language the user wrote. Explicit signals — the CLI-style `--dry-run` flag, phrases like "preview only" / "don't actually delete" / "只预演不要真删" / "先不要真的删" / "essai à blanc" / "Probelauf" — count as strong evidence; a substring coincidence with a cleanup target name (`Simulator` / `模拟器`) explicitly does not. When intent is ambiguous, the rule prefers `DRY_RUN=false` and relies on Stage 5's per-item L2+ confirmation prompts as the safety net.
+
+Downstream consumers are unaffected: Stage 5 / Stage 6 still read `$WORKDIR/dry_run.txt` as a bool, `scripts/safe_delete.py --dry-run` is unchanged, `scripts/validate_report.py --dry-run` is unchanged. No new test coverage needed — agent NL understanding is not mechanically testable per `CLAUDE.md` §Testing, and the CLI flag semantics that `safe_delete.py` / `validate_report.py` depend on are unchanged.
+
+### README — "Why this skill" comparison section across all 8 locales
+
+`README.md` and the 7 translations gain a `## Why this skill` section between Demo and Install. It opens with three prose paragraphs framing the core problem — traditional GUI cleaners (CleanMyMac, OnyX, DaisyDisk) miss the bulk of a developer Mac because they work from hard-coded path lists and can't read `.python-version` / `.nvmrc` / project markers; raw LLM prompts have the judgment GUI tools lack but without guardrails are a loaded `rm -rf` gun; this skill combines LLM judgement with a deterministic safety layer — followed by an 8-row comparison table across write path, risk awareness, reclaim honesty, privacy, developer-Mac awareness, audit & re-run, dry-run, and openness. Every row in the table is anchored to existing material elsewhere in the README (Honesty contract, Architecture, What it touches, `safe_delete.py::_BLOCKED_PATTERNS`, `SKILL.md` Stage 4/5) — no new technical claims introduced.
+
+Translation note: `redaction` was rendered to each locale's natural equivalent where one exists (`anonymisation` / `anonymisés` for fr, `マスキング` for ja); where a natural equivalent is contextually awkward it's kept as a backticked English technical token (Arabic `redaction reviewer`). The same pattern applies to `guardrail` / `blocklist` / `dispatcher` — these stay English inline.
+
+Known follow-up: the Arabic 4-column RTL table has not been verified against GitHub's renderer. If column widths collapse under RTL mirroring, the plan recorded in commit `2817033` is to switch `README.ar.md` alone to a 4-paragraph vertical list while the other 7 keep the table.
+
+### Back-compat & known gaps
+
+- **No `scripts/*.py` / `tests/*` changes.** The dry-run flag shape (`$WORKDIR/dry_run.txt` as a bool, `safe_delete.py --dry-run`, `validate_report.py --dry-run`) is unchanged. Agents running against an older SKILL.md with the substring rule continue to work; agents running against the new SKILL.md get better i18n coverage and no substring collisions.
+- **Single-commit boundary note.** This release includes a small window where `SKILL.md`'s L80 whitelist was expanded to 19 keywords before being replaced by intent-based detection (commit 1 → commit 6 of the PR series). Only the final state lands on `main`; historical git log carries the traversal.
+- **CLAUDE.md gap backfill**: this entry also flags that v0.10 and v0.11.0 are recorded in `CHANGELOG.md` but were never given dedicated sections in this CLAUDE.md file. The pattern since v0.7 had been a section per significant expansion. Backfilling v0.10 and v0.11.0 is out-of-scope for this PR but worth a separate docs pass.
+
 ## Known non-goals (v0.1)
 
 See `plan` history and `SKILL.md`. Summary: no undo stack, no cron, no cloud sync, no SIP-region touches, no application uninstall. Recovery paths are the native trash / archive tars / migrate target volumes.
