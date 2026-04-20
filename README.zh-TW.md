@@ -10,11 +10,9 @@
 
 ## 為什麼選這個 skill
 
-**傳統 GUI 清理工具**（CleanMyMac、OnyX、DaisyDisk）基於固定規則工作——沒法對你的具體情況做判斷。它不知道你的 `~/Datasets/` 是不可再生的研究資料還是臨時快取，不知道某個 `node_modules` 屬於活躍專案還是廢棄專案，不知道那個 12 GB 的 Ollama 模型你還在用還是早忘了。
+傳統清理工具（CleanMyMac、OnyX）基於固定規則工作——**沒法判斷你的具體情況**，分不清某個 `node_modules` 是活躍專案還是廢棄專案、不可替代的資料和垃圾快取的區別。裸 Agent（「Claude，清理一下我的 Mac」）有這份判斷力，但**沒有 guardrail**——一次錯判就對你的 `.git` / `.env` / Keychains `rm -rf`。
 
-**裸 LLM prompt**（「Claude，清理一下我的 Mac」）擁有 GUI 工具缺少的判斷力——但沒有 guardrail。一次錯誤的幻覺就會對你的 `.git` / `.env` / Keychains `rm -rf`。
-
-**這個 skill** 把兩者結合：agent 根據上下文閱讀你的系統、做出判斷，但每次寫入都過 `safe_delete.py` 這道關，無論 agent 怎麼說，blocklist 都會拒絕 `.git` / `.ssh` / Keychains / `.env*`。
+這個 skill 把兩者結合：前面是 agent 的判斷力，後面是 `safe_delete.py` 確定性 blocklist 的兜底。**該判斷的交給 agent，該兜底的交給 blocklist。**
 
 ---
 

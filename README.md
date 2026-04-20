@@ -10,11 +10,9 @@ A **skill** that cleans up your Mac's disk space — cautious, honest, multi-sta
 
 ## Why this skill
 
-**GUI cleaners** (CleanMyMac, OnyX, DaisyDisk) work from fixed rules — they can't judge your specific situation. They don't know whether your `~/Datasets/` is irreplaceable research data or temporary cache, whether a given `node_modules` belongs to an active project or a dead one, whether a 12 GB Ollama model is still in use or long forgotten.
+Traditional cleaners (CleanMyMac, OnyX) work from fixed rules — **they can't judge your situation**, so they can't tell an active `node_modules` from an abandoned one, or irreplaceable data from junk cache. An unguarded agent ("Claude, clean my Mac") has that judgment, but **no guardrails** — one wrong call and `rm -rf` hits your `.git`, `.env`, or Keychains.
 
-**Raw LLM prompts** ("Claude, clean my Mac") have the judgment GUI tools lack — but no guardrails. One wrong hallucination and it `rm -rf`'s your `.git`, `.env`, or Keychains.
-
-**This skill** combines both: the agent reads your system in context and makes judgment calls, but every write goes through `safe_delete.py` whose blocklist refuses `.git` / `.ssh` / Keychains / `.env*` regardless of what the agent says.
+This skill combines both: agent judgment in front, `safe_delete.py`'s deterministic blocklist behind. **Smart decisions where they help, hard rules where they matter.**
 
 ---
 

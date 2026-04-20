@@ -10,11 +10,9 @@ Un **skill** qui nettoie l'espace disque de votre Mac — prudent, honnête, mul
 
 ## Pourquoi ce skill
 
-**Les nettoyeurs GUI classiques** (CleanMyMac, OnyX, DaisyDisk) fonctionnent à partir de règles fixes —— ils ne peuvent pas juger votre situation spécifique. Ils ne savent pas si votre `~/Datasets/` contient des données de recherche irremplaçables ou du cache temporaire, si un `node_modules` donné appartient à un projet actif ou mort, si ce modèle Ollama de 12 Go vous sert encore ou est oublié depuis longtemps.
+Les nettoyeurs classiques (CleanMyMac, OnyX) fonctionnent à partir de règles fixes —— **ils ne peuvent pas juger votre situation**, ils ne distinguent pas un `node_modules` actif d'un abandonné ni des données irremplaçables du cache superflu. Un agent sans garde-fous (« Claude, nettoie mon Mac ») a ce jugement, mais **aucun garde-fou** —— une décision erronée et `rm -rf` frappe votre `.git`, `.env` ou Keychains.
 
-**Un prompt LLM brut** (« Claude, nettoie mon Mac ») a le jugement qui manque au GUI —— mais sans garde-fous. Une hallucination erronée et il lance `rm -rf` sur votre `.git`, `.env` ou Keychains.
-
-**Ce skill** combine les deux : l'agent lit votre système en contexte et prend des décisions, mais chaque écriture passe par `safe_delete.py` dont la blocklist refuse `.git` / `.ssh` / Keychains / `.env*` quoi que dise l'agent.
+Ce skill combine les deux : le jugement de l'agent à l'avant, la blocklist déterministe de `safe_delete.py` à l'arrière. **Le jugement à l'agent, le dernier rempart à la blocklist.**
 
 ---
 

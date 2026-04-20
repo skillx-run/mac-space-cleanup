@@ -157,13 +157,15 @@ Downstream consumers are unaffected: Stage 5 / Stage 6 still read `$WORKDIR/dry_
 
 ### README — "Why this skill" section across all 8 locales
 
-`README.md` and the 7 translations gain a `## Why this skill` section placed **between the intro quote and the Try section**, so the elevator pitch lands before the reader hits the one-click try command. Three short paragraphs, no table:
+`README.md` and the 7 translations gain a `## Why this skill` section placed **between the intro quote and the Try section**, so the elevator pitch lands before the reader hits the one-click try command. Two short paragraphs, no table. The argument in plain form:
 
-1. GUI cleaners work from fixed rules — they can't judge your specific situation (irreplaceable `~/Datasets/` vs temporary cache, active `node_modules` vs dead one, in-use Ollama model vs forgotten one).
-2. A raw LLM prompt has the judgment GUI tools lack, but no guardrails: one wrong hallucination and it `rm -rf`s `.git` / `.env` / Keychains.
-3. This skill combines both — LLM judgement for the smart calls, `safe_delete.py`'s blocklist as the deterministic safety layer that refuses the disaster list regardless of what the agent says.
+- Traditional cleaners (CleanMyMac, OnyX) work from fixed rules — **they can't judge your situation**. Whether a given `node_modules` is still active, whether a cache folder is live or abandoned — same path, different answer per user.
+- An **unguarded agent** ("Claude, clean my Mac") has that judgment, but **no guardrails** — one wrong call and `rm -rf` hits `.git` / `.env` / Keychains.
+- This skill combines both: agent judgement in front, `safe_delete.py`'s deterministic blocklist behind. Locale-appropriate punchline closes the section (English: *"Smart decisions where they help, hard rules where they matter."*).
 
-Earlier drafts during development included an 8-row comparison table after these paragraphs and placed the section between Demo and Install. Removed in favour of the current compact form so the section reads as a pitch rather than a specification, and moved to the top of the page so the reasoning arrives before the CTA.
+Terminology note: earlier drafts used "LLM" / "raw LLM prompt". Replaced with **"agent" / "unguarded agent"** — the LLM is the reasoning model, but the thing that can actually `rm -rf` your filesystem is the agent loop (tool use + iteration). Getting the term right matters for this section's argument.
+
+Earlier drafts during development included an 8-row comparison table after the paragraphs and placed the section between Demo and Install. Both were removed in favour of the current compact, up-front form so the section reads as a pitch rather than a specification.
 
 Translation note: `redaction` was rendered to each locale's natural equivalent where one exists (`anonymisation` / `anonymisés` for fr, `マスキング` for ja); where a natural equivalent is contextually awkward it's kept as a backticked English technical token. `guardrail` / `blocklist` / `dispatcher` stay English inline.
 

@@ -10,11 +10,9 @@ Ein **skill**, der den Speicherplatz deines Macs bereinigt — umsichtig, ehrlic
 
 ## Warum dieses Skill
 
-**Klassische GUI-Cleaner** (CleanMyMac, OnyX, DaisyDisk) arbeiten mit festen Regeln —— sie können deine konkrete Situation nicht beurteilen. Sie wissen nicht, ob dein `~/Datasets/` unersetzliche Forschungsdaten oder temporärer Cache ist, ob ein bestimmtes `node_modules` zu einem aktiven oder toten Projekt gehört, ob dieses 12 GB Ollama-Modell noch genutzt wird oder längst vergessen ist.
+Klassische Cleaner (CleanMyMac, OnyX) arbeiten mit festen Regeln —— **sie können deine Situation nicht beurteilen**, sie unterscheiden nicht zwischen aktivem und verlassenem `node_modules` oder zwischen unersetzlichen Daten und Müll-Cache. Ein ungeschützter Agent ("Claude, räum meinen Mac auf") hat dieses Urteil, aber **keine Guardrails** —— eine falsche Entscheidung und `rm -rf` trifft deine `.git`, `.env` oder Keychains.
 
-**Ein roher LLM-Prompt** ("Claude, räum meinen Mac auf") hat das Urteil, das dem GUI-Tool fehlt —— aber keine Guardrails. Eine falsche Halluzination und er führt `rm -rf` auf deine `.git`, `.env` oder Keychains aus.
-
-**Dieses Skill** verbindet beides: der Agent liest dein System im Kontext und trifft Entscheidungen, aber jede Schreiboperation läuft durch `safe_delete.py`, dessen Blocklist `.git` / `.ssh` / Keychains / `.env*` verweigert, egal was der Agent sagt.
+Dieses Skill verbindet beides: das Urteil des Agents vorne, die deterministische Blocklist von `safe_delete.py` dahinter. **Das Urteil dem Agent, die letzte Linie der Blocklist.**
 
 ---
 
