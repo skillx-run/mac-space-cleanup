@@ -175,6 +175,36 @@ Translation note: `redaction` was rendered to each locale's natural equivalent w
 - **Single-commit boundary note.** This release includes a small window where `SKILL.md`'s L80 whitelist was expanded to 19 keywords before being replaced by intent-based detection (commit 1 → commit 6 of the PR series). Only the final state lands on `main`; historical git log carries the traversal.
 - **CLAUDE.md gap backfill**: this entry also flags that v0.10 and v0.11.0 are recorded in `CHANGELOG.md` but were never given dedicated sections in this CLAUDE.md file. The pattern since v0.7 had been a section per significant expansion. Backfilling v0.10 and v0.11.0 is out-of-scope for this PR but worth a separate docs pass.
 
+## v0.13 README rewrite (8 locales)
+
+v0.13 is documentation-only. No `scripts/*.py` / `tests/*` / `SKILL.md` / `references/*` changes. The 8-locale README family is rewritten to drop AI-flavored register inherited from earlier drafts and to align headline structure with the actual user-facing pipeline.
+
+### What changed
+
+- **L5 tagline collapse.** Three-adjective tagline (`cautious, honest, multi-stage` and per-locale equivalents) replaced by a single plain sentence. Three-adjective patterns read as marketing copy and add no information beyond what the L7 blockquote already states.
+- **L7 blockquote tighten.** Pipeline summary moved from seven stages (`mode → probe → scan → classify → confirm → report → open`) to six. Stage 7 (`open`) is the share-text self-check + `open report.html` — a real Stage in `SKILL.md` because the agent needs the gate, but invisible to the user-facing arc and dilutive when listed alongside the six judgement stages. SKILL.md Stage 7 is unchanged. Bolds on `L1-L4 risk grading` / `honest reclaim accounting` / `multiple safety backstops` removed; the JSON field-name enumeration (`freed_now / pending_in_trash / archived`) removed (those belong to the schema in SKILL.md). The "Trash bytes counted separately, not in the freed total" honesty claim is preserved as a single inline clause.
+- **Why section: two paragraphs → three.** Old structure: rule-based-tools-can't-judge / this-skill-combines-both with a bolded mid-sentence punchline. New structure mirrors the actual decision tree the reader is making: (1) why CleanMyMac et al. leave space behind, (2) why a raw "Claude, clean my Mac" prompt is unsafe, (3) why this skill solves both — safety boundary first, then full agent judgement within it. The "raw agent is dangerous" middle paragraph is the load-bearing one — without it readers don't see why this skill exists rather than just typing the prompt themselves.
+- **Honesty contract section deleted.** The four-bullet field enumeration (`freed_now_bytes` / `pending_in_trash_bytes` / `archived_source_bytes` / `reclaimed_bytes`) was implementation detail surfaced at README level. SKILL.md's `cleanup-result.json` schema section is the canonical home; the user-facing claim ("Trash isn't free space — counted separately") survives as a clause in the L7 blockquote.
+- **Section / header cleanup.** `What it touches (and never touches)` → `Scope`. `Architecture (one paragraph)` → `Architecture`. `Limitations & non-goals (v0.11.0)` → `Limitations` (version pin removed — README is evergreen, version belongs in CHANGELOG). `### Recommended optional dependency` H3 folded into Install body. `### Report language` H3 deleted (its content was already covered three times: L7 blockquote, Demo intro, Use dry-run note); the only unique sentence (RTL `<html dir="rtl">` note) is merged into the Use dry-run paragraph tail.
+- **Self-reference paragraph deleted.** The "Agent itself reads `references/cleanup-scope.md`…" trailer at the end of Scope was internal documentation surfaced at README level; readers do not need to know which reference doc the agent reads.
+- **Project layout notes synced.** SKILL.md comment changed from "(seven stages)" to "(six stages)". `HTML 骨架` / `squelette HTML` / `HTML-Skelett` etc. → `HTML template` / equivalents. `可清产物` → `可清理产物` for clarity in zh-CN.
+
+### Tone passes per locale
+
+The substantive AI-flavor diagnosis was: bolds used as emphasis crutches mid-sentence, three-adjective taglines, parallel "trigger in EN → EN report; in ZH → ZH report" listings designed to pad with rhythm rather than convey information, parenthetical detail dumps inside Architecture, virtue-signalling section titles (`Honesty contract`, `What it touches (and never touches)`). Each locale was passed through its own natural technical-document register rather than a literal translation of the EN edits — for example zh-CN swapped colloquial verbs (`跑`, `走完`, `配...三道兜底`, `钉死`) for technical ones (`执行`, `经由`, `构成三层护栏`, `锁定`); ja dropped `?` interrogatives and `絶対に` emphasis; es / fr / de / ar dropped marketing punchlines and adversary-comparison openings (`Toda herramienta...`, `Chaque outil...`, `Jedes Speicher-Aufräumtool...`, `كلُّ أداة...`).
+
+User-spoken trigger examples in the Use table (e.g. `"马上腾点空间" / "找大头" / "fais un petit coup de balai"`) deliberately retain a colloquial register — they are documenting how real users phrase requests, not setting the register of the document itself.
+
+### Structural isomorphism
+
+All 8 README files now match line count (191 lines each) and section ordering. Section count: 12 H2s (`Why this skill / Try it with skillx / Demo / Install / Use / Scope / Architecture / Project layout / Limitations / Development / License / Credits`). The `### Recommended optional dependency` and `### Report language` H3s are absent in all locales. Scope-section bullet count and Limitations-section bullet count match across locales. Reviewers of future README changes should run `wc -l README*.md` as a first-pass drift check.
+
+### Back-compat & known gaps
+
+- **No code or behaviour changes.** Skill workflow, scripts, tests, references unchanged. Agent runs against the new READMEs the same way it ran against the old ones — they are not part of its instruction surface (only `SKILL.md` and `references/*` are).
+- **Honesty-contract content preservation.** The `freed_now_bytes` / `pending_in_trash_bytes` / `archived_source_bytes` / `reclaimed_bytes` field semantics still need a documented home — they are kept in SKILL.md's `cleanup-result.json` schema section and surface to users via the report's nextstep / observations sections at runtime. Removing them from the README does not orphan them.
+- **CHANGELOG.md not updated in this docs-only PR.** The `## Unreleased` line in CHANGELOG.md remains empty. A future release-cut commit can land a v0.13 CHANGELOG entry alongside any accompanying behaviour changes; documentation rewrites alone have not historically warranted release notes in this repo.
+
 ## Known non-goals (v0.1)
 
 See `plan` history and `SKILL.md`. Summary: no undo stack, no cron, no cloud sync, no SIP-region touches, no application uninstall. Recovery paths are the native trash / archive tars / migrate target volumes.
