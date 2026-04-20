@@ -48,7 +48,15 @@ Informe completo (Resumen de impacto · Desglose · Registro detallado · Observ
 
 ## Por qué este skill
 
-Ya existen muchas formas de liberar disco —— apps GUI dedicadas (CleanMyMac, OnyX, DaisyDisk), un prompt LLM crudo («oye Claude, limpia mi Mac»), o tu memoria muscular con `rm -rf ~/Library/Caches`. Este skill existe porque los tres enfoques dejan vacíos importantes en un Mac de desarrollador.
+Existen dos formas de liberar disco en un Mac, y ambas tienen una limitación fundamental:
+
+**Los limpiadores GUI tradicionales** (CleanMyMac, OnyX, DaisyDisk) funcionan con **listas de rutas cableadas en el código**. Eso cubre lo obvio —— `~/Library/Caches`, logs, instaladores antiguos —— pero se les escapa la mayor parte de lo que realmente consume disco en un Mac de desarrollador: 40 GB de pesos de HuggingFace, 12 GB de modelos Ollama, `node_modules` dispersos por proyectos muertos, versiones no activas de `pyenv` / `nvm`, runtimes de simulador iOS muertos. El limpiador no puede leer tu `.python-version` ni tu `.nvmrc`, no distingue `build/` de `src/`, no diferencia un artefacto recién compilado que te importa de caché puro. Las reglas fijas se pierden la mayor parte de lo que un LLM podría manejar con contexto.
+
+**Un prompt LLM crudo** («oye Claude, limpia mi Mac») tiene exactamente la inteligencia que al GUI le falta —— el modelo *puede* leer archivos de proyecto, entender convenciones, hacer juicios. Pero esa misma flexibilidad lo hace **peligroso sin guardrails**: una alucinación confiada y el modelo ejecuta `rm -rf` sobre tu `.git`, tu `.env`, tus Keychains, o el historial de ediciones no guardadas de VSCode. Sin lista de rechazo determinista, sin gradación de riesgo por elemento, sin redaction antes de que el modelo vea tus rutas, sin contabilidad honesta de lo que realmente salió del disco.
+
+**Este skill combina el juicio del LLM con una capa de seguridad determinista.** El agente toma las decisiones inteligentes que un limpiador GUI no puede —— despachador Ollama por modelo con conteo de referencias a blobs compartidos, lectura de `.nvmrc` para saltarse la versión de Node activa, degradación de entradas `DeviceSupport/` cuyo major.minor coincide con un dispositivo iOS actualmente emparejado. Pero cada escritura pasa por `safe_delete.py` cuya blocklist rechaza `.git` / `.ssh` / Keychains / `.env*` / estado de editor no guardado **diga lo que diga el agente**. El riesgo se clasifica L1–L4 con confirmación por elemento a partir de L2, las rutas se redactan a `source_label` + `category` antes de llegar al informe, y el número de recuperación se divide en lo que realmente salió del disco vs lo que sigue en la Papelera.
+
+Dimensión por dimensión:
 
 | Lo que te importa | Limpiador GUI tradicional | Prompt LLM crudo | Este skill |
 | --- | --- | --- | --- |
@@ -60,8 +68,6 @@ Ya existen muchas formas de liberar disco —— apps GUI dedicadas (CleanMyMac,
 | **Auditoría y re-ejecución** | Normalmente ninguna | Solo transcript del chat | `actions.jsonl` append-only por ejecución. Idempotente —— las rutas ya ausentes se convierten en `skip/success`, re-ejecutar sobre el mismo workdir es seguro |
 | **Dry-run** | Raro o de pago | Pedir al modelo «no lo hagas de verdad» | De primera clase —— todas las etapas corren, `safe_delete.py` no escribe nada, el informe se etiqueta con banner `DRY-RUN` |
 | **Apertura** | Producto comercial de código cerrado | Sin guardrails a nivel de código | Apache-2.0, cero dependencias pip, solo comandos macOS + Python stdlib |
-
-La versión corta: **los limpiadores GUI son seguros pero opacos e inflan el número. Un LLM crudo es flexible pero felizmente hará `rm -rf` sobre lo equivocado. Este skill mantiene la flexibilidad del LLM y añade las guardrails** —— blocklist determinista en código, una capa de redaction que el modelo no puede saltar, y contabilidad honesta para que el número en la tarjeta de compartir sea el número que realmente salió del disco.
 
 ---
 

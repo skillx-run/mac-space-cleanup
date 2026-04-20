@@ -48,7 +48,15 @@ Rapport complet (Résumé d'impact · Répartition · Journal détaillé · Obse
 
 ## Pourquoi ce skill
 
-Il ne manque pas de façons de libérer du disque —— apps GUI dédiées (CleanMyMac, OnyX, DaisyDisk), un prompt LLM brut (« hey Claude, nettoie mon Mac »), ou votre mémoire musculaire avec `rm -rf ~/Library/Caches`. Ce skill existe parce que les trois laissent des trous qui comptent sur un Mac de développeur.
+Il existe deux façons de libérer du disque sur un Mac, et les deux ont une limitation fondamentale :
+
+**Les nettoyeurs GUI classiques** (CleanMyMac, OnyX, DaisyDisk) fonctionnent à partir de **listes de chemins codées en dur**. Cela traite les évidences —— `~/Library/Caches`, logs, vieux installateurs —— mais passe à côté de la majeure partie de ce qui mange vraiment le disque sur un Mac de développeur : 40 Go de poids HuggingFace, 12 Go de modèles Ollama, des `node_modules` éparpillés dans des projets morts, versions non actives de `pyenv` / `nvm`, runtimes de simulateur iOS morts. Le nettoyeur ne peut pas lire votre `.python-version` ni votre `.nvmrc`, ne distingue pas `build/` de `src/`, ne différencie pas un artefact fraîchement compilé qui compte du cache pur. Les règles fixes manquent la majeure partie de ce qu'un LLM pourrait gérer avec du contexte.
+
+**Un prompt LLM brut** (« hey Claude, nettoie mon Mac ») a exactement l'intelligence qui manque au GUI —— le modèle *peut* lire les fichiers de projet, comprendre les conventions, prendre des décisions. Mais cette même flexibilité le rend **dangereux sans garde-fous** : une hallucination confiante et le modèle lance `rm -rf` sur votre `.git`, votre `.env`, vos Keychains, ou l'historique d'éditions non sauvegardées de VSCode. Aucune liste de refus déterministe, aucune gradation de risque par élément, aucune redaction avant que le modèle voie vos chemins, aucune comptabilité honnête de ce qui est vraiment sorti du disque.
+
+**Ce skill combine le jugement du LLM avec une couche de sécurité déterministe.** L'agent prend les décisions intelligentes que le nettoyeur GUI ne peut pas —— dispatcher Ollama par modèle avec comptage de références aux blobs partagés, lecture de `.nvmrc` pour sauter la version de Node active, rétrogradation des entrées `DeviceSupport/` dont le major.minor correspond à un appareil iOS actuellement apparié. Mais chaque écriture passe par `safe_delete.py` dont la blocklist refuse `.git` / `.ssh` / Keychains / `.env*` / état d'éditeur non sauvegardé **quoi que dise l'agent**. Le risque est gradué L1–L4 avec confirmation par élément à partir de L2, les chemins sont redactés en `source_label` + `category` avant d'atteindre le rapport, et le nombre de récupération est divisé entre ce qui est vraiment sorti du disque et ce qui est encore dans la Corbeille.
+
+Dimension par dimension :
 
 | Ce qui vous importe | Nettoyeur GUI classique | Prompt LLM brut | Ce skill |
 | --- | --- | --- | --- |
@@ -60,8 +68,6 @@ Il ne manque pas de façons de libérer du disque —— apps GUI dédiées (Cle
 | **Audit et ré-exécution** | Habituellement aucun | Transcript du chat seulement | `actions.jsonl` append-only par exécution. Idempotent —— les chemins déjà absents deviennent `skip/success`, réexécuter sur le même workdir est sûr |
 | **Dry-run** | Rare ou payant | Demander au modèle « ne le fais pas vraiment » | Citoyen de première classe —— toutes les étapes s'exécutent, `safe_delete.py` n'écrit rien, le rapport affiche un bandeau `DRY-RUN` |
 | **Ouverture** | Produit commercial à code fermé | Pas de guardrails au niveau du code | Apache-2.0, zéro dépendance pip, commandes macOS pures + Python stdlib |
-
-Version courte : **les nettoyeurs GUI sont sûrs mais opaques et gonflent le chiffre. Un LLM brut est flexible mais fera volontiers un `rm -rf` au mauvais endroit. Ce skill garde la flexibilité du LLM et ajoute les guardrails** —— blocklist déterministe dans le code, une couche de redaction que le modèle ne peut pas contourner, et comptabilité honnête pour que le nombre sur la carte de partage soit le nombre qui est vraiment sorti du disque.
 
 ---
 

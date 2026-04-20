@@ -48,7 +48,15 @@ Full report (Impact Summary · Breakdown · Detailed Log · Observations · Run 
 
 ## Why this skill
 
-Plenty of ways to free up disk already exist — dedicated GUI apps (CleanMyMac, OnyX, DaisyDisk), a raw LLM prompt ("hey Claude, clean up my Mac"), or your own muscle memory with `rm -rf ~/Library/Caches`. This skill exists because all three leave gaps that matter on a developer Mac:
+There are two existing ways to free up disk on a Mac, and both have a fundamental limitation:
+
+**Traditional GUI cleaners** (CleanMyMac, OnyX, DaisyDisk) work from **hard-coded path lists**. That handles the obvious stuff — `~/Library/Caches`, logs, old installers — but it misses most of what's actually eating disk on a developer Mac: 40 GB of HuggingFace weights, 12 GB of Ollama models, `node_modules` scattered across dead projects, non-active `pyenv`/`nvm` versions, dead iOS simulator runtimes. The cleaner can't read your `.python-version` or `.nvmrc`, can't tell `build/` from `src/`, can't distinguish a freshly-compiled artifact you care about from pure cache. Fixed rules miss most of what an LLM could handle with context.
+
+**A raw LLM prompt** ("hey Claude, clean up my Mac") has exactly the intelligence the GUI tool lacks — it *can* read project files, understand conventions, make judgment calls. But the same flexibility makes it **dangerous without guardrails**: one confident hallucination and the model runs `rm -rf` on your `.git`, your `.env`, your Keychains, or VSCode's unsaved-edits history. No deterministic refuse list, no per-item risk grading, no redaction before the model sees your paths, no honest accounting of what actually left the disk.
+
+**This skill combines LLM judgment with a deterministic safety layer.** The agent makes the smart calls a GUI cleaner can't — per-model Ollama dispatching with shared-blob refcounting, reading `.nvmrc` to skip the active Node version, downgrading `DeviceSupport/` entries that match a currently paired iOS device. But every write routes through `safe_delete.py` whose blocklist refuses `.git` / `.ssh` / Keychains / `.env*` / unsaved editor state **regardless of what the agent says**. Risk is graded L1–L4 with per-item confirmation at L2+, paths are redacted to `source_label` + `category` before reaching the report, and the reclaim number is split into what actually left the disk vs what's still in the Trash.
+
+Dimension by dimension:
 
 | What you care about | Traditional GUI cleaner | Plain LLM prompt | This skill |
 | --- | --- | --- | --- |
@@ -60,8 +68,6 @@ Plenty of ways to free up disk already exist — dedicated GUI apps (CleanMyMac,
 | **Audit & re-run** | Typically none | Chat transcript only | Append-only `actions.jsonl` per run. Idempotent — already-gone paths become `skip/success`, re-running the same workdir is safe |
 | **Dry-run** | Rare or paywalled | Asks the model to "not really do it" | First-class — every stage runs, `safe_delete.py` writes nothing, report is banner-tagged `DRY-RUN` |
 | **Openness** | Closed-source commercial product | No source-level guardrails | Apache-2.0, zero pip deps, pure macOS commands + Python stdlib |
-
-The short version: **GUI cleaners are safe but opaque and inflate the number. A raw LLM is flexible but will happily `rm -rf` the wrong thing. This skill keeps the LLM's flexibility and adds the guardrails** — a deterministic blocklist in code, a redaction layer the model can't bypass, and honest accounting so the number on the share card is the number that actually came off the disk.
 
 ---
 

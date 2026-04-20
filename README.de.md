@@ -48,7 +48,15 @@ Vollständiger Report (Wirkungsübersicht · Aufschlüsselung · Detailprotokoll
 
 ## Warum dieses Skill
 
-Es gibt schon viele Wege, Speicherplatz freizugeben —— spezialisierte GUI-Apps (CleanMyMac, OnyX, DaisyDisk), einen rohen LLM-Prompt („hey Claude, räum meinen Mac auf"), oder die Muskel-Erinnerung mit `rm -rf ~/Library/Caches`. Dieses Skill existiert, weil alle drei auf einem Entwickler-Mac Lücken lassen, die wichtig sind.
+Es gibt zwei bestehende Wege, auf einem Mac Speicherplatz freizugeben, und beide haben eine grundlegende Einschränkung:
+
+**Klassische GUI-Cleaner** (CleanMyMac, OnyX, DaisyDisk) arbeiten mit **fest codierten Pfadlisten**. Das funktioniert für Offensichtliches —— `~/Library/Caches`, Logs, alte Installer —— aber es verpasst den Großteil dessen, was auf einem Entwickler-Mac wirklich Platz frisst: 40 GB HuggingFace-Gewichte, 12 GB Ollama-Modelle, `node_modules` verstreut in toten Projekten, nicht aktive `pyenv` / `nvm`-Versionen, tote iOS-Simulator-Runtimes. Der Cleaner kann deine `.python-version` oder `.nvmrc` nicht lesen, kann `build/` nicht von `src/` unterscheiden, kann ein frisch kompiliertes Artefakt, das du brauchst, nicht von reinem Cache abgrenzen. Feste Regeln verpassen das meiste, was ein LLM mit Kontext handhaben könnte.
+
+**Ein roher LLM-Prompt** („hey Claude, räum meinen Mac auf") hat genau die Intelligenz, die dem GUI-Tool fehlt —— das Modell *kann* Projektdateien lesen, Konventionen verstehen, Urteile fällen. Doch dieselbe Flexibilität macht es **gefährlich ohne Guardrails**: eine selbstsichere Halluzination, und das Modell führt `rm -rf` auf deine `.git`, deine `.env`, deine Keychains oder VSCodes ungespeicherte Bearbeitungshistorie aus. Keine deterministische Refuse-Liste, keine Risiko-Einstufung pro Eintrag, keine Redaction, bevor das Modell deine Pfade sieht, keine ehrliche Abrechnung darüber, was wirklich den Datenträger verlassen hat.
+
+**Dieses Skill verbindet das LLM-Urteil mit einer deterministischen Sicherheitsschicht.** Der Agent trifft die klugen Entscheidungen, die ein GUI-Cleaner nicht kann —— Pro-Modell Ollama-Dispatcher mit Shared-Blob-Referenzzählung, Lesen von `.nvmrc` zum Überspringen der aktiven Node-Version, Abstufung von `DeviceSupport/`-Einträgen, deren major.minor einem derzeit gekoppelten iOS-Gerät entspricht. Aber jede Schreiboperation läuft durch `safe_delete.py`, dessen Blocklist `.git` / `.ssh` / Keychains / `.env*` / ungespeicherten Editor-Status verweigert — **egal was der Agent sagt**. Das Risiko wird L1–L4 eingestuft mit Eintrag-für-Eintrag-Bestätigung ab L2, Pfade werden vor dem Bericht auf `source_label` + `category` redaktiert, und die Rückgewinnungszahl wird aufgeteilt in "wirklich vom Datenträger weg" vs "noch im Papierkorb".
+
+Dimension für Dimension:
 
 | Was dich interessiert | Klassischer GUI-Cleaner | Roher LLM-Prompt | Dieses Skill |
 | --- | --- | --- | --- |
@@ -60,8 +68,6 @@ Es gibt schon viele Wege, Speicherplatz freizugeben —— spezialisierte GUI-Ap
 | **Audit & Wiederholung** | Meist keines | Nur Chat-Transkript | Append-only `actions.jsonl` pro Lauf. Idempotent —— bereits verschwundene Pfade werden zu `skip/success`, Wiederholung auf dem gleichen Workdir ist sicher |
 | **Dry-run** | Selten oder zahlungspflichtig | Das Modell bitten „tu es nicht wirklich" | Erste Klasse —— alle Stufen laufen, `safe_delete.py` schreibt nichts, der Bericht trägt ein `DRY-RUN`-Banner |
 | **Offenheit** | Closed-Source kommerzielles Produkt | Keine Guardrails auf Quellcode-Ebene | Apache-2.0, null pip-Abhängigkeiten, reine macOS-Befehle + Python stdlib |
-
-Kurz gesagt: **GUI-Cleaner sind sicher, aber undurchsichtig und blähen die Zahl auf. Ein roher LLM ist flexibel, wird aber bereitwillig das Falsche per `rm -rf` löschen. Dieses Skill bewahrt die Flexibilität des LLMs und fügt die Guardrails hinzu** —— eine deterministische Blocklist im Code, eine Redaction-Schicht, die das Modell nicht umgehen kann, und ehrliche Abrechnung, damit die Zahl auf der Share-Karte die Zahl ist, die wirklich vom Datenträger verschwunden ist.
 
 ---
 
