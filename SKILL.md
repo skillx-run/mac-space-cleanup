@@ -454,6 +454,8 @@ The 9 numbered sub-steps below split into four phases:
    - `{pending_human} still in Trash` → `<span class="pending-size">{pending_human}</span> <span data-i18n="nextstep.pending.suffix">still in Trash</span>`
    - `{N} items` → `<span class="count">{N}</span> <span data-i18n="actions.count.suffix">items</span>`
 
+   **Class vocabulary is closed.** The class names in the snippets below are the complete set the agent may emit inside fill regions. Do **not** invent new class names — every class must appear in `assets/report.css`. `validate_report.py` runs a class-allowlist lint after render and will flag any unknown class as `undefined_class`. If a new visual element is ever needed, it must land as a coordinated `report.css` + `SKILL.md` + test change — not a one-off improvisation during rendering.
+
    **Filling rules for each region:**
 
    - `<!-- region:hero:start -->` … `<!-- region:hero:end -->`: a `.hero-body` wrapper containing exactly two blocks — (1) a `<p class="hero-headline">` with the `freed_now` number and a unit span; (2) a `<p class="hero-caption">` one-line prose summary in `$LOCALE` weaving in device / os / duration. EN example: `Clean run on <strong>MacBook Pro</strong>, macOS 14.5, in 2m 14s.`. Do **not** add meta chips, risk-level chips, or a pending-in-trash chip here — the full device / os / duration / run_id breakdown lives in `runmeta`, L1-L4 risk distribution lives in the `.risk-meter` inside `runmeta`, and the pending-in-trash number has its own big callout inside `nextstep`'s CTA card. Keeping hero minimal is deliberate.
@@ -476,7 +478,42 @@ The 9 numbered sub-steps below split into four phases:
      ```
      `{encoded_share_txt}` is the URL-encoded content of `$WORKDIR/share.txt` (produced in step 6). The button label goes through the dict via `data-i18n="share.btn"`. The allowed content in the tweet is still: reclaimed, mode, top-3 categories, mac-space-cleanup, @heyiamlin, hashtags.
 
-   - `<!-- region:impact:start -->` … `<!-- region:impact:end -->`: an `.impact-grid` with two `.impact-card`s. First card: a `.water-bar` comparing `free_before → free_after`; each segment gets an inline `style="width:N%"` — `.used-before` = `(total - free_before)/total * 100`, `.freed-delta` = `freed_now/total * 100`, `.free-after` = `(free_after - freed_now)/total * 100`, and a `.water-legend` below with the before/after free-space labels. Second card: a `.stack-bar` of `freed_now_bytes` broken down by category, each `<span>` getting `style="flex-basis:N%"` as a percent of `freed_now_bytes`, followed by a `.stack-legend` with the top five categories (`source_label` rendered in `$LOCALE`).
+   - `<!-- region:impact:start -->` … `<!-- region:impact:end -->`: an `.impact-grid` with two `.impact-card`s.
+
+     **Card 1 — water-bar** (comparing `free_before → free_after`):
+     ```html
+     <div class="impact-card">
+       <div class="water-bar">
+         <span class="used-before" style="width:{A}%"></span>
+         <span class="freed-delta" style="width:{B}%"></span>
+         <span class="free-after"  style="width:{C}%"></span>
+       </div>
+       <p class="water-legend">
+         <span><b>{free_before_human}</b> <span data-i18n="runmeta.label.free_before">Free before</span></span>
+         <span><b>{free_after_human}</b>  <span data-i18n="runmeta.label.free_after">Free after</span></span>
+       </p>
+     </div>
+     ```
+     `A` = `(total - free_before)/total * 100`; `B` = `freed_now/total * 100`; `C` = `(free_after - freed_now)/total * 100`.
+
+     **Card 2 — stack-bar + stack-legend** (top five categories of `freed_now_bytes`). **Use the CSS-defined `.seg-1..5` classes; do not emit inline `background` colour** — the design system's `--seg-1..5` palette owns the hues.
+     ```html
+     <div class="impact-card">
+       <div class="stack-bar">
+         <span class="seg-1" style="flex-basis:{P1}%" title="{label1}"></span>
+         <span class="seg-2" style="flex-basis:{P2}%" title="{label2}"></span>
+         <span class="seg-3" style="flex-basis:{P3}%" title="{label3}"></span>
+         <span class="seg-4" style="flex-basis:{P4}%" title="{label4}"></span>
+         <span class="seg-5" style="flex-basis:{P5}%" title="{label5}"></span>
+         <span class="seg-rest" style="flex-basis:{P_rest}%"></span>
+       </div>
+       <ul class="stack-legend">
+         <li><span class="swatch seg-1"></span><span class="name">{label1}</span><span class="bytes">{bytes1}</span></li>
+         <!-- repeat for seg-2 … seg-5 -->
+       </ul>
+     </div>
+     ```
+     Fewer than 5 categories? Emit only the populated `<li>`s and segments; do not emit empty ones (they still reserve padding).
 
    - `<!-- region:nextstep:start -->` … `<!-- region:nextstep:end -->`: **three fill modes**, chosen by `$WORKDIR/dry_run.txt` first, then `pending_in_trash_bytes`. All prose is written in `$LOCALE`.
      - **`DRY_RUN=true`** (regardless of pending bytes) — a real dry-run never touches `~/.Trash`, so claiming items are "still in Trash" would be a factual lie and an Empty Trash command would be nonsensical. Render a predict-only info block instead; do **not** emit `<code class="empty-cmd">` or `<p class="auto-note">`:
@@ -494,13 +531,118 @@ The 9 numbered sub-steps below split into four phases:
        3. `<p class="auto-note"><span data-i18n="nextstep.auto.dialog">Running the command above will trigger a Finder confirmation dialog — click 'Empty Trash' there to actually clear it.</span> <span data-i18n="nextstep.auto.thirty">macOS auto-empties 30 days after items enter the Trash if you've enabled Finder → Settings → Advanced → 'Remove items from the Trash after 30 days'.</span></p>`. Both sentences go through the dict for non-English locales.
      - **`DRY_RUN=false` and `pending_in_trash_bytes == 0`** — a single line: `<p class="all-good" data-i18n="nextstep.allgood">All freed bytes are immediately reclaimed — no follow-up needed.</p>`. Do not leave the placeholder hint visible.
 
-   - `<!-- region:distribution:start -->` … `<!-- region:distribution:end -->`: a `.dist-grid` with one `.dist-card--detailed` per category, each containing a `.dist-title` (source_label rendered in `$LOCALE`), a three-column `.dist-metrics` row (pre-clean / freed / remaining — label + value), and a `.dist-inline-bar` showing `freed / pre-clean` as an inline `style="width:N%"`.
+   - `<!-- region:distribution:start -->` … `<!-- region:distribution:end -->`: a `.dist-grid` with one `.dist-card--detailed` per category. **Use the CSS-defined `.metric-label` / `.metric-value` / `.metric-value.freed` class names**, not improvised shorthands. Metric column labels (pre-clean / freed / remaining) are **per-run prose in `$LOCALE`** — write them inline, do **not** route through the i18n dict (mirrors how `mode_label` / `action_title` are handled):
+     ```html
+     <div class="dist-card--detailed">
+       <div class="dist-header">
+         <div class="dist-title">{source_label in $LOCALE}</div>
+         <div class="dist-metrics">
+           <div>
+             <div class="metric-label">{preclean_label in $LOCALE}</div>
+             <div class="metric-value">{preclean_human}</div>
+           </div>
+           <div>
+             <div class="metric-label">{freed_label in $LOCALE}</div>
+             <div class="metric-value freed">{freed_human}</div>
+           </div>
+           <div>
+             <div class="metric-label">{remaining_label in $LOCALE}</div>
+             <div class="metric-value">{remaining_human}</div>
+           </div>
+         </div>
+       </div>
+       <div class="dist-inline-bar"><span style="width:{freed_over_preclean}%"></span></div>
+     </div>
+     ```
+     Label vocabulary by locale — EN `Pre-clean` / `Freed` / `Remaining`; zh-CN `清理前` / `已释放` / `剩余`; ja `削減前` / `解放` / `残り`; pick the natural UI wording for other locales. Keep each label short (≤ ~12 display columns) so the three metrics fit one row on desktop.
 
-   - `<!-- region:actions:start -->` … `<!-- region:actions:end -->`: one `<details class="actions-group">` per action type that has at least one row (auto-cleaned / confirmed / archived / migrated / deferred / skipped / failed), each opening to a `.actions-list` whose `.actions-row` children have four columns. The `cat` cell holds the `source_label` rendered in `$LOCALE`; `size` is a bare human string; `act` is the badge (class one of `auto / trash / archive / migrate / defer / skip / failed`); `reason` is a one-line sentence in `$LOCALE` (no paths). The `<summary>` should carry a `.group-meta` span showing `<span class="count">{N}</span> <span data-i18n="actions.count.suffix">items</span>` + aggregate bytes. If you want to include the column headers (`cat / size / act / reason`) inside the `<details>` body, hang each on `data-i18n="actions.col.*"`.
+   - `<!-- region:actions:start -->` … `<!-- region:actions:end -->`: one `<details class="actions-group">` per action type that has at least one row (auto-cleaned / confirmed / archived / migrated / deferred / skipped / failed). **Use the CSS-defined `.act` + modifier class names** (`.act.auto / .trash / .archive / .migrate / .defer / .skip / .failed`), not `.badge.*`:
+     ```html
+     <details class="actions-group" open>
+       <summary>
+         <span>{action_title in $LOCALE, e.g. "Auto-cleaned"}</span>
+         <span class="group-meta">
+           <span class="count">{N}</span> <span data-i18n="actions.count.suffix">items</span>
+           · {aggregate_bytes_human}
+         </span>
+       </summary>
+       <ul class="actions-list">
+         <li class="actions-row">
+           <span class="cat">{source_label in $LOCALE}</span>
+           <span class="size">{size_human}</span>
+           <span class="act auto">{act_label in $LOCALE}</span>
+           <span class="reason">{reason_sentence in $LOCALE}</span>
+         </li>
+         <!-- more rows … -->
+       </ul>
+     </details>
+     ```
+     **Do not emit a column-header row** (no `.actions-head`, no `<li class="actions-row header">`). The `<summary>` already conveys the group's identity (e.g. `Auto-cleaned · 101 items · 59.18 GB`); a separate header row duplicates semantically and invites an extra class outside the allowlist. Column roles are carried by cell classes (`.cat / .size / .act / .reason`) alone.
 
-   - `<!-- region:observations:start -->` … `<!-- region:observations:end -->`: an `.observations-grid` with two `.observations-col`s. Left column `<h3 data-i18n="section.obs.deferred">You deferred</h3>` lists aggregated `deferred.jsonl` entries (by category). Right column `<h3 data-i18n="section.obs.worth">Worth a look</h3>` lists L3/L4 items that were surfaced but not acted on. Each row uses `.observations-list` with `.label` (category source_label in `$LOCALE`) + `.rec` (one-line recommendation in `$LOCALE`) + `.size`. If either side is legitimately empty, emit a `<p class="empty-note" data-i18n="section.obs.empty">Nothing here.</p>` — **not** `.hint`, which is reserved for unfilled template placeholders and is styled as a dashed "missing content" box that would misrepresent an intentional empty column.
+   - `<!-- region:observations:start -->` … `<!-- region:observations:end -->`: an `.observations-grid` with two `.observations-col`s. Left column lists aggregated `deferred.jsonl` entries (by category); right column lists L3/L4 items surfaced but not acted on. **Use `<ul class="observations-list"><li>` — not `.observations-row` divs.** Each `<li>` carries three children: `.label` (category source_label in `$LOCALE`) + `.rec` (one-line recommendation in `$LOCALE`) + `.size`.
+     ```html
+     <div class="observations-grid">
+       <div class="observations-col">
+         <h3 data-i18n="section.obs.deferred">You deferred</h3>
+         <ul class="observations-list">
+           <li>
+             <span class="label">{source_label in $LOCALE}</span>
+             <span class="rec">{recommendation in $LOCALE}</span>
+             <span class="size">{size_human}</span>
+           </li>
+           <!-- … -->
+         </ul>
+       </div>
+       <div class="observations-col">
+         <h3 data-i18n="section.obs.worth">Worth a look</h3>
+         <ul class="observations-list"><!-- … --></ul>
+       </div>
+     </div>
+     ```
+     If either side is legitimately empty, replace the `<ul>` with `<p class="empty-note" data-i18n="section.obs.empty">Nothing here.</p>` — **not** `.hint` (which is reserved for unfilled template placeholders and is styled as a dashed "missing content" box that would misrepresent an intentional empty column).
 
-   - `<!-- region:runmeta:start -->` … `<!-- region:runmeta:end -->`: a `<dl class="runmeta-grid">` with rows for `run_id` (wrap the value in `<code>`), `mode`, `started_at`, `finished_at` and duration, `host_info` (`device` / `os` / `free_before` / `free_after`), plus a `.risk-meter-label`, a `.risk-meter` with four `<span class="seg-l{1..4}">` segments (inline `style="flex-basis:N%"` of the L-level's bytes over the scanned total; include `<span class="glyph">●/▲/■/✕</span>` + byte text inside), and a `.risk-meter-legend`. Each `<dt>` uses `data-i18n="runmeta.label.*"` (`run_id` / `mode` / `started` / `finished` / `duration` / `device` / `os` / `free_before` / `free_after`); the `.risk-meter-label` uses `data-i18n="risk.meter.label"` and each legend chip uses `data-i18n="risk.legend.l1..l4"`. `<dd>` values (IDs, dates, byte strings) are bare — they read identically across locales. The `mode` value is a short label; write it in `$LOCALE` directly (e.g. EN `Quick Clean`, zh `快速清理`, ja `クイック清掃`) rather than routing through the dict — it's a per-run string, not a static template label.
+   - `<!-- region:runmeta:start -->` … `<!-- region:runmeta:end -->`:
+     ```html
+     <dl class="runmeta-grid">
+       <dt data-i18n="runmeta.label.run_id">Run ID</dt>     <dd><code>{run_id}</code></dd>
+       <dt data-i18n="runmeta.label.mode">Mode</dt>         <dd>{mode_label in $LOCALE}</dd>
+       <dt data-i18n="runmeta.label.started">Started</dt>   <dd>{started_at}</dd>
+       <dt data-i18n="runmeta.label.finished">Finished</dt> <dd>{finished_at}</dd>
+       <dt data-i18n="runmeta.label.duration">Duration</dt> <dd>{duration_human}</dd>
+       <dt data-i18n="runmeta.label.device">Device</dt>     <dd>{device}</dd>
+       <dt data-i18n="runmeta.label.os">macOS</dt>          <dd>{os}</dd>
+       <dt data-i18n="runmeta.label.free_before">Free before</dt> <dd>{free_before_human}</dd>
+       <dt data-i18n="runmeta.label.free_after">Free after</dt>   <dd>{free_after_human}</dd>
+     </dl>
+
+     <div class="risk-meter-label" data-i18n="risk.meter.label">Risk distribution</div>
+     <div class="risk-meter">
+       <span class="seg-l1" style="flex-basis:{P_L1}%" title="{bytes_L1_human}">
+         <span class="glyph">●</span><span class="seg-text">{bytes_L1_human}</span>
+       </span>
+       <span class="seg-l2" style="flex-basis:{P_L2}%" title="{bytes_L2_human}">
+         <span class="glyph">▲</span><span class="seg-text">{bytes_L2_human}</span>
+       </span>
+       <span class="seg-l3" style="flex-basis:{P_L3}%" title="{bytes_L3_human}">
+         <span class="glyph">■</span><span class="seg-text">{bytes_L3_human}</span>
+       </span>
+       <span class="seg-l4" style="flex-basis:{P_L4}%" title="{bytes_L4_human}">
+         <span class="glyph">✕</span><span class="seg-text">{bytes_L4_human}</span>
+       </span>
+     </div>
+     <div class="risk-meter-legend">
+       <span class="legend-chip l1"><span class="swatch l1"></span><span data-i18n="risk.legend.l1">L1 safe to clean</span></span>
+       <span class="legend-chip l2"><span class="swatch l2"></span><span data-i18n="risk.legend.l2">L2 review</span></span>
+       <span class="legend-chip l3"><span class="swatch l3"></span><span data-i18n="risk.legend.l3">L3 caution</span></span>
+       <span class="legend-chip l4"><span class="swatch l4"></span><span data-i18n="risk.legend.l4">L4 hold</span></span>
+     </div>
+     ```
+     `<dd>` values (IDs, dates, byte strings) are bare — they read identically across locales. The `mode` value is a short label; write it in `$LOCALE` directly (e.g. EN `Quick Clean`, zh `快速清理`, ja `クイック清掃`) rather than routing through the dict — it's a per-run string, not a static template label.
+
+     **Risk-meter segment text-collapse rule** (agent-side; there is intentionally no CSS attribute selector for this):
+     - When `P_L{N} < 5` (percent), omit `<span class="seg-text">` and keep only `<span class="glyph">`. The `title` attribute still carries the full byte count for hover.
+     - When `bytes_L{N} == 0`, omit the entire `<span class="seg-l{N}">` from the bar (CSS `gap` handles the spacing of the remaining segments). Keep all four legend chips regardless — the legend is the reader's orientation key, not a per-run inventory.
+     - `title` is a bare byte count (e.g. `"59.18 GB"`). **Do not prefix with `"L1: "` / `"L2: "` etc.** — the class name + glyph + legend colour already encode the level, and hard-coded English prefixes read poorly in non-English locales while having no i18n key to hang on.
 
    **Budget**: keep the combined inserted HTML under ~280 lines.
 
