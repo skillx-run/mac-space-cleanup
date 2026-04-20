@@ -453,5 +453,214 @@ class TestValidateReport(unittest.TestCase):
         self.assertIn("nonexistent.canonical.key", details)
 
 
+def _well_formed_html_with_classes(classes: str) -> str:
+    """Extend `_well_formed_html` with a region whose inner element
+    carries a given class attribute. The target region (`impact`) is
+    chosen because the helper always emits every region as a tiny
+    `<p>filled X</p>` block; replacing impact's block with one that
+    carries our class attribute keeps every other region intact."""
+    base = _well_formed_html()
+    return base.replace(
+        "<!-- region:impact:start --><p>filled impact</p><!-- region:impact:end -->",
+        f'<!-- region:impact:start --><p class="{classes}">filled impact</p><!-- region:impact:end -->',
+    )
+
+
+class TestClassAllowlist(unittest.TestCase):
+    """Cover the class allowlist lint from both sides: the HTML-side
+    recognition of known vs unknown classes, and the CSS-side parser's
+    ability to weather comments, quoted literals, grouped / multi-line /
+    media-nested selectors."""
+
+    def setUp(self):
+        # Mirror the root test class: empty runtime forbidden list so
+        # tests don't pick up the current user's home / username.
+        patcher = mock.patch.object(
+            validate_report, "_runtime_forbidden", return_value=[])
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _run_with_css(self, html: str, css: str):
+        with tempfile.TemporaryDirectory() as td:
+            css_path = Path(td) / "report.css"
+            css_path.write_text(css)
+            report = Path(td) / "report.html"
+            report.write_text(html)
+            with mock.patch.object(
+                    validate_report, "_REPORT_CSS_PATH", css_path):
+                return _run(report)
+
+    # ---------- HTML recognition ----------
+
+    def test_known_classes_pass(self):
+        """A class attribute listing only CSS-defined tokens passes the
+        lint. We reuse live `report.css` so the test also doubles as a
+        smoke check that it has not gone stale."""
+        html = _well_formed_html_with_classes("hero-body stack-bar seg-1")
+        with tempfile.TemporaryDirectory() as td:
+            report = Path(td) / "report.html"
+            report.write_text(html)
+            code, out, _ = _run(report)
+        self.assertEqual(code, 0, msg=out)
+        kinds = [v["kind"] for v in out["violations"]]
+        self.assertNotIn("undefined_class", kinds)
+
+    def test_unknown_class_flags(self):
+        """An improvised class (no CSS rule) produces one
+        `undefined_class` violation with the class name quoted in
+        detail."""
+        html = _well_formed_html_with_classes("legend-item")
+        with tempfile.TemporaryDirectory() as td:
+            report = Path(td) / "report.html"
+            report.write_text(html)
+            code, out, _ = _run(report)
+        self.assertEqual(code, 1)
+        details = [v["detail"] for v in out["violations"]
+                   if v["kind"] == "undefined_class"]
+        self.assertTrue(
+            any("'legend-item'" in d for d in details),
+            msg=f"expected 'legend-item' mention in {details}",
+        )
+
+    def test_multiple_unknown_classes_each_reported(self):
+        """Three improvised classes in one attribute flag three times;
+        the alphabetical sort keeps output stable across platforms."""
+        html = _well_formed_html_with_classes("zeta alpha gamma")
+        with tempfile.TemporaryDirectory() as td:
+            report = Path(td) / "report.html"
+            report.write_text(html)
+            code, out, _ = _run(report)
+        self.assertEqual(code, 1)
+        undef = [v["detail"] for v in out["violations"]
+                 if v["kind"] == "undefined_class"]
+        self.assertEqual(len(undef), 3)
+        # Alphabetical order -> alpha, gamma, zeta.
+        self.assertIn("'alpha'", undef[0])
+        self.assertIn("'gamma'", undef[1])
+        self.assertIn("'zeta'", undef[2])
+
+    def test_mixed_known_unknown_class_attr(self):
+        """When one class in the attr is known and another is not,
+        only the unknown one is flagged."""
+        html = _well_formed_html_with_classes("seg-1 legend-item")
+        with tempfile.TemporaryDirectory() as td:
+            report = Path(td) / "report.html"
+            report.write_text(html)
+            code, out, _ = _run(report)
+        self.assertEqual(code, 1)
+        undef = [v["detail"] for v in out["violations"]
+                 if v["kind"] == "undefined_class"]
+        self.assertEqual(len(undef), 1)
+        self.assertIn("'legend-item'", undef[0])
+
+    def test_whitespace_normalized_in_class_attr(self):
+        """Leading, trailing, and extra internal whitespace between
+        class tokens does not produce phantom empty-string classes."""
+        html = _well_formed_html_with_classes("  seg-1   seg-2  ")
+        with tempfile.TemporaryDirectory() as td:
+            report = Path(td) / "report.html"
+            report.write_text(html)
+            code, out, _ = _run(report)
+        self.assertEqual(code, 0, msg=out)
+        kinds = [v["kind"] for v in out["violations"]]
+        self.assertNotIn("undefined_class", kinds)
+
+    def test_css_load_failure_reports_violation(self):
+        """If `report.css` can't be read, the lint emits a single
+        `css_load_failed` violation and fails overall rather than
+        crashing or silently passing."""
+        html = _well_formed_html_with_classes("seg-1")
+        with tempfile.TemporaryDirectory() as td:
+            report = Path(td) / "report.html"
+            report.write_text(html)
+            missing_css = Path(td) / "does-not-exist.css"
+            with mock.patch.object(
+                    validate_report, "_REPORT_CSS_PATH", missing_css):
+                code, out, _ = _run(report)
+        self.assertEqual(code, 1)
+        kinds = [v["kind"] for v in out["violations"]]
+        self.assertIn("css_load_failed", kinds)
+
+    # ---------- CSS parsing boundaries ----------
+
+    def test_css_block_comment_ignored(self):
+        """A class name appearing only inside a /* … */ block comment
+        is not considered defined — the real class still is."""
+        css = "/* .legacy-class does nothing */ .real-class { color: red; }"
+        html = _well_formed_html_with_classes("legacy-class")
+        code, out, _ = self._run_with_css(html, css)
+        self.assertEqual(code, 1)
+        undef = [v["detail"] for v in out["violations"]
+                 if v["kind"] == "undefined_class"]
+        self.assertTrue(any("'legacy-class'" in d for d in undef))
+
+    def test_css_quoted_literal_ignored(self):
+        """A `.foo` fragment inside a quoted attribute selector (e.g.
+        `[style*=".foo"]`) does not leak into the allowed set."""
+        css = '.seg-a[style*=".foo"] { background: red; }'
+        html = _well_formed_html_with_classes("foo")
+        code, out, _ = self._run_with_css(html, css)
+        self.assertEqual(code, 1)
+        undef = [v["detail"] for v in out["violations"]
+                 if v["kind"] == "undefined_class"]
+        self.assertTrue(any("'foo'" in d for d in undef))
+
+    def test_css_grouped_selector_all_classes_counted(self):
+        """Every class in a comma-separated selector group is
+        independently added to the allowed set."""
+        css = ".a, .b, .c { color: red; }"
+        html = _well_formed_html_with_classes("a b c")
+        code, out, _ = self._run_with_css(html, css)
+        self.assertEqual(code, 0, msg=out)
+        kinds = [v["kind"] for v in out["violations"]]
+        self.assertNotIn("undefined_class", kinds)
+
+    def test_css_multiline_selector_counted(self):
+        """Selector lists that span multiple lines with whitespace
+        still have each class parsed — the regex is line-agnostic."""
+        css = ".foo,\n  .bar {\n  color: red;\n}"
+        html = _well_formed_html_with_classes("foo bar")
+        code, out, _ = self._run_with_css(html, css)
+        self.assertEqual(code, 0, msg=out)
+        kinds = [v["kind"] for v in out["violations"]]
+        self.assertNotIn("undefined_class", kinds)
+
+    def test_css_media_query_nested_class_counted(self):
+        """Classes inside an @media block are discovered identically
+        to classes at the top level — the parser is unaware of
+        nesting, which is what we want for a pure allowlist check."""
+        css = "@media (max-width: 600px) { .mobile-only { display: block; } }"
+        html = _well_formed_html_with_classes("mobile-only")
+        code, out, _ = self._run_with_css(html, css)
+        self.assertEqual(code, 0, msg=out)
+        kinds = [v["kind"] for v in out["violations"]]
+        self.assertNotIn("undefined_class", kinds)
+
+    def test_lint_and_i18n_both_reported(self):
+        """When an HTML triggers both `undefined_class` and an i18n
+        dict violation, the validator surfaces both rather than
+        short-circuiting on the first."""
+        # Dict has a key that the template never references — stray.
+        stray_dict = (
+            '<script type="application/json" id="i18n-dict">'
+            '{"doc.title":"x"}'
+            '</script>'
+        )
+        base = _well_formed_html(i18n_dict=stray_dict)
+        # Inject an unknown class into the impact region.
+        html = base.replace(
+            "<!-- region:impact:start --><p>filled impact</p><!-- region:impact:end -->",
+            '<!-- region:impact:start --><p class="nonexistent-class">filled impact</p><!-- region:impact:end -->',
+        )
+        with tempfile.TemporaryDirectory() as td:
+            report = Path(td) / "report.html"
+            report.write_text(html)
+            code, out, _ = _run(report)
+        self.assertEqual(code, 1)
+        kinds = {v["kind"] for v in out["violations"]}
+        self.assertIn("undefined_class", kinds)
+        self.assertIn("i18n_dict_malformed", kinds)
+
+
 if __name__ == "__main__":
     unittest.main()
