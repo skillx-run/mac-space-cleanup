@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """validate_report.py — deterministic post-render check for report.html.
 
-Three responsibilities:
+Four responsibilities:
   1. Structural: every paired region marker has been replaced with real
      content (no leftover `<p class="hint">` placeholder strings, no
      unfilled markers).
@@ -14,6 +14,9 @@ Three responsibilities:
      key must appear as a `data-i18n` attribute in the template, and
      every template `data-i18n` key must exist in the canonical
      `assets/i18n/strings.json`.
+  4. Class allowlist: every class name appearing in a rendered class=""
+     attribute must have a matching rule in `assets/report.css`. This
+     catches agent-invented classes that would render unstyled.
 
 Dry-run reports additionally require a structural marker: a sticky
 `.dry-banner[data-dryrun="true"]` element and at least one
@@ -103,6 +106,28 @@ _STRINGS_JSON_PATH = (
     Path(__file__).resolve().parent.parent / "assets" / "i18n" / "strings.json"
 )
 
+# Source of truth for the class allowlist. Any class name used in a
+# rendered class="..." attribute must have a rule in this file.
+# Tests may patch this constant to point at a fixture CSS file.
+_REPORT_CSS_PATH = (
+    Path(__file__).resolve().parent.parent / "assets" / "report.css"
+)
+
+# Classes the lint should accept even if they have no CSS rule of their
+# own. The six <section> region anchors are part of the template skeleton
+# (`report-template.html`); visually they inherit from the `section` tag
+# rule, and their class names exist so the agent and validator can locate
+# each region. Keep this set tight — relaxing the allowlist blunts the
+# check.
+_CLASS_WHITELIST: frozenset[str] = frozenset({
+    "nextstep",
+    "impact",
+    "distribution",
+    "actions",
+    "observations",
+    "runmeta",
+})
+
 # Dry-run structural markers.
 _DRY_RUN_BANNER_RE = re.compile(
     r'<[^>]+class="[^"]*\bdry-banner\b[^"]*"[^>]*\bdata-dryrun\s*=\s*"true"[^>]*>'
@@ -122,6 +147,19 @@ _I18N_DICT_RE = re.compile(
 # Pull every data-i18n="..."> key reference out of the rendered HTML.
 # This is the set of keys the template asks the dict to fill.
 _DATA_I18N_RE = re.compile(r'\bdata-i18n\s*=\s*"([^"]+)"')
+
+# Class allowlist parsing. Applied to preprocessed CSS (comments and
+# quoted string literals removed), so `/* .legacy */` and `[style*=".foo"]`
+# don't leak classes into the allowed set. Pseudo-classes / pseudo-elements
+# (`:hover` / `::before` / `:where(...)`) don't start with `.`, so the
+# pattern naturally skips them.
+_CSS_CLASS_RE = re.compile(r"\.([a-zA-Z_][\w-]*)")
+_CSS_COMMENT_RE = re.compile(r"/\*.*?\*/", re.DOTALL)
+_CSS_DOUBLE_STRING_RE = re.compile(r'"[^"\\]*(?:\\.[^"\\]*)*"')
+_CSS_SINGLE_STRING_RE = re.compile(r"'[^'\\]*(?:\\.[^'\\]*)*'")
+
+# Pull the contents of every class="..." attribute from the rendered HTML.
+_HTML_CLASS_ATTR_RE = re.compile(r'\bclass\s*=\s*"([^"]*)"')
 
 
 def _load_strings_json_keys() -> tuple[set[str] | None, str | None]:
@@ -214,6 +252,54 @@ def _check_i18n_dict(html: str) -> list[dict[str, str]]:
     return violations
 
 
+def _extract_allowed_classes(css: str) -> set[str]:
+    """Parse `report.css` and return the set of class names that have
+    at least one CSS rule. Preprocessing removes block comments and
+    quoted string literals first so their contents can't leak pseudo
+    classes into the allowed set."""
+    stripped = _CSS_COMMENT_RE.sub("", css)
+    stripped = _CSS_DOUBLE_STRING_RE.sub('""', stripped)
+    stripped = _CSS_SINGLE_STRING_RE.sub("''", stripped)
+    return set(_CSS_CLASS_RE.findall(stripped))
+
+
+def _extract_used_classes(html: str) -> set[str]:
+    """Return every class token that appears in a rendered class=""
+    attribute. Whitespace-separated tokens are split; empty attributes
+    contribute nothing."""
+    used: set[str] = set()
+    for value in _HTML_CLASS_ATTR_RE.findall(html):
+        for token in value.split():
+            if token:
+                used.add(token)
+    return used
+
+
+def _check_class_allowlist(html: str) -> list[dict[str, str]]:
+    """Every class in the rendered HTML must have a CSS rule.
+
+    Returns a single `css_load_failed` violation if `report.css` can't
+    be read, otherwise one `undefined_class` violation per offending
+    class name (sorted alphabetically for stable output).
+    """
+    try:
+        css = _REPORT_CSS_PATH.read_text(encoding="utf-8")
+    except OSError as e:
+        return [{
+            "kind": "css_load_failed",
+            "detail": f"cannot read report.css for class allowlist: {e}",
+        }]
+
+    allowed = _extract_allowed_classes(css)
+    used = _extract_used_classes(html)
+    extra = sorted(used - allowed - _CLASS_WHITELIST)
+    return [
+        {"kind": "undefined_class",
+         "detail": f"class {name!r} has no rule in report.css"}
+        for name in extra
+    ]
+
+
 def validate(
     report_path: Path,
     expect_dry_run: bool = False,
@@ -252,7 +338,11 @@ def validate(
     # 4. i18n dict integrity.
     violations.extend(_check_i18n_dict(html))
 
-    # 5. Dry-run structural marking (only when caller asserts a dry-run).
+    # 5. Class allowlist: every class="..." token must have a rule in
+    #    report.css (or be in the reserved _CLASS_WHITELIST).
+    violations.extend(_check_class_allowlist(html))
+
+    # 6. Dry-run structural marking (only when caller asserts a dry-run).
     if expect_dry_run:
         if not _DRY_RUN_BANNER_RE.search(html):
             violations.append({
