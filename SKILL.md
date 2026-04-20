@@ -77,15 +77,9 @@ Right-to-left scripts (`ar`, `he`, `fa`, `ur`): Stage 6 step 3.5 sets `<html dir
 
 **Dry-run detection.** Decide `DRY_RUN` from the triggering message and persist it next to `locale.txt` — Stage 5 and multiple Stage 6 branches read this flag, so it must be a single source of truth, not re-derived from conversation history each time:
 
-- `DRY_RUN=true` if the triggering message contains any of the following (case-insensitive). The list covers the 8 locales this skill produces reports for — non-English users can trigger a preview in their native language without forcing the ASCII `--dry-run` literal:
-  - English: `--dry-run`, `dry run`, `dry-run`
-  - Simplified Chinese: `预演`, `模拟`, `演练`
-  - Traditional Chinese: `預演`, `模擬`, `演練`
-  - Japanese: `ドライラン`, `予行演習`
-  - Spanish: `simulacro`, `prueba en seco`
-  - French: `essai à blanc`, `à blanc`
-  - Arabic: `تجربة جافة`
-  - German: `Probelauf`, `Trockenlauf`
+- `DRY_RUN=true` if the user's intent in the triggering message is to **preview / rehearse / simulate** cleanup without touching the filesystem. Read the message for that intent in whatever language the user wrote — the skill is localised into many languages and your natural-language understanding is more reliable here than any fixed keyword list. Explicit signals include the CLI-style `--dry-run` / `dry run` / `dry-run` flag, and phrases like "preview only", "don't actually delete", "show me what you'd remove", "只预演不要真删", "先不要真的删", "essai à blanc", "Probelauf", etc.
+- **Intent, not substring.** Do not trigger on a word that merely *happens to appear inside a cleanup target name*: "clean up my iOS **Simulator** caches" / "清理 iOS **模拟器** 缓存" is a request to delete real simulator runtimes (a Tier-B target), not a dry-run request, even though "simulator" / "模拟器" shares a root with "simulate" / "模拟".
+- When the intent is ambiguous, prefer `DRY_RUN=false` and rely on Stage 5's per-item L2+ confirmation prompts to catch any remaining hesitation.
 - Otherwise `DRY_RUN=false`.
 
 ```bash
