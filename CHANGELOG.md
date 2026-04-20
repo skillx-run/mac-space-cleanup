@@ -4,6 +4,16 @@ All notable changes to mac-space-cleanup. Newest first.
 
 ## Unreleased
 
+### Changed — v0.14 report visualization contract alignment
+
+- **`assets/report.css`**: thicken `.risk-meter` from 8 px to 32 px; fix `.risk-meter span` → `> span` so inner `.glyph` / `.seg-text` don't inherit full height; refactor `.dist-card--detailed` into a two-row `.dist-header` + `.dist-inline-bar` layout (with media query retarget); add `.legend-chip` / `.stack-legend .swatch.seg-1..5` / `.cta-card .pending-size` / `.group-meta .count` / tabular-nums on metric values.
+- **`SKILL.md` Stage 6 Step 4**: prose replaced with pinned HTML snippets for impact / distribution / actions / observations / runmeta regions; opens with a "class vocabulary is closed" clause. Substantive rule changes: stack-bar uses `.seg-1..5` palette (no inline colours); distribution metric labels are per-run `$LOCALE` prose (not i18n-dict-routed); actions uses `.act.*` (not `.badge.*`) and forbids column-header rows; observations is `<ul class="observations-list"><li>`; risk-meter segments carry glyph + `.seg-text`, with a `<5%` agent-side collapse rule and a bare-byte `title` (no `L1:` prefix).
+- **`scripts/validate_report.py`**: new `_check_class_allowlist` step. Parses `assets/report.css` (comments + quoted literals stripped) to derive allowed class names, diffs against every `class="..."` token in the rendered HTML, emits one `undefined_class` violation per offender. CSS read failure yields a single `css_load_failed`. `_CLASS_WHITELIST` carries the six `<section>` region anchors.
+- **`assets/i18n/strings.json`**: remove `actions.col.{cat,size,act,reason}` — orphaned by the no-column-header rule.
+- **`tests/test_validate_report.py`**: new `TestClassAllowlist` class with 12 cases (HTML-side recognition + CSS parser boundaries). Suite grows from 123 to 135 tests.
+
+Per `CLAUDE.md` §"Translated READMEs" Exemptions, the 7-language README family is not synced in this release.
+
 ## v0.11.0 — 2026-04-20
 
 This release bundles two internal milestone families that accumulated on `main` since v0.10.0. CLAUDE.md's "v0.8 AI/ML coverage and orphan investigation" and "v0.9 coverage expansion" sections map to this single CHANGELOG entry — the internal narrative labels lag the released numbering by historical drift, kept for readability in the contributor doc.

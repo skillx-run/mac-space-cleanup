@@ -206,6 +206,51 @@ All 8 README files now match line count (191 lines each) and section ordering. S
 - **Honesty-contract content preservation.** The `freed_now_bytes` / `pending_in_trash_bytes` / `archived_source_bytes` / `reclaimed_bytes` field semantics still need a documented home — they are kept in SKILL.md's `cleanup-result.json` schema section and surface to users via the report's nextstep / observations sections at runtime. Removing them from the README does not orphan them.
 - **CHANGELOG.md not updated in this docs-only PR.** The `## Unreleased` line in CHANGELOG.md remains empty. A future release-cut commit can land a v0.13 CHANGELOG entry alongside any accompanying behaviour changes; documentation rewrites alone have not historically warranted release notes in this repo.
 
+## v0.14 report visualization contract alignment
+
+v0.14 is a cross-file contract-alignment release: three coordinated edits (CSS, SKILL.md, validate_report.py) plus a test suite extension, all landing in a single PR because the three pieces enforce each other. No changes to the risk model, redaction rules, blocklist, scope, safety-policy, category rules, or any of the other `scripts/*.py` / `references/*.md` surfaces. The 8-locale README family also stays put — this is a pure internal-behaviour change.
+
+### The problem v0.14 solves
+
+Agent-rendered reports had been drifting out of sync with `assets/report.css` for several versions. Visible symptom: the runmeta risk-meter was an 8 px sliver into which `SKILL.md:503` asked the agent to stuff `<span class="glyph">●</span>` plus a byte-count string, so the glyph and text overlapped themselves and each other. Invisible symptom: the agent invented class names that had no CSS rule — `.legend-chip`, `.glyph`, `.seg-text`, `.legend-item`, `.legend-dot`, `.legend-val`, `.stack-seg`, `.dist-inline-bar`, `.badge.*`, `.observations-col`, `.observations-row`, `.count`, `.pending-size`, `.group-title`, `.m-label`, `.m-val`, `.actions-head` — so the release-source legend, category cards, and action badges rendered as naked inline text.
+
+Root cause: two-way drift. `SKILL.md` prescribed DOM the CSS didn't support (glyph + text in 8 px), and left other regions vague enough that the agent chose plausible-sounding but undefined class names. No mechanical check caught either side. v0.14 is the one-pass reconciliation.
+
+### Three changes, one PR
+
+1. **CSS (`assets/report.css`)** — thicken `.risk-meter` from 8 px to 32 px and flip `.risk-meter span { height: 100%; }` to `.risk-meter > span { height: 100%; }` so the inner `.glyph` / `.seg-text` stop inheriting full height and clashing with the flex `align-items: center`. Turn `.dist-card--detailed` into a two-row card (`.dist-header` with title + metrics on top, `.dist-inline-bar` underneath; the existing `<= 600px` media query is retargeted at `.dist-header` since the outer card is now column by default). Add `.legend-chip` container rule, `.stack-legend .swatch.seg-1..5` hue rules so legend dots match the bar, and `font-variant-numeric: tabular-nums` on `.pending-size` / `.count` / `.metric-value` so numeric columns line up.
+2. **SKILL.md Stage 6 Step 4** — open with a "class vocabulary is closed" clause that points at the new lint, then replace the loose prose for five regions (impact, distribution, actions, observations, runmeta) with concrete HTML snippets. The DOM the agent must emit is now pinned to the class-token level. A few rule changes are substantive, not just formatting:
+   - The stack-bar must use `.seg-1..5` (CSS palette), not inline `background` colours.
+   - Distribution metric labels (pre-clean / freed / remaining) are **per-run prose in `$LOCALE`**, written inline, never routed through the i18n dict. The original design had three new `dist.metric.*` keys; pulling them out sidestepped the "empty distribution region leaves stray dict keys" trap flagged during planning.
+   - Actions rows use `.act.{auto,trash,archive,migrate,defer,skip,failed}`, not `.badge.*`. No column-header row — the `<summary>` already names the group, and a header row would need a `.actions-head` class outside the allowlist.
+   - Observations list is `<ul class="observations-list"><li>`, not `.observations-row` divs.
+   - Risk-meter segments carry glyph + `.seg-text` inside; when a level's percentage `< 5`, the agent omits `.seg-text` but keeps `.glyph` (hover `title` still carries the full bytes); when bytes `== 0`, the segment is dropped entirely but all four legend chips stay. `title` is a bare byte count — no `"L1: "` prefix, since it has no i18n key and would read oddly in non-English runs.
+3. **`scripts/validate_report.py`** — new `_check_class_allowlist` step (step 5 of `validate()`, between i18n integrity and dry-run marking). Parses `assets/report.css` after stripping block comments and quoted string literals (so `/* .legacy */` and `[style*=".foo"]` don't leak into the allowed set), then diffs against every class token found in a `class="..."` attribute. CSS read failure becomes one `css_load_failed` violation; every offending class becomes one `undefined_class` violation, sorted alphabetically for stable output. The `_CLASS_WHITELIST` constant carries the six `<section>` region anchor classes (`nextstep` / `impact` / `distribution` / `actions` / `observations` / `runmeta`), which ride on the tag-level `section` rule rather than a dedicated class rule.
+
+Tests grow from 123 to 135 cases; the new 12 are split evenly between HTML-side recognition (known vs unknown tokens, whitespace handling, missing CSS) and CSS-parser robustness (comments, quoted literals, grouped / multi-line / `@media`-nested selectors, simultaneous lint + i18n failures).
+
+### Design orientation: CSS as single source of truth
+
+The alternative — widen CSS to accept the classes the agent improvised — was explicitly rejected. The design system lives in CSS and should not chase agent output. Narrowing agent freedom (via `SKILL.md` pins + allowlist lint) is the cheap half of the fix; a permissive CSS would silently accept every future drift.
+
+### Removed
+
+`actions.col.cat / size / act / reason` deleted from `assets/i18n/strings.json` — the four keys are orphaned once the actions column-header row is forbidden. Non-English runs would otherwise translate them into the inline dict, where `_check_i18n_dict`'s "dict key ⊂ template data-i18n" rule would flag them as stray.
+
+### Allowlist limitation worth noting
+
+Because the CSS parser extracts `.className` tokens context-free, a compound selector like `.act.auto` contributes both `act` and `auto` to the allowed set, and the lint can't enforce that `auto` only appear alongside `act`. Modifier-only tokens (`auto` / `trash` / `archive` / `migrate` / `defer` / `skip` / `failed` / `l1..l4` / `seg-1..5` / `seg-l1..4` / `freed`) pass the lint when used anywhere. Semantic correctness ("a `.l1` should sit on a `.swatch` or `.legend-chip`") is carried by naming discipline and code review, not by mechanical check. This is a known, acceptable loosening: the lint's job is to block invented class names, not to police composition rules.
+
+### README translation: not this round
+
+Per `CLAUDE.md` §"Translated READMEs" Exemptions, pure internal-behaviour changes don't trigger the 7-way translation sync. v0.14 touches only `SKILL.md` / `assets/report.css` / `scripts/validate_report.py` / `assets/i18n/strings.json` / `tests/`, none of which is documented in README. The next substantive README edit picks up any naturally accumulated drift.
+
+### Back-compat
+
+- `cleanup-result.json` schema unchanged; `actions.jsonl` format unchanged; `history.json` format unchanged.
+- Running the new validator against an old run (e.g. `~/.cache/mac-space-cleanup/run-<old>/report.html`) will flag that old report with `undefined_class` for the invented classes — this is the expected reverse-validation behaviour. Old runs are read-only history; no migration is attempted.
+- Existing CLI surface (`validate_report.py --report X`, `--dry-run`) unchanged.
+
 ## Known non-goals (v0.1)
 
 See `plan` history and `SKILL.md`. Summary: no undo stack, no cron, no cloud sync, no SIP-region touches, no application uninstall. Recovery paths are the native trash / archive tars / migrate target volumes.
