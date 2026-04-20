@@ -19,10 +19,10 @@
 skillx run --skip-scan --auto https://github.com/skillx-run/mac-space-cleanup "清理一下我的 Mac。"
 ```
 
-想先預演一下？在觸發語裡加上 `預演`。skill 會走完七個階段，但 `safe_delete.py` 不會寫入檔案系統（只寫執行目錄的 `actions.jsonl`）。
+想先預演一下？在觸發語裡加上 `--dry-run`。skill 會走完七個階段，但 `safe_delete.py` 不會寫入檔案系統（只寫執行目錄的 `actions.jsonl`）。
 
 ```bash
-skillx run --skip-scan --auto https://github.com/skillx-run/mac-space-cleanup "幫我深度清理我的 Mac，用預演模式先看看，不要真的刪除任何檔案。"
+skillx run --skip-scan --auto https://github.com/skillx-run/mac-space-cleanup "幫我深度清理我的 Mac，加上 --dry-run 先預覽一下，不要真的刪除任何檔案。"
 ```
 
 由 [skillx](https://skillx.run) 驅動 —— 一條指令完成拉取、掃描、注入與清理任何 agent skill。
@@ -97,9 +97,9 @@ brew install trash
 | "deep clean"、"深度清理"、"找大頭"、"分析空間" | `deep` 模式（完整稽核，高風險項逐項確認，約 2–5 分鐘） |
 | "clean my Mac"、"Mac 空間滿了"（語意模糊） | Skill 會反問你選哪種模式，並給出耗時估計 |
 
-想預演一遍但不真的改檔案，在你的觸發語裡加上 `預演` 關鍵字：
+想預演一遍但不真的改檔案，在你的觸發語裡加上 `--dry-run`：
 
-> "幫我深度清理我的 Mac，用預演模式先看看，不要真的刪除任何檔案。"
+> "幫我深度清理我的 Mac，加上 --dry-run 先預覽一下，不要真的刪除任何檔案。"
 
 報告頂部會明顯標出 `DRY-RUN — no files touched`（會翻譯為你觸發語言的對應文案），並在每個數字前加上目標語言的「預計」前綴。
 

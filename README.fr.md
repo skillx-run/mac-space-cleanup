@@ -19,10 +19,10 @@ Exécutez ce skill sans rien installer :
 skillx run --skip-scan --auto https://github.com/skillx-run/mac-space-cleanup "Libère de l'espace sur mon Mac."
 ```
 
-Envie d'une prévisualisation ? Ajoutez `essai à blanc` à votre message. Le skill parcourt les sept étapes mais `safe_delete.py` n'écrit rien dans le système de fichiers (uniquement le `actions.jsonl` du workdir).
+Envie d'une prévisualisation ? Ajoutez `--dry-run` à votre message. Le skill parcourt les sept étapes mais `safe_delete.py` n'écrit rien dans le système de fichiers (uniquement le `actions.jsonl` du workdir).
 
 ```bash
-skillx run --skip-scan --auto https://github.com/skillx-run/mac-space-cleanup "Libère de l'espace sur mon Mac, mais en essai à blanc, sans rien supprimer pour de vrai."
+skillx run --skip-scan --auto https://github.com/skillx-run/mac-space-cleanup "Libère de l'espace sur mon Mac avec --dry-run, juste un aperçu, sans rien supprimer pour de vrai."
 ```
 
 Propulsé par [skillx](https://skillx.run) — récupère, scanne, injecte et nettoie n'importe quel agent skill en une seule commande.
@@ -97,9 +97,9 @@ Dans votre conversation avec l'agent, dites quelque chose comme :
 | « nettoyage profond », « analyse l'espace », « trouve les gros morceaux » | mode `deep` (audit complet, demande élément par élément pour le risqué, ~2–5 min) |
 | « nettoie mon Mac », « mon Mac est plein » (ambigu) | Le skill vous demande de choisir, avec des estimations de temps |
 
-Pour prévisualiser sans toucher au système de fichiers, ajoutez le mot-clé `essai à blanc` à votre message :
+Pour prévisualiser sans toucher au système de fichiers, ajoutez `--dry-run` à votre message :
 
-> « Libère de l'espace sur mon Mac, mais en essai à blanc, sans rien supprimer pour de vrai. »
+> « Libère de l'espace sur mon Mac avec --dry-run, juste un aperçu, sans rien supprimer pour de vrai. »
 
 Le rapport affichera visiblement `DRY-RUN — no files touched` en haut (traduit dans la langue de déclenchement) et préfixera chaque nombre avec l'équivalent de « seraient libérés » dans la langue cible.
 
