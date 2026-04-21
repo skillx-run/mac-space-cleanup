@@ -2,6 +2,14 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja.md) · [Español](README.es.md) · **Français** · [العربية](README.ar.md) · [Deutsch](README.de.md)
 
+[![CI](https://github.com/skillx-run/mac-space-cleanup/actions/workflows/ci.yml/badge.svg)](https://github.com/skillx-run/mac-space-cleanup/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/skillx-run/mac-space-cleanup)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/skillx-run/mac-space-cleanup?sort=semver)](https://github.com/skillx-run/mac-space-cleanup/releases)
+[![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey?logo=apple)](https://www.apple.com/macos/)
+[![Python 3](https://img.shields.io/badge/python-3-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![pip deps: 0](https://img.shields.io/badge/pip%20deps-0-brightgreen)](#)
+[![i18n: 8 locales](https://img.shields.io/badge/i18n-8%20locales-blueviolet)](#)
+
 Un skill qui nettoie l'espace disque de votre Mac.
 
 > Workflow en six étapes : choix du mode, sondage de l'environnement, scan, classification, confirmation, rapport. Chaque candidat reçoit un classement L1-L4 ; toutes les écritures dans le système de fichiers passent par `safe_delete.py`, qui embarque une blocklist interne et se combine avec un sous-agent relecteur de confidentialité et un validateur post-rendu pour former trois couches de garde-fous. Les octets en attente de vidage dans la Trash sont comptés séparément et n'entrent pas dans le total « libéré ». Zéro dépendance pip — uniquement des commandes macOS et la bibliothèque standard de Python.

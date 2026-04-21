@@ -2,6 +2,14 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md) · **繁體中文** · [日本語](README.ja.md) · [Español](README.es.md) · [Français](README.fr.md) · [العربية](README.ar.md) · [Deutsch](README.de.md)
 
+[![CI](https://github.com/skillx-run/mac-space-cleanup/actions/workflows/ci.yml/badge.svg)](https://github.com/skillx-run/mac-space-cleanup/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/skillx-run/mac-space-cleanup)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/skillx-run/mac-space-cleanup?sort=semver)](https://github.com/skillx-run/mac-space-cleanup/releases)
+[![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey?logo=apple)](https://www.apple.com/macos/)
+[![Python 3](https://img.shields.io/badge/python-3-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![pip deps: 0](https://img.shields.io/badge/pip%20deps-0-brightgreen)](#)
+[![i18n: 8 locales](https://img.shields.io/badge/i18n-8%20locales-blueviolet)](#)
+
 一個清理 Mac 磁碟空間的 skill。
 
 > 工作流程分六個階段：模式選擇、環境探測、掃描、分級、二次確認、報告。每個候選對象按 L1-L4 分級；所有檔案系統寫入動作統一經由 `safe_delete.py`，該指令稿內建 blocklist，並與隱私 reviewer 子 agent、渲染後驗證器共同構成三層護欄。Trash 中待清空的位元組單獨計數，不計入「已釋放」數值。零 pip 相依，僅使用 macOS 內建指令與 Python 標準函式庫。
