@@ -12,7 +12,7 @@ All notable changes to mac-space-cleanup. Newest first.
 - **`assets/i18n/strings.json`**: remove `actions.col.{cat,size,act,reason}` — orphaned by the no-column-header rule.
 - **`tests/test_validate_report.py`**: new `TestClassAllowlist` class with 12 cases (HTML-side recognition + CSS parser boundaries). Suite grows from 123 to 135 tests.
 
-Per `CLAUDE.md` §"Translated READMEs" Exemptions, the 7-language README family is not synced in this release.
+The 7-language README family is not synced — v0.14 does not touch `README.md`, so `§"Translated READMEs"`'s mirroring obligation (triggered only by substantive README edits) doesn't enter play.
 
 ## v0.11.0 — 2026-04-20
 
