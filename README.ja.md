@@ -2,6 +2,14 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · **日本語** · [Español](README.es.md) · [Français](README.fr.md) · [العربية](README.ar.md) · [Deutsch](README.de.md)
 
+[![CI](https://github.com/skillx-run/mac-space-cleanup/actions/workflows/ci.yml/badge.svg)](https://github.com/skillx-run/mac-space-cleanup/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/skillx-run/mac-space-cleanup)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/skillx-run/mac-space-cleanup?sort=semver)](https://github.com/skillx-run/mac-space-cleanup/releases)
+[![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey?logo=apple)](https://www.apple.com/macos/)
+[![Python 3](https://img.shields.io/badge/python-3-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![pip deps: 0](https://img.shields.io/badge/pip%20deps-0-brightgreen)](#)
+[![i18n: 8 locales](https://img.shields.io/badge/i18n-8%20locales-blueviolet)](#)
+
 Mac のディスク容量をクリーンアップする skill。
 
 > 6 段階のワークフロー: モード選択、環境プローブ、スキャン、分類、確認、レポート。各候補は L1-L4 でグレーディングされ、すべてのファイルシステム書き込みは `safe_delete.py` を経由します。同スクリプトは内部 blocklist を持ち、プライバシー redaction のサブ agent とレンダリング後のバリデータと組み合わさって 3 層のガードレールを構成します。Trash 内で空にされるのを待つバイトは別カウントとなり、「解放済み」の合計には含まれません。pip 依存ゼロ — 純粋な macOS コマンドと Python 標準ライブラリのみ。
