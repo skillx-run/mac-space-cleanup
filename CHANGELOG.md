@@ -4,6 +4,8 @@ All notable changes to mac-space-cleanup. Newest first.
 
 ## Unreleased
 
+## v0.14.0 — 2026-04-21
+
 ### Changed — v0.14 report visualization contract alignment
 
 - **`assets/report.css`**: thicken `.risk-meter` from 8 px to 32 px; fix `.risk-meter span` → `> span` so inner `.glyph` / `.seg-text` don't inherit full height; refactor `.dist-card--detailed` into a two-row `.dist-header` + `.dist-inline-bar` layout (with media query retarget); add `.legend-chip` / `.stack-legend .swatch.seg-1..5` / `.cta-card .pending-size` / `.group-meta .count` / tabular-nums on metric values.
